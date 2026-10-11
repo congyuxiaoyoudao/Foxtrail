@@ -17,6 +17,8 @@ namespace Hiking.Journey
         [System.NonSerialized] public Mesh[] generatedMeshes;
         public float RouteLength { get; set; }
         public int SimulationStep { get; private set; }
+        // 读档：步数决定下一次天气检查与植物成熟计时的相位，必须原样恢复。
+        public void RestoreSimulationStep(int step) => SimulationStep = Mathf.Max(0, step);
         public RainWeatherSystem Weather { get; } = new RainWeatherSystem();
         public float Bend { get; private set; }
         public int AssembledPatchCount { get; private set; }
@@ -438,6 +440,22 @@ namespace Hiking.Journey
         public bool LastCheckSucceeded { get; private set; }
         public bool IsRaining => RemainingSeconds > 0;
         public bool RainAppliedThisStep { get; private set; }
+
+        // 读档：进行中的这场雨要原样恢复（覆盖范围、剩余雨量、剩余时间、事件 id），
+        // 读档后不能重新抽取这场雨，也不能重新发放完整降水。
+        public void Restore(WeatherData data)
+        {
+            if (data == null) return;
+            RainStartTile = data.rainStartTile;
+            RemainingSeconds = Mathf.Max(0, data.remainingSeconds);
+            RemainingRain = Mathf.Max(0, data.remainingRain);
+            EventRain = Mathf.Max(0, data.eventRain);
+            EventId = data.eventId;
+            LastCheckStep = data.lastCheckStep;
+            LastCheckVapor = Mathf.Max(0, data.lastCheckVapor);
+            LastCheckSucceeded = data.lastCheckSucceeded;
+            RainAppliedThisStep = data.rainAppliedThisStep;
+        }
 
         public void Advance(TileState[] tiles, RingMapSettings settings, int currentStep,
             System.Func<int, int, float, float> collectRain = null)

@@ -13,6 +13,22 @@ namespace Hiking.Journey
         public int tileCount;
         public static bool IsTransitionTile(int tile) => tile % 4 == 3;
         public TileState[] Tiles { get; private set; }
+        // 读档：整批换成存档里的地块。Tiles 是只读属性，只能在类内部赋值。
+        public void RestoreTiles(TileState[] tiles) => Tiles = tiles;
+        // 读档前必须清掉植物标记：plantMarkers 以植物对象为键，而读档会整批换成新对象，
+        // 旧键不会被 SyncPlantMarkers 判成死亡，结果屏幕上会留下"幽灵植物"。
+        // 水草标记是复用加开关的（SyncWaterGrassMarkers），不用清。
+        public void ClearPlantMarkers(JourneyMap map)
+        {
+            foreach (var pair in plantMarkers)
+            {
+                if (pair.Value == null) continue;
+                if (map != null) map.UnregisterRouteObject(pair.Value.transform);
+                if (Application.isPlaying) Destroy(pair.Value.gameObject);
+                else DestroyImmediate(pair.Value.gameObject);
+            }
+            plantMarkers.Clear();
+        }
         TextMesh[] moistureLabels;
         readonly Dictionary<PlantInstance, SpriteRenderer> plantMarkers = new Dictionary<PlantInstance, SpriteRenderer>();
         Mesh[] patchMeshes;
