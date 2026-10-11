@@ -74,3 +74,36 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 保留场景、配置及脚本的 GUID 和现有按钮绑定；不要用早期资源或旧方案覆盖用户的新修改。
 - 主 Unity 编辑器可能正在运行。编译与 PlayMode 验证使用 `.utmp/JourneyValidation` 隔离项目，不打断主编辑器；不要恢复用户已删除的旧测试目录。
 - 隔离 PlayMode 验证源为 `.utmp/JourneyValidation/Assets/RouteValidation/RouteTests.cs`，结果 `Logs/early-camera-tests.xml`（9 项通过，含倒数第 1／2／3 块启动镜头及抵站恰好平移 12 块）。覆盖 12 块排布与颜色、固定整站镜头、连续行走和独立站间时长、两层投放决策、数量与库存边界、18 个投放点及六站自动完成、全景暂停恢复、重开清理，以及开始界面模式切换和实际时长。截图为 `Logs/automatic-station.png`、`Logs/automatic-placement-choice.png`、`Logs/automatic-quantity.png`。
+
+## 本分支开发任务（gwynaire/ui2 · 旅途保存与加载）
+
+- 分支 `gwynaire/ui2`，基线 `2e7de53`。开发场景 `Assets/Scenes/gwynaire-DevScene.unity`（由 GameScene 复制）；**存档相关改动全部在脚本与这个副本里，GameScene 未改动**。
+
+### 已完成
+
+- **数据结构**：`SaveData`（含 `SaveSystem` 读写）只存原始状态；派生值（最大含水量、土壤湿度、蒸发率、水深、植物数量）一律不存，避免读档后两套真相。JsonUtility 不支持字典与集合，背包、投放记录、已领取格一律用数组；枚举存 `int`，以后加值不影响老档。
+- **读写与容错**：先写临时文件、读回校验、再替换正式档，旧档转 `.bak`；读档遇到坏档或版本不符自动回退备份。带 `schemaVersion`。
+- **捕获与恢复**：`SaveCapture` 只读抓取（实测 6 站 72 格全覆盖）；`SaveRestore` 覆盖数据并刷新表现；`TileState` / `Station` / `JourneyMap`（含 `RainWeatherSystem`）/ `JourneySession` / `TravelerController` 各加一个恢复入口——只加方法，不改现有逻辑。
+- **流程编排**：`GameFlowController.RestoreFrom` = 建地图 → 覆盖数据 → 离线推进 → 按「退出前状态／读档后行为」对照表恢复交互（行走中接着走、投放格继续等待、只选材料未确认则取消、站间移动重起换站）；`AdvanceOffline` 调用与在线完全相同的 `StepEnvironment(CollectRainAtCurrentTile)`，狐狸不动、不结算采集、仍可接雨。
+- **自动保存**：定期（`autosaveIntervalSec`）、进入格子并完成采集后、投放确认后、关窗口时（`OnApplicationQuit` / `OnApplicationPause`）。
+- **界面**：开始界面 `ContinueButton`（仅在存在存档时显示，接 `GameUIController.continueButton`）；旅途界面右上角 `SaveQuitButton`（接 `saveQuitButton`，先保存再回到开始菜单，不退进程）。两按钮均复制现有按钮制作，复制带来的持久化 onClick 已清除，改在 `Initialize` 里用代码注册。
+
+### 验证方式与结论
+
+- 往返测试：推进 45 步（含进行中的降雨）→ 存档 → 再推进 30 步改变状态 → 恢复 → 重新抓取，**两份数据逐字节一致**；站点主题序列一致。
+- 读档集成测试：伪造离线 2 小时后读档，模拟步恰好按预算截断（20 → 3620），狐狸进度未变、已领取格数未变——对应对照表中的「不走路、不重复结算」。
+- 离线接雨：人工构造覆盖狐狸所在格的降雨后伪造离线，**每场雨 2 单位上限生效、同一场雨不重复给、离线确实接到水**（2.000 → 2.083）。注意：背包满 20 时本该不接，第一次测返回 0 是正确行为，不是 bug。
+
+### 待办与未决
+
+- **待策划确认**：`offlineAdvanceCapHours`（默认 8）与 `offlineStepBudget`（默认 3600 步）。两者是「谁小谁生效」，当前实际上限是 3600 步 = 1 小时，8 小时那个设置形同虚设。实测 3600 步约 1 秒，要让 8 小时真正生效需 28800 步、读档会卡约 8 秒。
+- **建议做的改进**：离线推进改为分帧进行并显示进度提示，否则离线时间长时读档画面会假死。
+- **结算态恢复**：策划要求区分「已到终点／正在结算／结算完成」，但上游结算功能尚未实现，暂无可恢复的状态。
+- **作品冻结与回看**：归属未定，未开工。
+- **合并回 GameScene 时**：需要在开始界面与旅途界面各加一个按钮，并接到 `GameUIController.continueButton` / `saveQuitButton`。
+
+### 维护备忘
+
+- **`Packages/manifest.json` 里的 `com.coplaydev.unity-mcp` 是有意不提交的**（本机装了 Unity MCP 编辑器插件，便于 AI 直接读场景与报错）。它一旦进主干，拉代码的人都得能访问 GitHub 才能解析依赖，所以只留在本地未提交状态。切分支后若丢失，把这一行加回 `dependencies` 第一行即可：`"com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main"`。
+- `ProjectSettings/EditorBuildSettings.asset` 与 `ShaderGraphSettings.asset` 长期显示被修改，实际只是行尾符差异，内容未变，不必提交。
+- 存档路径为 `Application.persistentDataPath/journey_save.json`；当前项目公司名仍是 `DefaultCompany`，打包前应改。
