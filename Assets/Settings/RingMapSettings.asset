@@ -23,16 +23,20 @@ MonoBehaviour:
   plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
   fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
   fallbackBackgroundPlantSprite: {fileID: 21300000, guid: 72bfa1a9e7b54e429d3805e6518d63f0, type: 3}
-  foregroundPlantY: 0.13
-  backgroundPlantOffset: 0.96
+  foxPositionOffset: {x: 0, y: -0.5}
+  foregroundPlantY: -1.04
+  backgroundPlantOffset: 0
+  foregroundPlantPositionOffset: {x: 0, y: 0.12}
+  backgroundPlantPositionOffset: {x: 0, y: -0.57}
   backgroundPlantHeight: 2
+  sceneThemes: {fileID: 11400000, guid: 58d3c068c46f44f2bfefeb66734e965c, type: 2}
   snowLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
   grassLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}
   desertLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
   landscapeMaterial: {fileID: 2100000, guid: d1fc56a5c2ba3994bb0cfa7554ff7811, type: 2}
   landscapeBaseHeight: -1.93
   landscapeDepth: 1.6
-  landscapeHeightScale: 1.4
+  landscapeHeightScale: 1
   soilContentRange: {x: 1, y: 100}
   plantCountRange: {x: 0, y: 5}
   soilHumidityRange: {x: 0, y: 1}

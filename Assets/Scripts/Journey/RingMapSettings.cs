@@ -25,13 +25,22 @@ namespace Hiking.Journey
         public Sprite fallbackPlantSprite;
         [Tooltip("背景植物未配置 Sprite 时使用的树形占位图，按阶段占位色着色")]
         public Sprite fallbackBackgroundPlantSprite;
-        [Header("植物前后景位置（新地图生效）")]
+        [Header("狐狸相对地块位置（运行时生效）")]
+        [Tooltip("在主题近景共享位移之外，单独调整狐狸的 X/Y 位置；不移动地块或植物")]
+        [InspectorName("狐狸相对地块位移 X/Y")] public Vector2 foxPositionOffset;
+        [Header("植物前后景位置（运行时生效）")]
         [Tooltip("前景植物相对道路顶面的 Y 轴高度；背景植物以此为基线")]
         [InspectorName("前景基线高度（Y）")] public float foregroundPlantY = .13f;
         [Tooltip("背景植物相对前景基线沿 Y 轴向上移动的距离")]
         [InspectorName("背景上移量"), Min(0)] public float backgroundPlantOffset = .96f;
+        [Tooltip("前景植物在基线之外的独立 X/Y 位移；与近景共享位移叠加")]
+        [InspectorName("前景植物附加位移 X/Y")] public Vector2 foregroundPlantPositionOffset;
+        [Tooltip("背景植物在基线之外的独立 X/Y 位移")]
+        [InspectorName("背景植物附加位移 X/Y")] public Vector2 backgroundPlantPositionOffset;
         [InspectorName("背景植物占位高度"), Min(.1f)] public float backgroundPlantHeight = 2f;
-        [Header("主题远景（每站一张，新地图生效）")]
+        [Header("场景主题图层（新地图生效）")]
+        public SceneThemeCatalog sceneThemes;
+        [Header("旧版单图远景（缺少主题图层时备用）")]
         public Sprite snowLandscape;
         public Sprite grassLandscape;
         public Sprite desertLandscape;
@@ -42,7 +51,7 @@ namespace Hiking.Journey
         [Tooltip("远景离道路的纵深距离；数值越大越远")]
         public float landscapeDepth = 1.6f;
         [Tooltip("保持远景宽度不变，向上延展画幅以填满天空")]
-        [Min(.1f)] public float landscapeHeightScale = 1.4f;
+        [Min(.1f)] public float landscapeHeightScale = 1f;
         public Sprite LandscapeFor(StationTheme theme) => theme == StationTheme.Snow ? snowLandscape :
             theme == StationTheme.Grass ? grassLandscape : desertLandscape;
         [Header("地块随机初值（湿度以 0～1 填写，新地图生效）")]

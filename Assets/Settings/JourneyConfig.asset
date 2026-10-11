@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcf19aa6164ad164186aa4456d6c163c, type: 3}
   m_Name: JourneyConfig
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.JourneyConfig
-  journeyVerticalOffset: 0.12
+  journeyVerticalOffset: 0.023
   tileMoveSeconds: 3
   tileRestSeconds: 5
   fastTileMoveSeconds: 0.5

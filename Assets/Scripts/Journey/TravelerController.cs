@@ -6,6 +6,10 @@ namespace Hiking.Journey
     public class TravelerController : MonoBehaviour
     {
         public Transform visual;
+        [Header("Fox walk animation")]
+        public SpriteRenderer spriteRenderer;
+        public Sprite[] walkFrames;
+        [Min(1f)] public float walkFramesPerSecond = 18f;
         public bool IsMoving { get; private set; }
         public float Progress01 { get; private set; }
         public bool Paused { get; set; }
@@ -14,6 +18,25 @@ namespace Hiking.Journey
         Coroutine movement;
         JourneyMap map;
         float? transitionInset;
+        float animationSeconds;
+        void Update()
+        {
+            if (Paused || walkFrames == null || walkFrames.Length == 0) return;
+            if (!IsMoving)
+            {
+                animationSeconds = 0;
+                ShowFrame(0);
+                return;
+            }
+            animationSeconds += Time.unscaledDeltaTime;
+            ShowFrame(Mathf.FloorToInt(animationSeconds * Mathf.Max(1f, walkFramesPerSecond)) % walkFrames.Length);
+        }
+        void ShowFrame(int index)
+        {
+            if (spriteRenderer == null && visual != null)
+                spriteRenderer = visual.GetComponentInChildren<SpriteRenderer>();
+            if (spriteRenderer != null) spriteRenderer.sprite = walkFrames[index];
+        }
         public void SetTransitionInset(float? inset) => transitionInset = inset;
         public void PlaceOnRoute(JourneyMap route)
         {
@@ -26,6 +49,7 @@ namespace Hiking.Journey
         }
         public void FaceCamera(Camera camera)
         {
+            RefreshPosition();
             transform.rotation = camera.transform.rotation;
             if (visual == null) return;
             visual.localPosition = new Vector3(transitionInset ?? 0, 0, 0);
@@ -64,6 +88,8 @@ namespace Hiking.Journey
             if (movement != null) StopCoroutine(movement);
             movement = null; IsMoving = false;
             transitionInset = null;
+            animationSeconds = 0;
+            if (walkFrames != null && walkFrames.Length > 0) ShowFrame(0);
             if (visual != null) visual.localPosition = Vector3.zero;
         }
         void OnDisable() => CancelMovement();

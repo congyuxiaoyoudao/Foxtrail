@@ -185,7 +185,7 @@ namespace Hiking.Journey
             if (!IsPreviewing || Map == null) return;
             Camera.ResetCamera(); Map.ShowJourney(); Traveler.RefreshPosition();
             IsPreviewing = false; Traveler.Paused = false; lastTime = Time.realtimeSinceStartupAsDouble;
-            Camera.RestoreJourneyView(); Placement.RefreshHighlights();
+            Camera.RestoreJourneyView();
         }
         void OnDestroy() { if (Traveler != null) Traveler.CancelMovement(); }
     }

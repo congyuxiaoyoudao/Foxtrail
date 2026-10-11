@@ -16,6 +16,8 @@ namespace Hiking.Journey
         TextMesh[] moistureLabels;
         readonly Dictionary<PlantInstance, SpriteRenderer> plantMarkers = new Dictionary<PlantInstance, SpriteRenderer>();
         Mesh[] patchMeshes;
+        SpriteRenderer[] patchVisuals;
+        SpriteRenderer[] patchWaterOverlays;
         Color[] patchColors;
         SpriteRenderer[] waterGrassMarkers;
         RingMapSettings mapSettings;
@@ -26,6 +28,8 @@ namespace Hiking.Journey
             mapSettings = settings;
             Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
             patchMeshes = new Mesh[tileCount]; patchColors = new Color[tileCount];
+            patchVisuals = new SpriteRenderer[tileCount];
+            patchWaterOverlays = new SpriteRenderer[tileCount];
             waterGrassMarkers = new SpriteRenderer[tileCount];
             for (int i = 0; i < tileCount; i++) Tiles[i] = settings.CreateTile(theme);
         }
@@ -36,15 +40,27 @@ namespace Hiking.Journey
             patchMeshes[tile] = mesh; patchColors[tile] = baseColor; ownerMap = map;
             RefreshWaterVisual(tile);
         }
+        public void SetPatchVisual(int tile, SpriteRenderer visual, SpriteRenderer waterOverlay)
+        {
+            patchVisuals[tile] = visual;
+            patchWaterOverlays[tile] = waterOverlay;
+            RefreshWaterVisual(tile);
+        }
         void RefreshWaterVisual(int tile)
         {
             if (ownerMap == null || patchMeshes[tile] == null) return;
             float blend = Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
             ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(patchColors[tile], new Color(.18f, .58f, .92f), blend));
+            if (patchWaterOverlays[tile] != null)
+                patchWaterOverlays[tile].color = new Color(.18f, .58f, .92f, blend);
+            else if (patchVisuals[tile] != null)
+                patchVisuals[tile].color = Color.Lerp(Color.white, new Color(.38f, .72f, 1f), blend);
         }
         public void SetMoistureLabel(int tile, TextMesh label)
         {
-            moistureLabels[tile] = label; RefreshMoisture(tile);
+            moistureLabels[tile] = label;
+            label.gameObject.SetActive(debugLabels);
+            RefreshMoisture(tile);
         }
         public void AddWater(int tile, int quantity)
         {
@@ -71,6 +87,7 @@ namespace Hiking.Journey
                 var label = moistureLabels[i];
                 if (label != null)
                 {
+                    label.gameObject.SetActive(visible);
                     label.anchor = visible ? TextAnchor.UpperCenter : TextAnchor.MiddleCenter;
                     label.characterSize = (visible ? .016f : .028f) * Mathf.Min(1, TileWidth);
                     label.lineSpacing = 1.1f;
@@ -119,11 +136,8 @@ namespace Hiking.Journey
                         marker = obj.AddComponent<SpriteRenderer>();
                         marker.sortingOrder = definition.isForeground ? 20 : 0;
                         plantMarkers.Add(plant, marker);
-                        float y = mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY +
-                            (definition.isForeground ? 0f : Mathf.Max(0, mapSettings.backgroundPlantOffset));
-                        map.RegisterRouteObject(obj.transform,
-                            new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth, y,
-                                definition.isForeground ? 0f : .35f));
+                        map.RegisterRouteObject(obj.transform, Vector3.zero);
+                        if (definition.isForeground) map.MarkNearRouteObject(obj.transform);
                     }
                     var stage = definition.stages[Mathf.Clamp(plant.stageIndex, 0, definition.StageCount - 1)];
                     var sprite = stage.sprite != null ? stage.sprite :
@@ -132,11 +146,59 @@ namespace Hiking.Journey
                     if (sprite == null) continue;
                     marker.sprite = sprite;
                     marker.color = stage.sprite == null ? stage.fallbackColor : Color.white;
-                    float size = definition.isForeground ? Mathf.Min(TileWidth * .16f, .16f) :
-                        Mathf.Max(.1f, mapSettings.backgroundPlantHeight);
-                    marker.transform.localScale = Vector3.one * (size /
-                        Mathf.Max(.001f, Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y)));
+                    float height = stage.sprite == null ?
+                        (definition.isForeground ? Mathf.Min(TileWidth * .16f, .16f) :
+                            Mathf.Max(.1f, mapSettings.backgroundPlantHeight)) :
+                        Mathf.Max(.05f, definition.visualHeight) *
+                            (Mathf.Clamp(plant.stageIndex, 0, definition.StageCount - 1) + 1f) /
+                            definition.StageCount;
+                    marker.transform.localScale = Vector3.one *
+                        (height / Mathf.Max(.001f, sprite.bounds.size.y));
+                    UpdatePlantPosition(map, tile, plant, definition, marker, height);
                 }
+        }
+        void UpdatePlantPosition(JourneyMap map, int tile, PlantInstance plant,
+            PlantDefinition definition, SpriteRenderer marker, float height)
+        {
+            Vector2 offset = definition.isForeground ? mapSettings.foregroundPlantPositionOffset :
+                mapSettings.backgroundPlantPositionOffset;
+            float baseline = mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY +
+                (definition.isForeground ? 0f : Mathf.Max(0, mapSettings.backgroundPlantOffset));
+            map.UpdateRouteObject(marker.transform,
+                new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth + offset.x,
+                    baseline + height * .5f + offset.y, definition.isForeground ? -.18f : .35f));
+        }
+        void RefreshPlantPositions()
+        {
+            if (ownerMap == null || mapSettings == null || Tiles == null) return;
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                foreach (var plant in Tiles[tile].NaturalPlants)
+                {
+                    if (!plantMarkers.TryGetValue(plant, out var marker) || marker == null || marker.sprite == null)
+                        continue;
+                    var definition = mapSettings.plantCatalog?.Find(plant.plantId);
+                    if (definition == null) continue;
+                    float height = marker.sprite.bounds.size.y * marker.transform.localScale.y;
+                    UpdatePlantPosition(ownerMap, tile, plant, definition, marker, height);
+                }
+                if (waterGrassMarkers == null || waterGrassMarkers[tile] == null) continue;
+                Vector2 offset = mapSettings.foregroundPlantPositionOffset;
+                ownerMap.UpdateRouteObject(waterGrassMarkers[tile].transform,
+                    new Vector3(TileCenter(tile) + offset.x,
+                        mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY + offset.y, -.04f));
+            }
+        }
+        public void FramePlants(Camera camera)
+        {
+            if (camera == null || !camera.orthographic) return;
+            RefreshPlantPositions();
+            Quaternion facing = camera.transform.rotation;
+            foreach (var marker in plantMarkers.Values)
+                if (marker != null) marker.transform.rotation = facing;
+            if (waterGrassMarkers != null)
+                foreach (var marker in waterGrassMarkers)
+                    if (marker != null) marker.transform.rotation = facing;
         }
         void SyncWaterGrassMarkers(JourneyMap map)
         {
@@ -159,7 +221,11 @@ namespace Hiking.Journey
                     waterGrassMarkers[tile] = marker;
                     map.RegisterRouteObject(obj.transform, new Vector3(TileCenter(tile),
                         mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY, -.04f));
+                    map.MarkNearRouteObject(obj.transform);
                 }
+                Vector2 offset = mapSettings.foregroundPlantPositionOffset;
+                map.UpdateRouteObject(marker.transform, new Vector3(TileCenter(tile) + offset.x,
+                    mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY + offset.y, -.04f));
                 marker.enabled = marker.sprite != null;
                 if (marker.sprite == null) continue;
                 marker.color = stage == WaterGrassStage.Large ? new Color(.04f, .48f, .36f) :
@@ -189,7 +255,7 @@ namespace Hiking.Journey
                 $"地表水 {t.SurfaceWater:0.000} {SmallDelta(d.SurfaceWater)}\n" +
                 $"水汽 {t.PendingVapor:0.000} {SmallDelta(d.PendingVapor)} · 雨 +{t.RainfallThisStep:0.0000}\n" +
                 $"水草 {t.WaterGrass} ({t.WaterGrassAge}s) · 排水 {t.DrainageLoss:0.0} {Delta(d.DrainageLoss)}\n" +
-                $"温度 {t.Temperature:0.0000}°C ({d.Temperature:+0.0000;-0.0000;0.0000})" : $"地表水 {t.SurfaceWater:0.0}";
+                $"温度 {t.Temperature:0.0000}°C ({d.Temperature:+0.0000;-0.0000;0.0000})" : string.Empty;
         }
         static string PlantDetails(TileState tile) => tile.PlantCount == 0 ? "无" :
             string.Join(" ", Array.ConvertAll(tile.NaturalPlants, plant =>

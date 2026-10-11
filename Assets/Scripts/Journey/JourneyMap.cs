@@ -27,13 +27,15 @@ namespace Hiking.Journey
         readonly List<Mesh> ringMeshes = new List<Mesh>();
         readonly List<MeshRenderer> ringRenderers = new List<MeshRenderer>();
         readonly List<MeshRenderer> stripRenderers = new List<MeshRenderer>();
+        readonly List<bool> coveredRouteMeshes = new List<bool>();
         readonly List<bool> assembled = new List<bool>();
         readonly List<Mesh> routeMeshes = new List<Mesh>();
         readonly List<Vector3[]> routeVertices = new List<Vector3[]>();
         readonly List<Vector3[]> displayVertices = new List<Vector3[]>();
         readonly List<Transform> routeObjects = new List<Transform>();
         readonly List<Vector3> objectCoordinates = new List<Vector3>();
-        readonly List<MeshRenderer> landscapes = new List<MeshRenderer>();
+        readonly HashSet<Transform> nearRouteObjects = new HashSet<Transform>();
+        readonly List<Renderer> landscapes = new List<Renderer>();
         readonly List<Material> landscapeMaterials = new List<Material>();
         readonly List<Mesh> landscapeMeshes = new List<Mesh>();
         RainStreakVisual rainVisual;
@@ -48,7 +50,7 @@ namespace Hiking.Journey
             rain.SetActive(false);
         }
 
-        public void RegisterLandscape(MeshRenderer renderer, Material material, Mesh mesh)
+        public void RegisterLandscape(Renderer renderer, Material material = null, Mesh mesh = null)
         {
             landscapes.Add(renderer);
             landscapeMaterials.Add(material);
@@ -57,12 +59,16 @@ namespace Hiking.Journey
         public void FrameLandscapes(Camera camera)
         {
             bool visible = camera != null && camera.orthographic && !ShowingRing;
+            if (visible) RefreshNearRouteObjects();
             foreach (var landscape in landscapes)
             {
                 if (landscape == null) continue;
                 landscape.enabled = visible;
                 if (visible) landscape.transform.rotation = camera.transform.rotation;
             }
+            if (visible && stations != null)
+                foreach (var station in stations)
+                    if (station != null) station.FramePlants(camera);
             if (rainVisual != null) rainVisual.FaceCamera(camera, visible);
         }
 
@@ -78,6 +84,7 @@ namespace Hiking.Journey
             tint.SetColor("_Color", Color.white);
             stripRenderer.SetPropertyBlock(tint);
             stripRenderers.Add(stripRenderer);
+            coveredRouteMeshes.Add(false);
             var obj = new GameObject(original.name + "_ArchivedRing");
             obj.transform.SetParent(transform, false);
             var ring = Instantiate(mesh); ring.name = mesh.name + "_Ring";
@@ -96,6 +103,13 @@ namespace Hiking.Journey
             for (int i = 0; i < colors.Length; i++) colors[i] = color;
             mesh.colors = colors;
             ringMeshes[index].colors = colors;
+        }
+        public void SetRouteMeshCovered(Mesh mesh)
+        {
+            int index = routeMeshes.IndexOf(mesh);
+            if (index < 0) return;
+            coveredRouteMeshes[index] = true;
+            stripRenderers[index].enabled = false;
         }
         // Retire only patches that have fully left the local viewport. Their route IDs stay unchanged.
         public void ArchiveBefore(float distance)
@@ -119,15 +133,20 @@ namespace Hiking.Journey
             for (int i = 0; i < ringRenderers.Count; i++) { stripRenderers[i].enabled = false; ringRenderers[i].enabled = true; }
             for (int i = 0; i < routeObjects.Count; i++)
             {
-                routeObjects[i].position = transform.TransformPoint(RingPoint(objectCoordinates[i]));
-                routeObjects[i].rotation = transform.rotation * RouteGeometry.Rotation(objectCoordinates[i].x, RouteLength, 1);
+                Vector3 route = VisibleObjectRoute(i);
+                routeObjects[i].position = transform.TransformPoint(RingPoint(route));
+                routeObjects[i].rotation = transform.rotation * RouteGeometry.Rotation(route.x, RouteLength, 1);
             }
             panoramaBounds = new Bounds(transform.TransformPoint(new Vector3(0, 0, -radius) * PanoramaScale), new Vector3(2 * radius + 2, 4, 2 * radius + 2) * PanoramaScale);
         }
         public void ShowJourney()
         {
             ShowingRing = false;
-            for (int i = 0; i < ringRenderers.Count; i++) { ringRenderers[i].enabled = false; stripRenderers[i].enabled = true; }
+            for (int i = 0; i < ringRenderers.Count; i++)
+            {
+                ringRenderers[i].enabled = false;
+                stripRenderers[i].enabled = !coveredRouteMeshes[i];
+            }
             SetBend(0);
         }
         public void RegisterRouteObject(Transform target, Vector3 routeCoordinates)
@@ -135,13 +154,49 @@ namespace Hiking.Journey
             routeObjects.Add(target); objectCoordinates.Add(routeCoordinates);
             target.position = transform.TransformPoint(RouteGeometry.Point(routeCoordinates, RouteLength, Bend));
         }
+        public void MarkNearRouteObject(Transform target)
+        {
+            int index = routeObjects.IndexOf(target);
+            if (index < 0) return;
+            nearRouteObjects.Add(target);
+            UpdateRouteObject(target, objectCoordinates[index]);
+        }
+        void RefreshNearRouteObjects()
+        {
+            foreach (var target in nearRouteObjects)
+            {
+                int index = routeObjects.IndexOf(target);
+                if (index >= 0) UpdateRouteObject(target, objectCoordinates[index]);
+            }
+        }
+        Vector3 VisibleObjectRoute(int index)
+        {
+            Vector3 route = objectCoordinates[index];
+            if (nearRouteObjects.Contains(routeObjects[index]) && !ShowingRing)
+            {
+                Vector2 offset = NearOffsetAtDistance(route.x);
+                route.x += offset.x;
+                route.y += offset.y;
+            }
+            return route;
+        }
+        public Vector2 NearOffsetAtDistance(float distance)
+        {
+            if (stations == null || stations.Length == 0 || sourceSettings == null ||
+                sourceSettings.sceneThemes == null) return Vector2.zero;
+            int index = Mathf.Clamp(Mathf.FloorToInt(distance / Mathf.Max(.001f, ViewWidth)),
+                0, stations.Length - 1);
+            var layers = sourceSettings.sceneThemes.For(stations[index].theme);
+            return layers != null && layers.nearGround != null ? layers.nearOffset : Vector2.zero;
+        }
         public void UpdateRouteObject(Transform target, Vector3 routeCoordinates)
         {
             int index = routeObjects.IndexOf(target);
             if (index < 0) return;
             objectCoordinates[index] = routeCoordinates;
+            Vector3 visibleRoute = VisibleObjectRoute(index);
             target.position = transform.TransformPoint(ShowingRing ? RingPoint(routeCoordinates) :
-                RouteGeometry.Point(routeCoordinates, RouteLength, Bend));
+                RouteGeometry.Point(visibleRoute, RouteLength, Bend));
         }
         public void UnregisterRouteObject(Transform target)
         {
@@ -149,6 +204,7 @@ namespace Hiking.Journey
             if (index < 0) return;
             routeObjects.RemoveAt(index);
             objectCoordinates.RemoveAt(index);
+            nearRouteObjects.Remove(target);
         }
         // One step represents one simulated second in both the journey and debug map.
         public void StepEnvironment(System.Func<int, int, float, float> collectRain = null)
@@ -218,6 +274,13 @@ namespace Hiking.Journey
         public Vector3 ProgressPoint(float progress)
         {
             var route = new Vector3(RouteDistanceAtProgress(progress), sourceSettings.ringThickness * .5f + .5f, 0);
+            if (!ShowingRing)
+            {
+                Vector2 near = NearOffsetAtDistance(route.x);
+                Vector2 fox = sourceSettings.foxPositionOffset;
+                route.x += near.x + fox.x;
+                route.y += near.y + fox.y;
+            }
             return transform.TransformPoint(ShowingRing ? RingPoint(route) : RouteGeometry.Point(route, RouteLength, Bend));
         }
 
@@ -240,8 +303,9 @@ namespace Hiking.Journey
             for (int i = 0; i < routeObjects.Count; i++)
             {
                 if (routeObjects[i] == null) continue;
-                routeObjects[i].position = transform.TransformPoint(RouteGeometry.Point(objectCoordinates[i], RouteLength, Bend));
-                routeObjects[i].rotation = transform.rotation * RouteGeometry.Rotation(objectCoordinates[i].x, RouteLength, Bend);
+                Vector3 route = VisibleObjectRoute(i);
+                routeObjects[i].position = transform.TransformPoint(RouteGeometry.Point(route, RouteLength, Bend));
+                routeObjects[i].rotation = transform.rotation * RouteGeometry.Rotation(route.x, RouteLength, Bend);
             }
             bounds.Expand(new Vector3(1, 4, 1));
             panoramaBounds = new Bounds(transform.TransformPoint(bounds.center), bounds.size);
