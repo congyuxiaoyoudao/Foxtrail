@@ -97,12 +97,13 @@ namespace Hiking.Journey
                         station.slots[j].slotId = station.stationId + "/slot-" + j;
                         station.slots[j].CreateMarker(settings.pathMaterial, station.TileWidth * .75f);
                     }
-                    AddPatches(map, station.transform, i * section, section,
+                    AddPatches(map, station, i * section, section,
                         patches, settings, settings.ThemeColor(station.theme));
                     station.SyncPlantMarkers(map);
                 }
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",
                     new Vector3(map.RouteLength - map.TileWidth * .5f, settings.ringThickness * .5f + .5f, 0));
+                map.InitializeRainVisual();
                 map.SetBend(0);
                 if (!map.Validate(out string error)) throw new InvalidOperationException(error);
                 return map;
@@ -116,18 +117,20 @@ namespace Hiking.Journey
             map.RegisterRouteObject(point, route);
             return point;
         }
-        static void AddPatches(JourneyMap map, Transform parent, float start, float length,
+        static void AddPatches(JourneyMap map, Station station, float start, float length,
             int count, RingMapSettings settings, Color color)
         {
             for (int p = 0; p < count; p++)
             {
                 var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
-                obj.transform.SetParent(parent, false);
+                obj.transform.SetParent(station.transform, false);
+                var baseColor = Station.IsTransitionTile(p) ? settings.transitionTileColor : color;
                 var mesh = CreateStrip(start + p * length / count + length / count * .015f, length / count * .97f,
-                    settings.ringThickness, Station.IsTransitionTile(p) ? settings.transitionTileColor : color, obj.name);
+                    settings.ringThickness, baseColor, obj.name);
                 obj.AddComponent<MeshFilter>().sharedMesh = mesh;
                 obj.AddComponent<MeshRenderer>().sharedMaterial = settings.pathMaterial;
                 map.RegisterRouteMesh(mesh);
+                station.SetPatchMesh(p, mesh, baseColor, map);
             }
         }
         static Mesh CreateStrip(float start, float length, float thickness, Color color, string name)

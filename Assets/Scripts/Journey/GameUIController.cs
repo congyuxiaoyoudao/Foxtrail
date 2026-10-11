@@ -127,8 +127,16 @@ namespace Hiking.Journey
             if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
             if (flow.IsDebugMode)
             {
-                if (debugStatus != null) debugStatus.text = $"地块调试 · 第 {flow.DebugStepCount} 步 · 共 {flow.Map.stations.Length * RingMapSettings.TilesPerStation} 块\n" +
-                    "拖动 / 滚轮 / ← → 浏览全图 · 括号为上一步变化（湿度、泥土为百分点）";
+                if (debugStatus != null)
+                {
+                    var weather = flow.Map.Weather;
+                    int interval = Mathf.Max(1, flow.Map.sourceSettings.rainCheckInterval);
+                    string rain = weather.IsRaining || weather.RainAppliedThisStep ?
+                        $"降雨 {weather.RainStartTile + 1}～{weather.RainEndTile + 1} 格 · 剩余 {weather.RemainingSeconds} 秒 · 本场 {weather.EventRain:0.00}" :
+                        $"下次天气检查 {interval - flow.Map.SimulationStep % interval} 秒后";
+                    debugStatus.text = $"地块调试 · 第 {flow.DebugStepCount} 步 · 共 {flow.Map.stations.Length * RingMapSettings.TilesPerStation} 块\n" +
+                        rain + " · 拖动 / 滚轮 / ← → 浏览全图";
+                }
             }
             panoramaPanel.SetActive(flow.IsPreviewing || session.Phase == JourneyPhase.Panorama);
             if (panoramaTitle != null) panoramaTitle.text = flow.IsPreviewing ? "全景预览" : "旅途完成 · 全景观察";
@@ -136,7 +144,9 @@ namespace Hiking.Journey
             if (returnLabel != null) returnLabel.text = flow.IsPreviewing ? "返回旅途" : "返回开始";
             string activity = flow.Activity == JourneyActivity.AwaitingPlacement ? "等待投放选择" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
                 flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
-            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 第 {flow.CurrentTileIndex + 1} / 12 块 · {activity}";
+            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 第 {flow.CurrentTileIndex + 1} / 12 块 · {activity}" +
+                (flow.Map.Weather.IsRaining || flow.Map.Weather.RainAppliedThisStep ?
+                    $" · 降雨中（{flow.Map.Weather.RainStartTile + 1}～{flow.Map.Weather.RainEndTile + 1} 格）" : "");
             progress.rectTransform.anchorMax = new Vector2(flow.Traveler.Progress01, 1);
             UpdateMaterials(materialButtons, false);
             UpdateMaterials(placementMaterialButtons, PlacementPromptOpen);
@@ -151,8 +161,8 @@ namespace Hiking.Journey
                 bool hasSuitablePlant = flow.Map.sourceSettings.plantCatalog != null &&
                     flow.Map.sourceSettings.plantCatalog.SuitableFor(slot.station.theme).Length > 0;
                 string action = selected == null ? "请选择材料" : flow.Session.Stock(selected.id) == 0 ? "库存不足，可返回选择不投放" :
-                    selected.id == "water" ? tile.SurfaceWater >= 30 ? "地表水已满" :
-                        $"投水 {quantity} 份：增加地表水，上限 30" :
+                    selected.id == "water" ? tile.SurfaceWater >= TileState.SurfaceCapacity ? "地表水已满" :
+                        $"投水 {quantity} 份：增加地表水，上限 35" :
                     !hasSuitablePlant ? "当前主题没有适宜生长的植物" :
                     quantity > tile.FreePlantCapacity ? $"地块最多还能接收 {tile.FreePlantCapacity} 颗种子" :
                     $"投种 {quantity} 份：待萌发种子最多存活 30 秒";
@@ -174,7 +184,8 @@ namespace Hiking.Journey
                 view.button.interactable = available && material != null && stock > 0;
                 if (material == null) { view.label.text = "未配置材料"; continue; }
                 bool selected = available && flow.Placement.SelectedMaterialId == material.id;
-                view.label.text = (selected ? "✓ " : "") + material.displayName + " × " + stock;
+                view.label.text = (selected ? "✓ " : "") + material.displayName + " × " +
+                    (material.id == "water" ? flow.Session.Amount("water").ToString("0.##") : stock.ToString());
                 if (view.button.targetGraphic != null) view.button.targetGraphic.color = selected ? view.selectedColor : view.normalColor;
             }
         }

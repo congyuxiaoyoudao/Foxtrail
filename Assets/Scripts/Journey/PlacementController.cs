@@ -61,7 +61,7 @@ namespace Hiking.Journey
             (SelectedMaterialId == "water" || SelectedMaterialId == "seed") && flow.Material(SelectedMaterialId) != null &&
             SelectedQuantity > 0 && flow.Session.Stock(SelectedMaterialId) >= SelectedQuantity &&
             (SelectedMaterialId != "seed" || PendingSlot.station.CanReceiveSeeds(PendingSlot.tileIndex, SelectedQuantity)) &&
-            (SelectedMaterialId != "water" || SelectedQuantity <= Mathf.CeilToInt(30 - PendingSlot.station.Tiles[PendingSlot.tileIndex].SurfaceWater));
+            (SelectedMaterialId != "water" || SelectedQuantity <= Mathf.CeilToInt(TileState.SurfaceCapacity - PendingSlot.station.Tiles[PendingSlot.tileIndex].SurfaceWater));
         public void ConfirmPlacement() => ApplyPlacement(PendingSlot);
         public bool ApplyPlacement(PlacementSlot slot)
         {

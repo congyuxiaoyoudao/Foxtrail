@@ -14,13 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.RingMapSettings
   blockCount: 6
   stationLength: 12
-  panoramaScale: 1.5
   patchesPerStation: 12
+  transitionTileColor: {r: 0.4, g: 0.47, b: 0.58, a: 1}
   pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
   snowColor: {r: 1, g: 1, b: 1, a: 1}
   grassColor: {r: 0.3, g: 0.72, b: 0.3, a: 1}
   desertColor: {r: 1, g: 0.82, b: 0.25, a: 1}
-  ringThickness: 0.247
   plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
   fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
   fallbackBackgroundPlantSprite: {fileID: 21300000, guid: 72bfa1a9e7b54e429d3805e6518d63f0, type: 3}
@@ -31,18 +30,32 @@ MonoBehaviour:
   grassLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}
   desertLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
   landscapeMaterial: {fileID: 2100000, guid: d1fc56a5c2ba3994bb0cfa7554ff7811, type: 2}
-  landscapeBaseHeight: -2.1
+  landscapeBaseHeight: -1.93
   landscapeDepth: 1.6
   landscapeHeightScale: 1.4
-  soilContentRange: {x: 0, y: 1}
+  soilContentRange: {x: 1, y: 100}
   plantCountRange: {x: 0, y: 5}
   soilHumidityRange: {x: 0, y: 1}
   evaporationRateRange: {x: 0.1, y: 0.6}
-  heightRange: {x: 0, y: 1}
-  surfaceWaterRange: {x: 0, y: 30}
+  heightRange: {x: 0, y: 6}
+  surfaceWaterRange: {x: 0, y: 35}
   temperatureFlowPerStep: 0.01
   soilWaterFlowPerStep: 0.1
-  soilContentFlowPerStep: 0.01
-  infiltrationPerStep: 5
+  surfaceWaterFlowPerStep: 1
+  waterUnitsPerHeight: 10
+  infiltrationFactor: 0.03
+  evaporationSoilFactor: 0.004
+  evaporationPlantFactor: 0.3
+  minimumEvaporationRatio: 0.15
+  rainCheckInterval: 40
+  rainVaporThreshold: 5
+  rainReturnRatio: 0.9
+  maxRainPerEvent: 5
+  rainDuration: 40
+  rainStreaksPerTile: 6
+  rainVisualHeight: 3.2
+  rainStreakSpeed: 3.6
+  rainStreakOpacity: 0.42
   tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
-  transitionTileColor: {r: 0.4, g: 0.47, b: 0.58, a: 1}
+  panoramaScale: 1.5
+  ringThickness: 0.247

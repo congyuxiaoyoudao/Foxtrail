@@ -66,6 +66,8 @@ namespace Hiking.Journey
         public string displayName = "小花";
         public PlantHabitat suitableHabitats = PlantHabitat.Grass;
         public bool isForeground = true;
+        [Tooltip("中等积水时仍可正常生长；深水会伤害所有陆地植物")]
+        public bool floodTolerant;
         [Range(0, 100)] public int maxHumidityPercent = 90;
         [Range(0, 100)] public int maxSoilPercent = 90;
         [Min(0)] public int maxLife = 90;
@@ -84,12 +86,12 @@ namespace Hiking.Journey
         public PlantRange HumidityRange(int stage) => Range(stage, s => s.minHumidityPercent, maxHumidityPercent);
         public PlantRange SoilRange(int stage) => Range(stage, s => s.minSoilPercent, maxSoilPercent);
         public PlantRange LifeRange(int stage) => Range(stage, s => s.minLife, maxLife);
-        public int HighestSuitableStage(float soilPercent, float humidityPercent)
+        public int HighestSuitableStage(float soilContent, float humidityPercent)
         {
             int soilStage = -1, humidityStage = -1;
             for (int i = 0; i < StageCount; i++)
             {
-                if (SoilRange(i).Contains(soilPercent)) soilStage = i;
+                if (SoilRange(i).Contains(soilContent)) soilStage = i;
                 if (HumidityRange(i).Contains(humidityPercent)) humidityStage = i;
             }
             return Mathf.Min(soilStage, humidityStage);
@@ -149,7 +151,7 @@ namespace Hiking.Journey
             return eligible.ToArray();
         }
         public PlantInstance[] SpawnNaturalPlants(StationTheme theme, int count,
-            float soilPercent, float humidityPercent)
+            float soilContent, float humidityPercent)
         {
             var eligible = SuitableFor(theme);
             if (eligible.Length == 0 || count <= 0) return Array.Empty<PlantInstance>();
@@ -157,7 +159,7 @@ namespace Hiking.Journey
             for (int i = 0; i < count; i++)
             {
                 var definition = eligible[UnityEngine.Random.Range(0, eligible.Length)];
-                int allowedStage = definition.HighestSuitableStage(soilPercent, humidityPercent);
+                int allowedStage = definition.HighestSuitableStage(soilContent, humidityPercent);
                 // Existing plants on unsuitable land begin declining instead of vanishing on step one.
                 int ceiling = Mathf.Max(1, allowedStage < 0 ? definition.maxLife : definition.LifeCeiling(allowedStage));
                 int life = UnityEngine.Random.Range(ceiling >= 2 ? 2 : 1, ceiling + 1);

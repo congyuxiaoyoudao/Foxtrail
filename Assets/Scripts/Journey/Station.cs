@@ -1,5 +1,4 @@
 using System;
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,16 +15,33 @@ namespace Hiking.Journey
         public TileState[] Tiles { get; private set; }
         TextMesh[] moistureLabels;
         readonly Dictionary<PlantInstance, SpriteRenderer> plantMarkers = new Dictionary<PlantInstance, SpriteRenderer>();
+        Mesh[] patchMeshes;
+        Color[] patchColors;
+        SpriteRenderer[] waterGrassMarkers;
         RingMapSettings mapSettings;
+        JourneyMap ownerMap;
         bool debugLabels;
         public void InitializeTiles(RingMapSettings settings)
         {
             mapSettings = settings;
             Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
+            patchMeshes = new Mesh[tileCount]; patchColors = new Color[tileCount];
+            waterGrassMarkers = new SpriteRenderer[tileCount];
             for (int i = 0; i < tileCount; i++) Tiles[i] = settings.CreateTile(theme);
         }
         public float MoistureAt(int tile) => Tiles[tile].SurfaceWater;
-        public void RefreshTile(int tile) => RefreshMoisture(tile);
+        public void RefreshTile(int tile) { RefreshMoisture(tile); RefreshWaterVisual(tile); }
+        public void SetPatchMesh(int tile, Mesh mesh, Color baseColor, JourneyMap map)
+        {
+            patchMeshes[tile] = mesh; patchColors[tile] = baseColor; ownerMap = map;
+            RefreshWaterVisual(tile);
+        }
+        void RefreshWaterVisual(int tile)
+        {
+            if (ownerMap == null || patchMeshes[tile] == null) return;
+            float blend = Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
+            ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(patchColors[tile], new Color(.18f, .58f, .92f), blend));
+        }
         public void SetMoistureLabel(int tile, TextMesh label)
         {
             moistureLabels[tile] = label; RefreshMoisture(tile);
@@ -33,7 +49,8 @@ namespace Hiking.Journey
         public void AddWater(int tile, int quantity)
         {
             if (quantity <= 0) return;
-            Tiles[tile].AddWater(quantity); RefreshMoisture(tile);
+            Tiles[tile].AddWater(quantity); RefreshTile(tile);
+            if (ownerMap != null) SyncWaterGrassMarkers(ownerMap);
         }
         public bool CanReceiveSeeds(int tile, int quantity) => quantity > 0 &&
             Tiles[tile].FreePlantCapacity >= quantity && mapSettings.plantCatalog != null &&
@@ -61,18 +78,21 @@ namespace Hiking.Journey
                 RefreshMoisture(i);
             }
         }
-        public void StepTiles(float infiltration, int currentStep, JourneyMap map,
+        public void StepTiles(int currentStep, JourneyMap map,
             TileSnapshot[] beforeFlow, int firstTileIndex)
         {
             for (int i = 0; i < tileCount; i++)
             {
-                Tiles[i].Step(infiltration, mapSettings.plantCatalog, currentStep, beforeFlow[firstTileIndex + i]);
-                RefreshMoisture(i);
+                Tiles[i].Step(mapSettings.plantCatalog, currentStep, beforeFlow[firstTileIndex + i],
+                    mapSettings.evaporationSoilFactor, mapSettings.evaporationPlantFactor,
+                    mapSettings.minimumEvaporationRatio);
+                RefreshTile(i);
             }
             SyncPlantMarkers(map);
         }
         public void SyncPlantMarkers(JourneyMap map)
         {
+            SyncWaterGrassMarkers(map);
             if (mapSettings.plantCatalog == null) return;
             var dead = new List<PlantInstance>();
             foreach (var entry in plantMarkers)
@@ -118,23 +138,57 @@ namespace Hiking.Journey
                         Mathf.Max(.001f, Mathf.Max(sprite.bounds.size.x, sprite.bounds.size.y)));
                 }
         }
+        void SyncWaterGrassMarkers(JourneyMap map)
+        {
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                var stage = Tiles[tile].WaterGrass;
+                var marker = waterGrassMarkers[tile];
+                if (stage == WaterGrassStage.None)
+                {
+                    if (marker != null) marker.enabled = false;
+                    continue;
+                }
+                if (marker == null)
+                {
+                    var obj = new GameObject("WaterGrass_" + tile);
+                    obj.transform.SetParent(transform, false);
+                    marker = obj.AddComponent<SpriteRenderer>();
+                    marker.sortingOrder = 20;
+                    marker.sprite = mapSettings.fallbackPlantSprite;
+                    waterGrassMarkers[tile] = marker;
+                    map.RegisterRouteObject(obj.transform, new Vector3(TileCenter(tile),
+                        mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY, -.04f));
+                }
+                marker.enabled = marker.sprite != null;
+                if (marker.sprite == null) continue;
+                marker.color = stage == WaterGrassStage.Large ? new Color(.04f, .48f, .36f) :
+                    new Color(.2f, .76f, .55f);
+                float size = stage == WaterGrassStage.Large ? .22f : .11f;
+                marker.transform.localScale = Vector3.one * (size /
+                    Mathf.Max(.001f, Mathf.Max(marker.sprite.bounds.size.x, marker.sprite.bounds.size.y)));
+            }
+        }
         static string Delta(float value, string suffix = "") => $"({value:+0.0;-0.0;0}{suffix})";
+        static string SmallDelta(float value) => $"({value:+0.0000;-0.0000;0.0000})";
         void RefreshMoisture(int tile)
         {
             if (moistureLabels[tile] == null) return;
             var t = Tiles[tile]; var d = t.LastChange;
             moistureLabels[tile].text = debugLabels ?
                 $"{stationId.Replace("station-", "")}-{tile + 1} {t.CategoryName}\n" +
-                $"泥土 {t.SoilContent * 100:0.0}% {Delta(d.SoilContent * 100)}\n" +
+                $"泥土 {t.SoilContent:0.0} {Delta(d.SoilContent)}\n" +
                 $"容量 {t.MaxWater:0.0} {Delta(d.MaxWater)}\n" +
                 $"土壤水 {t.SoilWater:0.0} {Delta(d.SoilWater)}\n" +
                 $"自然植物 {t.PlantCount} {Delta(d.PlantCount)}\n" +
                 $"待萌发 {t.SeedCount} {Delta(d.SeedCount)}\n" +
                 $"植 {PlantDetails(t)}\n" +
                 $"湿度 {t.SoilHumidity * 100:0.0}% {Delta(d.SoilHumidity * 100)}\n" +
-                $"蒸发 {t.EvaporationRate:0.00}/步 {Delta(d.EvaporationRate)}\n" +
-                $"高度 {t.Height} {Delta(d.Height)}\n" +
-                $"地表水 {t.SurfaceWater:0.0} {Delta(d.SurfaceWater)}\n" +
+                $"蒸发 {t.EvaporationRate:0.000}/步 {Delta(d.EvaporationRate)}\n" +
+                $"高度 {t.Height}+{t.EffectiveHeight - t.Height}={t.EffectiveHeight} {Delta(d.EffectiveHeight)}\n" +
+                $"地表水 {t.SurfaceWater:0.000} {SmallDelta(d.SurfaceWater)}\n" +
+                $"水汽 {t.PendingVapor:0.000} {SmallDelta(d.PendingVapor)} · 雨 +{t.RainfallThisStep:0.0000}\n" +
+                $"水草 {t.WaterGrass} ({t.WaterGrassAge}s) · 排水 {t.DrainageLoss:0.0} {Delta(d.DrainageLoss)}\n" +
                 $"温度 {t.Temperature:0.0000}°C ({d.Temperature:+0.0000;-0.0000;0.0000})" : $"地表水 {t.SurfaceWater:0.0}";
         }
         static string PlantDetails(TileState tile) => tile.PlantCount == 0 ? "无" :

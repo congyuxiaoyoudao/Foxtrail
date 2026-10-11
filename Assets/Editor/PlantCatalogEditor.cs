@@ -32,6 +32,7 @@ public sealed class PlantCatalogEditor : Editor
             plant.FindPropertyRelative("displayName").stringValue = "新植物";
             plant.FindPropertyRelative("suitableHabitats").intValue = (int)PlantHabitat.Grass;
             plant.FindPropertyRelative("isForeground").boolValue = true;
+            plant.FindPropertyRelative("floodTolerant").boolValue = false;
             plant.FindPropertyRelative("maxHumidityPercent").intValue = 90;
             plant.FindPropertyRelative("maxSoilPercent").intValue = 90;
             plant.FindPropertyRelative("maxLife").intValue = 90;
@@ -61,6 +62,7 @@ public sealed class PlantCatalogEditor : Editor
         var name = plant.FindPropertyRelative("displayName");
         var habitats = plant.FindPropertyRelative("suitableHabitats");
         var foreground = plant.FindPropertyRelative("isForeground");
+        var floodTolerant = plant.FindPropertyRelative("floodTolerant");
         var humidityMax = plant.FindPropertyRelative("maxHumidityPercent");
         var soilMax = plant.FindPropertyRelative("maxSoilPercent");
         var lifeMax = plant.FindPropertyRelative("maxLife");
@@ -81,12 +83,13 @@ public sealed class PlantCatalogEditor : Editor
             EditorGUILayout.PropertyField(name, new GUIContent("名称"));
             EditorGUILayout.PropertyField(habitats, new GUIContent("适宜地块"));
             EditorGUILayout.PropertyField(foreground, new GUIContent("前景植物"));
+            EditorGUILayout.PropertyField(floodTolerant, new GUIContent("耐中等积水"));
             if (habitats.intValue == 0) EditorGUILayout.HelpBox("请至少选择一种适宜地块。", MessageType.Warning);
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PrefixLabel("适宜区间总上限");
             GUILayout.Label("湿度 %", GUILayout.Width(48));
             humidityMax.intValue = Mathf.Clamp(EditorGUILayout.IntField(humidityMax.intValue, GUILayout.Width(38)), 0, 100);
-            GUILayout.Label("泥土 %", GUILayout.Width(48));
+            GUILayout.Label("泥土", GUILayout.Width(48));
             soilMax.intValue = Mathf.Clamp(EditorGUILayout.IntField(soilMax.intValue, GUILayout.Width(38)), 0, 100);
             GUILayout.Label("生命", GUILayout.Width(32));
             lifeMax.intValue = Mathf.Max(0, EditorGUILayout.IntField(lifeMax.intValue, GUILayout.Width(48)));
@@ -100,7 +103,7 @@ public sealed class PlantCatalogEditor : Editor
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("阶段", GUILayout.Width(55));
             GUILayout.Label("适宜湿度 %", GUILayout.Width(128));
-            GUILayout.Label("适宜泥土 %", GUILayout.Width(128));
+            GUILayout.Label("适宜泥土", GUILayout.Width(128));
             GUILayout.Label("生命数值", GUILayout.Width(128));
             EditorGUILayout.EndHorizontal();
             for (int stage = 0; stage < stages.arraySize; stage++)

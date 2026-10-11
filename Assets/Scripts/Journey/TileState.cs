@@ -4,13 +4,15 @@ using UnityEngine;
 
 namespace Hiking.Journey
 {
-    // Percentages are stored as fractions (0..1); water amounts use the same unit.
+    public enum WaterDepth { Dry, Medium, Deep }
+    public enum WaterGrassStage { None, Small, Large }
     [Serializable]
     public sealed class TileState
     {
         public StationTheme Category { get; private set; }
         public float SoilContent { get; private set; }
-        public float MaxWater => SoilContent * 100f + 10f;
+        public const float SurfaceCapacity = 35f;
+        public float MaxWater => SoilContent + 10f;
         public int PlantCount { get; private set; }
         public PlantInstance[] NaturalPlants { get; private set; }
         public List<SeedInstance> Seeds { get; } = new List<SeedInstance>();
@@ -18,30 +20,52 @@ namespace Hiking.Journey
         public int FreePlantCapacity => Mathf.Max(0, 5 - PlantCount - SeedCount);
         public float SoilWater { get; private set; }
         public float SoilHumidity => SoilWater / MaxWater;
+        public float BaseEvaporationRate { get; private set; }
         public float EvaporationRate { get; private set; }
         public int Height { get; private set; }
+        public int EffectiveHeight => Height + (Depth == WaterDepth.Deep ? 2 : Depth == WaterDepth.Medium ? 1 : 0);
         public float SurfaceWater { get; private set; }
+        public WaterDepth Depth => SurfaceWater >= 25 ? WaterDepth.Deep : SurfaceWater > 10 ? WaterDepth.Medium : WaterDepth.Dry;
+        public bool IsPuddle => Depth != WaterDepth.Dry;
+        public WaterGrassStage WaterGrass { get; private set; }
+        public int WaterGrassAge { get; private set; }
+        public int WaterGrassRetreat { get; private set; }
+        public float DrainageLoss { get; private set; }
+        public float PendingVapor { get; private set; }
+        public float EvaporatedThisStep { get; private set; }
+        public float RainfallThisStep { get; private set; }
         public float Temperature { get; private set; }
         public TileSnapshot LastChange { get; private set; }
-        public string CategoryName => Category == StationTheme.Snow ? "雪地" : Category == StationTheme.Grass ? "平原" : "沙漠";
+        public string CategoryName => (Category == StationTheme.Snow ? "雪地" : Category == StationTheme.Grass ? "平原" : "沙漠") +
+            (IsPuddle ? "·水洼" : "");
 
         public TileState(StationTheme category, float soilContent, int plants, float humidity,
             float evaporationRate, int height, float surfaceWater, float temperature, PlantInstance[] naturalPlants = null)
         {
             Category = category;
-            SoilContent = Mathf.Clamp01(soilContent);
+            SoilContent = Mathf.Clamp(soilContent, 1, 100);
             NaturalPlants = naturalPlants ?? Array.Empty<PlantInstance>();
             PlantCount = naturalPlants == null ? Mathf.Clamp(plants, 0, 5) : naturalPlants.Length;
             for (int i = 0; i < NaturalPlants.Length; i++)
                 NaturalPlants[i].positionOffset = (i - (NaturalPlants.Length - 1) * .5f) * .16f;
             SoilWater = Mathf.Clamp01(humidity) * MaxWater;
-            EvaporationRate = Mathf.Max(0, evaporationRate);
-            Height = Mathf.Clamp(height, 0, 1);
-            SurfaceWater = Mathf.Clamp(surfaceWater, 0, 30);
+            BaseEvaporationRate = Mathf.Max(0, evaporationRate);
+            EvaporationRate = BaseEvaporationRate;
+            Height = Mathf.Clamp(height, 0, 6);
+            SurfaceWater = Mathf.Clamp(surfaceWater, 0, SurfaceCapacity);
+            DrainageLoss = Mathf.Max(0, surfaceWater - SurfaceCapacity);
             Temperature = Mathf.Clamp(temperature, 0, 20);
+            StartWaterGrassIfDeep();
         }
 
         public TileSnapshot Snapshot() => new TileSnapshot(this);
+
+        public void RefreshEvaporation(float soilFactor = .004f, float plantFactor = .3f,
+            float minimumRatio = .15f)
+        {
+            EvaporationRate = BaseEvaporationRate * Mathf.Max(Mathf.Clamp01(minimumRatio),
+                1f - Mathf.Max(0, soilFactor) * SoilContent - Mathf.Max(0, plantFactor) * PlantCount / 5f);
+        }
 
         public bool TryAddSeed(string plantId, int currentStep)
         {
@@ -63,42 +87,81 @@ namespace Hiking.Journey
         {
             if (quantity <= 0) return;
             // Placement fills surface storage only; overflow runs off this tile.
-            SurfaceWater = Mathf.Min(30, SurfaceWater + quantity);
+            float next = SurfaceWater + quantity;
+            DrainageLoss += Mathf.Max(0, next - SurfaceCapacity);
+            SurfaceWater = Mathf.Min(SurfaceCapacity, next);
+            StartWaterGrassIfDeep();
         }
 
-        internal void ApplyNeighborFlow(float soilContent, float soilWater, float temperature)
+        public float TakeSurfaceWater(float quantity)
         {
-            SoilContent = Mathf.Clamp01(soilContent);
-            Temperature = Mathf.Clamp(temperature, 0, 20);
-            float overflow = Mathf.Max(0, soilWater - MaxWater);
-            SoilWater = Mathf.Clamp(soilWater, 0, MaxWater);
-            // Lost capacity releases excess soil water to the surface; a full surface runs off.
-            SurfaceWater = Mathf.Min(30, SurfaceWater + overflow);
+            float taken = Mathf.Min(SurfaceWater, Mathf.Max(0, quantity));
+            SurfaceWater -= taken;
+            return taken;
         }
 
-        // One step is one simulated second. Neighbor flow is applied before this method.
-        public void Step(float infiltrationPerStep, PlantCatalog plantCatalog = null, int currentStep = 0,
-            TileSnapshot? beforeNeighborFlow = null)
+        public void AddRain(float quantity)
+        {
+            if (quantity <= 0) return;
+            RainfallThisStep += quantity;
+            AddWater(quantity);
+        }
+
+        public float ConsumeVapor(float quantity)
+        {
+            float consumed = Mathf.Min(PendingVapor, Mathf.Max(0, quantity));
+            PendingVapor -= consumed;
+            return consumed;
+        }
+
+        internal void ApplyNeighborFlow(float soilWater, float temperature)
+        {
+            Temperature = Mathf.Clamp(temperature, 0, 20);
+            SoilWater = Mathf.Clamp(soilWater, 0, MaxWater);
+        }
+
+        public void Infiltrate(float factor = .03f)
+        {
+            float amount = Mathf.Min(SurfaceWater, Mathf.Min(MaxWater - SoilWater, SoilContent * Mathf.Max(0, factor)));
+            SurfaceWater -= amount;
+            SoilWater += amount;
+        }
+
+        internal void ApplySurfaceFlow(float change)
+        {
+            float next = SurfaceWater + change;
+            DrainageLoss += Mathf.Max(0, next - SurfaceCapacity);
+            SurfaceWater = Mathf.Clamp(next, 0, SurfaceCapacity);
+            StartWaterGrassIfDeep();
+        }
+
+        // One step is one simulated second. Neighbor exchange and infiltration have already run.
+        public void Step(PlantCatalog plantCatalog = null, int currentStep = 0,
+            TileSnapshot? beforeNeighborFlow = null, float soilFactor = .004f,
+            float plantFactor = .3f, float minimumRatio = .15f)
         {
             var before = beforeNeighborFlow ?? Snapshot();
-            float infiltrated = Mathf.Min(SurfaceWater, Mathf.Min(MaxWater - SoilWater,
-                Mathf.Max(0, infiltrationPerStep) * SoilContent));
-            SurfaceWater -= infiltrated;
-            SoilWater += infiltrated;
-            float loss = EvaporationRate * (1f + Temperature / 20f);
-            float surfaceLoss = Mathf.Min(SurfaceWater, loss);
+            RainfallThisStep = 0;
+            RefreshEvaporation(soilFactor, plantFactor, minimumRatio);
+            float surfaceLoss = Mathf.Min(SurfaceWater, EvaporationRate);
             SurfaceWater -= surfaceLoss;
-            SoilWater = Mathf.Max(0, SoilWater - (loss - surfaceLoss));
+            float soilLoss = Mathf.Min(SoilWater, Mathf.Max(0, EvaporationRate - surfaceLoss));
+            SoilWater -= soilLoss;
+            EvaporatedThisStep = surfaceLoss + soilLoss;
+            PendingVapor += EvaporatedThisStep;
+            UpdateWaterGrass();
             if (plantCatalog != null && NaturalPlants.Length > 0)
             {
                 foreach (var plant in NaturalPlants)
                 {
                     var definition = plantCatalog.Find(plant.plantId);
                     int allowedStage = definition == null || !definition.Suits(Category) ? -1 :
-                        definition.HighestSuitableStage(SoilContent * 100f, SoilHumidity * 100f);
+                        definition.HighestSuitableStage(SoilContent, SoilHumidity * 100f);
                     int ceiling = allowedStage < 0 ? 0 : definition.LifeCeiling(allowedStage);
                     int previousLife = plant.life;
-                    if (SoilWater < .1f || plant.life > ceiling)
+                    bool flooded = Depth == WaterDepth.Deep ||
+                        Depth == WaterDepth.Medium && (definition == null || !definition.floodTolerant);
+                    if (flooded || SoilWater < .1f || plant.life > ceiling)
                         plant.life = Mathf.Max(0, plant.life - 1);
                     else if (plant.life < ceiling)
                     {
@@ -120,8 +183,10 @@ namespace Hiking.Journey
                     var seed = Seeds[i];
                     if (seed.createdStep >= currentStep) continue;
                     var definition = plantCatalog.Find(seed.plantId);
-                    bool canGerminate = definition != null && definition.Suits(Category) &&
-                        definition.HighestSuitableStage(SoilContent * 100f, SoilHumidity * 100f) >= 0 &&
+                    bool toleratesWater = Depth == WaterDepth.Dry ||
+                        Depth == WaterDepth.Medium && definition != null && definition.floodTolerant;
+                    bool canGerminate = definition != null && definition.Suits(Category) && toleratesWater &&
+                        definition.HighestSuitableStage(SoilContent, SoilHumidity * 100f) >= 0 &&
                         SoilWater >= .1f;
                     if (canGerminate && PlantCount < 5)
                     {
@@ -139,38 +204,79 @@ namespace Hiking.Journey
             }
             LastChange = Snapshot() - before;
         }
+
+        public void RecordStepChange(TileSnapshot before) => LastChange = Snapshot() - before;
+
+        void UpdateWaterGrass()
+        {
+            if (Depth == WaterDepth.Deep)
+            {
+                WaterGrassRetreat = 0;
+                StartWaterGrassIfDeep();
+                if (WaterGrass == WaterGrassStage.Small && ++WaterGrassAge >= 20) WaterGrass = WaterGrassStage.Large;
+            }
+            else if (WaterGrass != WaterGrassStage.None && ++WaterGrassRetreat >= 5)
+            {
+                WaterGrass = WaterGrassStage.None;
+                WaterGrassAge = 0;
+                WaterGrassRetreat = 0;
+            }
+        }
+
+        void StartWaterGrassIfDeep()
+        {
+            if (Depth != WaterDepth.Deep || WaterGrass != WaterGrassStage.None) return;
+            WaterGrass = WaterGrassStage.Small;
+            WaterGrassAge = 0;
+            WaterGrassRetreat = 0;
+        }
     }
 
     public static class TileNeighborFlow
     {
         // All edge transfers use the same pre-step values, including station boundaries.
-        public static void Exchange(TileState[] tiles, float temperatureRate, float soilWaterRate, float soilContentRate)
+        public static void Exchange(TileState[] tiles, float temperatureRate, float soilWaterRate)
         {
             int count = tiles.Length;
-            var soil = new float[count];
             var water = new float[count];
             var temperature = new float[count];
             var soilMax = new float[count];
             var temperatureMax = new float[count];
             for (int i = 0; i < count; i++)
             {
-                soil[i] = tiles[i].SoilContent;
                 water[i] = tiles[i].SoilWater;
                 temperature[i] = tiles[i].Temperature;
-                soilMax[i] = 1;
+                soilMax[i] = tiles[i].MaxWater;
                 temperatureMax[i] = 20;
             }
-            var soilChange = Changes(soil, soilMax, soilContentRate);
-            var waterMax = new float[count];
-            for (int i = 0; i < count; i++) waterMax[i] = (soil[i] + soilChange[i]) * 100f + 10f;
-            var waterChange = Changes(water, waterMax, soilWaterRate);
-            var temperatureChange = Changes(temperature, temperatureMax, temperatureRate);
+            // Direction follows relative humidity; the transferred quantity remains water units.
+            var waterChange = Changes(water, soilMax, soilWaterRate,
+                i => water[i] / soilMax[i], 1f, null, true);
+            var temperatureChange = Changes(temperature, temperatureMax, temperatureRate, i => temperature[i]);
             for (int i = 0; i < count; i++)
-                tiles[i].ApplyNeighborFlow(soil[i] + soilChange[i], water[i] + waterChange[i],
+                tiles[i].ApplyNeighborFlow(water[i] + waterChange[i],
                     temperature[i] + temperatureChange[i]);
         }
 
-        static float[] Changes(float[] values, float[] maximums, float rate)
+        public static void ExchangeSurface(TileState[] tiles, float rate, float waterUnitsPerHeight)
+        {
+            int count = tiles.Length;
+            var water = new float[count]; var capacity = new float[count];
+            float unit = Mathf.Max(.01f, waterUnitsPerHeight);
+            for (int i = 0; i < count; i++)
+            {
+                water[i] = tiles[i].SurfaceWater;
+                capacity[i] = TileState.SurfaceCapacity;
+            }
+            var change = Changes(water, capacity, rate,
+                i => tiles[i].Height + water[i] / unit,  unit,
+                i => tiles[i].SoilWater >= tiles[i].MaxWater - .0001f);
+            for (int i = 0; i < count; i++) tiles[i].ApplySurfaceFlow(change[i]);
+        }
+
+        static float[] Changes(float[] values, float[] maximums, float rate,
+            Func<int, float> level, float levelToAmount = 1f, Func<int, bool> maySend = null,
+            bool scaleByCapacity = false)
         {
             int count = values.Length;
             var edges = new float[Mathf.Max(0, count - 1)];
@@ -178,9 +284,12 @@ namespace Hiking.Journey
             var incoming = new float[count];
             for (int i = 0; i < edges.Length; i++)
             {
-                float difference = values[i] - values[i + 1];
-                // One third of a small difference prevents a tile with two neighbors from overshooting.
-                float amount = Mathf.Min(Mathf.Max(0, rate), Mathf.Abs(difference) / 3f);
+                float difference = level(i) - level(i + 1);
+                int source = difference > 0 ? i : i + 1;
+                if (difference == 0 || maySend != null && !maySend(source)) continue;
+                // One third of a small difference prevents two adjacent edges from overshooting.
+                float scale = scaleByCapacity ? Mathf.Min(maximums[i], maximums[i + 1]) : levelToAmount;
+                float amount = Mathf.Min(Mathf.Max(0, rate), Mathf.Abs(difference) * scale / 3f);
                 edges[i] = difference > 0 ? amount : -amount;
                 if (edges[i] > 0) { outgoing[i] += amount; incoming[i + 1] += amount; }
                 else { outgoing[i + 1] += amount; incoming[i] += amount; }
@@ -207,13 +316,15 @@ namespace Hiking.Journey
 
     public struct TileSnapshot
     {
-        public float SoilContent, MaxWater, SoilWater, SoilHumidity, EvaporationRate, SurfaceWater, Temperature;
-        public int PlantCount, SeedCount, Height;
+        public float SoilContent, MaxWater, SoilWater, SoilHumidity, EvaporationRate, SurfaceWater, Temperature, DrainageLoss, PendingVapor;
+        public int PlantCount, SeedCount, Height, EffectiveHeight, WaterGrass;
         public TileSnapshot(TileState tile)
         {
             SoilContent = tile.SoilContent; MaxWater = tile.MaxWater; PlantCount = tile.PlantCount; SeedCount = tile.SeedCount;
             SoilWater = tile.SoilWater; SoilHumidity = tile.SoilHumidity; EvaporationRate = tile.EvaporationRate;
-            Height = tile.Height; SurfaceWater = tile.SurfaceWater; Temperature = tile.Temperature;
+            Height = tile.Height; EffectiveHeight = tile.EffectiveHeight; WaterGrass = (int)tile.WaterGrass;
+            SurfaceWater = tile.SurfaceWater; Temperature = tile.Temperature; DrainageLoss = tile.DrainageLoss;
+            PendingVapor = tile.PendingVapor;
         }
         public static TileSnapshot operator -(TileSnapshot a, TileSnapshot b) => new TileSnapshot
         {
@@ -221,7 +332,9 @@ namespace Hiking.Journey
             PlantCount = a.PlantCount - b.PlantCount, SeedCount = a.SeedCount - b.SeedCount,
             SoilWater = a.SoilWater - b.SoilWater, SoilHumidity = a.SoilHumidity - b.SoilHumidity,
             EvaporationRate = a.EvaporationRate - b.EvaporationRate, Height = a.Height - b.Height,
-            SurfaceWater = a.SurfaceWater - b.SurfaceWater, Temperature = a.Temperature - b.Temperature
+            EffectiveHeight = a.EffectiveHeight - b.EffectiveHeight, WaterGrass = a.WaterGrass - b.WaterGrass,
+            SurfaceWater = a.SurfaceWater - b.SurfaceWater, Temperature = a.Temperature - b.Temperature,
+            DrainageLoss = a.DrainageLoss - b.DrainageLoss, PendingVapor = a.PendingVapor - b.PendingVapor
         };
     }
 }

@@ -43,7 +43,7 @@ namespace Hiking.Journey
             environmentSeconds += Mathf.Max(0, delta);
             while (environmentSeconds >= 1f)
             {
-                Map.StepEnvironment();
+                Map.StepEnvironment(CollectRainAtCurrentTile);
                 environmentSeconds -= 1f;
             }
         }
@@ -62,6 +62,7 @@ namespace Hiking.Journey
                 lastTime = Time.realtimeSinceStartupAsDouble;
                 Placement.ClearSelection();
                 // Spawn at the first tile and start the first timed step immediately.
+                CollectOnTileEntry();
                 Advance();
             }
             catch (Exception error)
@@ -104,6 +105,7 @@ namespace Hiking.Journey
             {
                 if (generation != currentGeneration) return;
                 CurrentTileIndex = nextTile;
+                CollectOnTileEntry();
                 if (Placement.CurrentSlot != null)
                 {
                     Activity = JourneyActivity.AwaitingPlacement;
@@ -135,9 +137,32 @@ namespace Hiking.Journey
             Traveler.MoveToProgress(Map.stations[Session.StationIndex + 1].stopProgress, StationTransitionSeconds, () =>
             {
                 if (generation != currentGeneration || !Session.Arrive()) return;
-                CurrentTileIndex = 0; Camera.ShowStation(CurrentStation); Advance();
-                UI.Notify("已抵达第 " + (Session.StationIndex + 1) + " 站");
+                CurrentTileIndex = 0; Camera.ShowStation(CurrentStation);
+                CollectOnTileEntry(); Advance();
             });
+        }
+        int CurrentGlobalTile => Session.StationIndex * RingMapSettings.TilesPerStation + CurrentTileIndex;
+        float CollectRainAtCurrentTile(int eventId, int globalTile, float amount)
+        {
+            int occupiedTile = Mathf.Clamp(Mathf.FloorToInt(
+                Map.RouteDistanceAtProgress(Traveler.Progress01) / Map.TileWidth),
+                0, Map.stations.Length * RingMapSettings.TilesPerStation - 1);
+            return globalTile == occupiedTile && Activity != JourneyActivity.Complete ?
+                Session.CollectRain(eventId, amount) : 0;
+        }
+        void CollectOnTileEntry()
+        {
+            if (Map == null || IsDebugMode) return;
+            var tile = CurrentStation.Tiles[CurrentTileIndex];
+            int seeds = Session.CollectSeedsOnFirstEntry(CurrentGlobalTile, tile.PlantCount);
+            float water = tile.IsPuddle ? Session.CollectPuddleWater(tile.SurfaceWater) : 0;
+            if (water > 0)
+            {
+                tile.TakeSurfaceWater(water);
+                CurrentStation.RefreshTile(CurrentTileIndex);
+            }
+            if (seeds > 0 || water > 0)
+                UI.Notify($"采集：种子 +{seeds} · 水 +{water:0.##}");
         }
         public void ReturnToStart()
         {

@@ -25,16 +25,22 @@ namespace Hiking.Journey
         public bool Ready => Phase == JourneyPhase.AtSpawn || Phase == JourneyPhase.AtStation && RemainingSeconds <= 0;
         public bool ApproachingFirstStation => approachingFirstStation;
         public IReadOnlyList<PlacementRequest> Placements => placements;
-        readonly Dictionary<string, int> inventory = new Dictionary<string, int>();
+        public const int CarryCapacity = 20;
+        public const float RainCollectionLimit = 2f;
+        readonly Dictionary<string, float> inventory = new Dictionary<string, float>();
         readonly List<PlacementRequest> placements = new List<PlacementRequest>();
+        readonly HashSet<int> seedCollectedTiles = new HashSet<int>();
+        int rainEventId = -1;
+        float rainCollected;
         bool approachingFirstStation;
 
         public void Begin(int stationCount, double waitSeconds, IEnumerable<MaterialDefinition> materials, bool approachFirstStation = false)
         {
             if (stationCount < 1 || waitSeconds <= 0) throw new ArgumentOutOfRangeException();
-            inventory.Clear(); placements.Clear();
+            inventory.Clear(); placements.Clear(); seedCollectedTiles.Clear();
+            rainEventId = -1; rainCollected = 0;
             foreach (var material in materials)
-                inventory.Add(material.id, Math.Max(0, material.startingCount));
+                inventory.Add(material.id, Math.Min(CarryCapacity, Math.Max(0, material.startingCount)));
             StationCount = stationCount;
             WaitSeconds = waitSeconds;
             ResidenceSeconds = 0;
@@ -44,7 +50,36 @@ namespace Hiking.Journey
             Phase = approachFirstStation ? JourneyPhase.AtSpawn : JourneyPhase.AtStation;
         }
 
-        public int Stock(string id) => id != null && inventory.TryGetValue(id, out var count) ? count : 0;
+        public float Amount(string id) => id != null && inventory.TryGetValue(id, out var count) ? count : 0;
+        public int Stock(string id) => (int)Math.Floor(Amount(id) + 0.000001f);
+        public int CollectSeedsOnFirstEntry(int globalTile, int survivingPlants)
+        {
+            if (globalTile < 0 || !seedCollectedTiles.Add(globalTile)) return 0;
+            if (!inventory.ContainsKey("seed")) return 0;
+            int collected = Math.Min(Math.Max(0, survivingPlants - 2),
+                Math.Max(0, CarryCapacity - Stock("seed")));
+            inventory["seed"] += collected;
+            return collected;
+        }
+        public float CollectPuddleWater(float available)
+        {
+            if (!inventory.ContainsKey("water")) return 0;
+            float collected = Math.Min(2f, Math.Min(Math.Max(0, available),
+                Math.Max(0, CarryCapacity - Amount("water"))));
+            inventory["water"] += collected;
+            return collected;
+        }
+        public float CollectRain(int eventId, float allocatedToTile)
+        {
+            if (!inventory.ContainsKey("water") || eventId < 0 || allocatedToTile <= 0) return 0;
+            if (rainEventId != eventId) { rainEventId = eventId; rainCollected = 0; }
+            float collected = Math.Min(allocatedToTile, Math.Min(
+                Math.Max(0, RainCollectionLimit - rainCollected),
+                Math.Max(0, CarryCapacity - Amount("water"))));
+            inventory["water"] += collected;
+            rainCollected += collected;
+            return collected;
+        }
         public void Tick(double seconds)
         {
             if (Phase == JourneyPhase.AtStation && seconds > 0)
@@ -96,7 +131,8 @@ namespace Hiking.Journey
         public void Reset()
         {
             Phase = JourneyPhase.Start; StationIndex = 0; StationCount = 0;
-            RemainingSeconds = 0; ResidenceSeconds = 0; inventory.Clear(); placements.Clear();
+            RemainingSeconds = 0; ResidenceSeconds = 0; inventory.Clear(); placements.Clear(); seedCollectedTiles.Clear();
+            rainEventId = -1; rainCollected = 0;
             approachingFirstStation = false;
         }
     }

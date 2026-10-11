@@ -17,6 +17,7 @@ MonoBehaviour:
     displayName: "\u5C0F\u82B1"
     suitableHabitats: 2
     isForeground: 1
+    floodTolerant: 0
     maxHumidityPercent: 90
     maxSoilPercent: 90
     maxLife: 90
@@ -40,6 +41,7 @@ MonoBehaviour:
     displayName: "\u5C0F\u8349"
     suitableHabitats: 2
     isForeground: 1
+    floodTolerant: 0
     maxHumidityPercent: 90
     maxSoilPercent: 90
     maxLife: 90
@@ -63,6 +65,7 @@ MonoBehaviour:
     displayName: "\u5C0F\u6811"
     suitableHabitats: 2
     isForeground: 0
+    floodTolerant: 0
     maxHumidityPercent: 90
     maxSoilPercent: 90
     maxLife: 90
