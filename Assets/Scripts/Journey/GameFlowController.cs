@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 namespace Hiking.Journey
@@ -31,10 +32,18 @@ namespace Hiking.Journey
         [Header("存档")]
         [Tooltip("自动保存间隔（秒）。对应策划的『定期保存，间隔作为可配置参数』。")]
         [Min(5f)] public float autosaveIntervalSec = 60f;
-        [Tooltip("离线推进上限（小时）。超过按上限结算，避免离线一周后开游戏卡死。")]
-        [Min(0f)] public float offlineAdvanceCapHours = 8f;
-        [Tooltip("单次读档最多推进的模拟步数预算。")]
-        [Min(0)] public int offlineStepBudget = 3600;
+        [Tooltip("离线推进上限（小时）。超过按上限结算，避免离线一周后开游戏卡死。已定为 2 小时。")]
+        [Min(0f)] public float offlineAdvanceCapHours = 2f;
+        [Tooltip("单次读档最多推进的模拟步数预算。注意它和上面是「谁小谁生效」的关系：" +
+            "2 小时离线 = 7200 步，所以这个值必须不小于 7200，否则上限会被预算悄悄截短。" +
+            "它同时是读档卡顿的保险丝——每步要更新 72 格地块与植物，步数越大读档冻得越久。")]
+        [Min(0)] public int offlineStepBudget = 7200;
+        [Tooltip("离线结算时每帧最多花多少毫秒。太大掉帧，太小结算变慢。8 毫秒约等于 120fps 的余量。")]
+        [Min(.5f)] public float offlineStepBudgetMsPerFrame = 8f;
+        // 读档时离线结算是分帧跑的：玩家看得见进度，画面也不会假死
+        public bool IsSettlingOffline { get; private set; }
+        public float OfflineProgress01 { get; private set; }
+        string offlineSummary;
         float autosaveSeconds;
         void Start()
         {
@@ -46,6 +55,8 @@ namespace Hiking.Journey
         {
             double now = Time.realtimeSinceStartupAsDouble;
             float delta = (float)(now - lastTime); lastTime = now;
+            // 离线结算期间不推进旅途、不结算行动点：这一段时间属于"读档"，不属于游戏
+            if (IsSettlingOffline) return;
             if (IsPreviewing || IsDebugMode) return;
             Session.Tick(delta);
             TickAutosave(delta);
@@ -115,8 +126,15 @@ namespace Hiking.Journey
                 lastTime = Time.realtimeSinceStartupAsDouble;
                 Camera.ShowStation(CurrentStation);
 
-                AdvanceOffline(data);
-                ResumeInteraction();
+                ComputeOfflineSteps(data, out int offlineSteps, out double offlineSeconds);
+                if (offlineSteps <= 0)
+                {
+                    ResumeInteraction();
+                }
+                else
+                {
+                    StartOfflineSettle(offlineSteps, offlineSeconds);
+                }
                 return true;
             }
             catch (Exception error)
@@ -126,22 +144,52 @@ namespace Hiking.Journey
             }
         }
 
-        // 离线推进：沿用在线语义，只推进环境，不动狐狸、不结算采集、不替玩家做决定。
+        // 离线推进沿用在线语义：只推进环境，不动狐狸、不结算采集、不替玩家做决定。
         // 狐狸仍能接雨——CollectRainAtCurrentTile 只认它当前所在的格子。
-        void AdvanceOffline(SaveData data)
+        // 这里只算「要推进多少步」，实际推进交给 SettleOffline 分帧做。
+        void ComputeOfflineSteps(SaveData data, out int steps, out double seconds)
         {
+            steps = 0;
+            seconds = 0;
             if (Map == null) return;
-            double seconds = (DateTime.UtcNow - SaveSystem.SavedAtUtc(data)).TotalSeconds;
+            seconds = (DateTime.UtcNow - SaveSystem.SavedAtUtc(data)).TotalSeconds;
             if (seconds <= 0) return;
-
             double cap = Math.Max(0f, offlineAdvanceCapHours) * 3600.0;
-            double budget = Math.Max(0, offlineStepBudget);
-            int steps = (int)Math.Min(Math.Min(seconds, cap), budget);
-            if (steps <= 0) return;
+            steps = (int)Math.Min(Math.Min(seconds, cap), Math.Max(0, offlineStepBudget));
+        }
 
-            for (int i = 0; i < steps; i++) Map.StepEnvironment(CollectRainAtCurrentTile);
+        void StartOfflineSettle(int steps, double seconds)
+        {
+            IsSettlingOffline = true;
+            OfflineProgress01 = 0f;
+            offlineSummary = "离线 " + DescribeSpan(seconds) + " · 生态已继续" + (seconds > steps ? "（按上限结算）" : "");
+            StartCoroutine(SettleOffline(steps));
+        }
+
+        // 每帧只花 offlineStepBudgetMsPerFrame 毫秒推进，剩下的时间留给画面刷新。
+        // 之前是一次性跑完 7200 步约 3 秒，窗口看起来像卡死；现在同样是这些步数，
+        // 但玩家看到的是进度在走。
+        IEnumerator SettleOffline(int total)
+        {
+            var watch = new System.Diagnostics.Stopwatch();
+            float budgetMs = Mathf.Max(.5f, offlineStepBudgetMsPerFrame);
+            int done = 0;
+            while (done < total && Map != null)
+            {
+                watch.Restart();
+                while (done < total && watch.Elapsed.TotalMilliseconds < budgetMs)
+                {
+                    Map.StepEnvironment(CollectRainAtCurrentTile);
+                    done++;
+                }
+                OfflineProgress01 = total <= 0 ? 1f : (float)done / total;
+                yield return null;
+            }
             environmentSeconds = 0;
-            UI.Notify("离线 " + DescribeSpan(seconds) + " · 生态已继续" + (seconds > steps ? "（按上限结算）" : ""));
+            OfflineProgress01 = 1f;
+            IsSettlingOffline = false;
+            UI.Notify(offlineSummary);
+            ResumeInteraction();
         }
 
         static string DescribeSpan(double seconds)

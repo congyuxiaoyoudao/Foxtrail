@@ -54,6 +54,8 @@ namespace Hiking.Journey
         public Button continueButton;
         [Tooltip("旅途中的「保存并退出」")]
         public Button saveQuitButton;
+        [Tooltip("离线结算进度提示，结算期间才显示")]
+        public Text loadingText;
         [Serializable]
         public class MaterialButton
         {
@@ -142,6 +144,12 @@ namespace Hiking.Journey
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
             // 没有存档时不显示「继续游戏」，免得点了没反应
             if (continueButton != null) continueButton.gameObject.SetActive(flow.HasSave());
+            if (loadingText != null)
+            {
+                bool settling = flow.IsSettlingOffline;
+                if (loadingText.gameObject.activeSelf != settling) loadingText.gameObject.SetActive(settling);
+                if (settling) loadingText.text = "正在结算离线时间… " + (flow.OfflineProgress01 * 100f).ToString("0") + "%";
+            }
             journeyPanel.SetActive(!flow.IsDebugMode && !flow.IsPreviewing && session.Phase != JourneyPhase.Start && session.Phase != JourneyPhase.Panorama);
             if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
             if (flow.IsDebugMode)
