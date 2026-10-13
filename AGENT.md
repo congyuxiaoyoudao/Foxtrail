@@ -1,5 +1,18 @@
 # 项目说明与开发约定
 
+## 2026-10-13 生态数值接入（优先于下方旧版数值描述）
+
+- 当前生效配置为 Assets/Settings/PlantCatalog.asset 与 RingMapSettings.asset；交接说明及参考 JSON 在 Design/Balance-2026-10-13。
+- 启用植物池：平原灌木/松树/草丛，雪地雪莲花/云杉，沙地梭梭/仙人掌/胡杨。初始生成地貌与可生存地貌分离；旧 flower/tree 作为停用条目保留原 Sprite 引用，不参与自然生成和通用种子。
+- 每植物 growthWaterPerLife 独立配置；只在实际增长时耗水；生命阶段随生命回退，31/61进入二/三阶段；首次成熟当秒左右各播一颗，之后每30模拟秒尝试，阶段波动不重置 nextSeedStep。植物和种子合计容量仍5。
+- 初值按三种主题分别配置；每普通格30%概率1株，否则0株。每站第3/7/11格随机一个低洼水源格。原 soilContentRange/soilHumidityRange/plantCountRange 仅保留序列化兼容并隐藏，已不驱动初始化。
+- 温度/土壤水边交换上限0.002/0.02，连续水面高度用地表水/35；蒸发基础0.01～0.03，无地表水时按土壤湿度额外衰减。雨门槛30、单场上限80、周期和雨时各40秒。
+- 每格初始化固定保存 ClimateTemperature 和 ReferenceWater。保留新增水量决定向10靠拢的目标；水减少时缓慢回温。公式及参数在 TileState.UpdateWaterTemperature / RingMapSettings；当前类别按5/12分界更新。
+- 投放选择与材料面板打开时生态和降雨继续，小人仍等待玩家；预览和终局仍暂停。通用种子按当前地块类别选池。地块颜色、已有地表贴图响应类别；整站远景过渡仍待定。
+- 尚未实现存档/离线结算。未来存档必须包含气候与蓄水基准、播种冷却、种子剩余期限、采集标记与本场雨采集额度。
+- 验证：运行时及编辑器程序集用本机Unity引用编译通过，44项核心逻辑检查通过；隔离Unity PlayMode被包管理器初始化错误阻挡，未宣称通过。
+
+
 Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和配置为准；早期圆环行走方案已改为“直线旅途、最终圆环全景”。
 
 ## 当前玩法
@@ -75,3 +88,4 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 保留场景、配置及脚本的 GUID 和现有按钮绑定；不要用早期资源或旧方案覆盖用户的新修改。
 - 主 Unity 编辑器可能正在运行。编译与 PlayMode 验证使用 `.utmp/JourneyValidation` 隔离项目，不打断主编辑器；不要恢复用户已删除的旧测试目录。
 - 隔离 PlayMode 验证源为 `.utmp/JourneyValidation/Assets/RouteValidation/RouteTests.cs`，结果 `Logs/early-camera-tests.xml`（9 项通过，含倒数第 1／2／3 块启动镜头及抵站恰好平移 12 块）。覆盖 12 块排布与颜色、固定整站镜头、连续行走和独立站间时长、两层投放决策、数量与库存边界、18 个投放点及六站自动完成、全景暂停恢复、重开清理，以及开始界面模式切换和实际时长。截图为 `Logs/automatic-station.png`、`Logs/automatic-placement-choice.png`、`Logs/automatic-quantity.png`。
+

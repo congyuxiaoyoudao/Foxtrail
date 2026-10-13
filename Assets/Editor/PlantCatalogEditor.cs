@@ -31,11 +31,14 @@ public sealed class PlantCatalogEditor : Editor
             plant.FindPropertyRelative("id").stringValue = "plant_" + Guid.NewGuid().ToString("N").Substring(0, 8);
             plant.FindPropertyRelative("displayName").stringValue = "新植物";
             plant.FindPropertyRelative("suitableHabitats").intValue = (int)PlantHabitat.Grass;
+            plant.FindPropertyRelative("enabledForGeneration").boolValue = true;
+            plant.FindPropertyRelative("initialHabitats").intValue = (int)PlantHabitat.Grass;
+            plant.FindPropertyRelative("growthWaterPerLife").floatValue = .03f;
             plant.FindPropertyRelative("isForeground").boolValue = true;
             plant.FindPropertyRelative("visualHeight").floatValue = .35f;
             plant.FindPropertyRelative("floodTolerant").boolValue = false;
-            plant.FindPropertyRelative("maxHumidityPercent").intValue = 90;
-            plant.FindPropertyRelative("maxSoilPercent").intValue = 90;
+            plant.FindPropertyRelative("maxHumidityPercent").intValue = 100;
+            plant.FindPropertyRelative("maxSoilPercent").intValue = 100;
             plant.FindPropertyRelative("maxLife").intValue = 90;
             var stages = plant.FindPropertyRelative("stages");
             stages.arraySize = 3;
@@ -82,7 +85,10 @@ public sealed class PlantCatalogEditor : Editor
         {
             EditorGUILayout.PropertyField(id, new GUIContent("植物 ID"));
             EditorGUILayout.PropertyField(name, new GUIContent("名称"));
-            EditorGUILayout.PropertyField(habitats, new GUIContent("适宜地块"));
+            EditorGUILayout.PropertyField(plant.FindPropertyRelative("enabledForGeneration"), new GUIContent("参与初始生成与通用种子池"));
+            EditorGUILayout.PropertyField(plant.FindPropertyRelative("initialHabitats"), new GUIContent("初始生成地貌"));
+            EditorGUILayout.PropertyField(habitats, new GUIContent("可生存地貌"));
+            EditorGUILayout.PropertyField(plant.FindPropertyRelative("growthWaterPerLife"), new GUIContent("每增长1生命耗水"));
             EditorGUILayout.PropertyField(foreground, new GUIContent("前景植物"));
             EditorGUILayout.PropertyField(plant.FindPropertyRelative("visualHeight"), new GUIContent("成熟画面高度"));
             EditorGUILayout.PropertyField(floodTolerant, new GUIContent("耐中等积水"));

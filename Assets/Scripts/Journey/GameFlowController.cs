@@ -39,7 +39,7 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             if (IsPreviewing || IsDebugMode) return;
             Session.Tick(delta);
-            if (Map == null || UI.IsModalOpen || Activity == JourneyActivity.Complete) return;
+            if (Map == null || Activity == JourneyActivity.Complete) return;
             environmentSeconds += Mathf.Max(0, delta);
             while (environmentSeconds >= 1f)
             {

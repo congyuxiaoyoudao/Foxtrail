@@ -31,7 +31,8 @@ namespace Hiking.Journey
             patchVisuals = new SpriteRenderer[tileCount];
             patchWaterOverlays = new SpriteRenderer[tileCount];
             waterGrassMarkers = new SpriteRenderer[tileCount];
-            for (int i = 0; i < tileCount; i++) Tiles[i] = settings.CreateTile(theme);
+            int basin = settings.createStationBasin ? UnityEngine.Random.Range(0,3)*4+2 : -10;
+            for (int i = 0; i < tileCount; i++) Tiles[i] = settings.CreateTile(theme, i == basin, Mathf.Abs(i-basin) == 1);
         }
         public float MoistureAt(int tile) => Tiles[tile].SurfaceWater;
         public void RefreshTile(int tile) { RefreshMoisture(tile); RefreshWaterVisual(tile); }
@@ -50,7 +51,21 @@ namespace Hiking.Journey
         {
             if (ownerMap == null || patchMeshes[tile] == null) return;
             float blend = Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
-            ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(patchColors[tile], new Color(.18f, .58f, .92f), blend));
+            ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(Tiles[tile].Category == theme ? patchColors[tile] : mapSettings.ThemeColor(Tiles[tile].Category), new Color(.18f, .58f, .92f), blend));
+            if (patchVisuals[tile] != null)
+            {
+                var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(Tiles[tile].Category) : null;
+                if (layers != null && layers.nearGround != null)
+                {
+                    var visual = patchVisuals[tile]; visual.sprite = layers.nearGround;
+                    float sx = TileWidth / Mathf.Max(.001f, visual.sprite.bounds.size.x);
+                    float sy = sx * Mathf.Max(.1f, layers.nearHeightMultiplier);
+                    visual.transform.localScale = new Vector3(sx,sy,1);
+                    ownerMap.UpdateRouteObject(visual.transform,new Vector3(TileCenter(tile),mapSettings.ringThickness*.5f+layers.nearGroundTopOffset-visual.sprite.bounds.size.y*sy*.5f,-.05f));
+                    visual.color = Color.white;
+                }
+                else patchVisuals[tile].color = mapSettings.ThemeColor(Tiles[tile].Category);
+            }
             if (patchWaterOverlays[tile] != null)
                 patchWaterOverlays[tile].color = new Color(.18f, .58f, .92f, blend);
             else if (patchVisuals[tile] != null)
@@ -70,11 +85,11 @@ namespace Hiking.Journey
         }
         public bool CanReceiveSeeds(int tile, int quantity) => quantity > 0 &&
             Tiles[tile].FreePlantCapacity >= quantity && mapSettings.plantCatalog != null &&
-            mapSettings.plantCatalog.SuitableFor(theme).Length > 0;
+            mapSettings.plantCatalog.SuitableFor(Tiles[tile].Category).Length > 0;
         public void AddSeeds(int tile, int quantity, int currentStep)
         {
             if (!CanReceiveSeeds(tile, quantity)) throw new InvalidOperationException("地块没有适宜品种或剩余植物空间。");
-            var eligible = mapSettings.plantCatalog.SuitableFor(theme);
+            var eligible = mapSettings.plantCatalog.SuitableFor(Tiles[tile].Category);
             for (int i = 0; i < quantity; i++)
                 Tiles[tile].TryAddSeed(eligible[UnityEngine.Random.Range(0, eligible.Length)].id, currentStep);
             RefreshMoisture(tile);
@@ -102,7 +117,7 @@ namespace Hiking.Journey
             {
                 Tiles[i].Step(mapSettings.plantCatalog, currentStep, beforeFlow[firstTileIndex + i],
                     mapSettings.evaporationSoilFactor, mapSettings.evaporationPlantFactor,
-                    mapSettings.minimumEvaporationRatio);
+                    mapSettings.minimumEvaporationRatio, mapSettings);
                 RefreshTile(i);
             }
             SyncPlantMarkers(map);

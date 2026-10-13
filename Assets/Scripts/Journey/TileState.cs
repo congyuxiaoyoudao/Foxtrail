@@ -35,6 +35,8 @@ namespace Hiking.Journey
         public float EvaporatedThisStep { get; private set; }
         public float RainfallThisStep { get; private set; }
         public float Temperature { get; private set; }
+        [field: SerializeField] public float ClimateTemperature { get; private set; }
+        [field: SerializeField] public float ReferenceWater { get; private set; }
         public TileSnapshot LastChange { get; private set; }
         public string CategoryName => (Category == StationTheme.Snow ? "雪地" : Category == StationTheme.Grass ? "平原" : "沙漠") +
             (IsPuddle ? "·水洼" : "");
@@ -55,6 +57,7 @@ namespace Hiking.Journey
             SurfaceWater = Mathf.Clamp(surfaceWater, 0, SurfaceCapacity);
             DrainageLoss = Mathf.Max(0, surfaceWater - SurfaceCapacity);
             Temperature = Mathf.Clamp(temperature, 0, 20);
+            ClimateTemperature = Temperature; ReferenceWater = SoilWater + SurfaceWater;
             StartWaterGrassIfDeep();
         }
 
@@ -138,11 +141,12 @@ namespace Hiking.Journey
         // One step is one simulated second. Neighbor exchange and infiltration have already run.
         public void Step(PlantCatalog plantCatalog = null, int currentStep = 0,
             TileSnapshot? beforeNeighborFlow = null, float soilFactor = .004f,
-            float plantFactor = .3f, float minimumRatio = .15f)
+            float plantFactor = .3f, float minimumRatio = .15f, RingMapSettings settings = null)
         {
             var before = beforeNeighborFlow ?? Snapshot();
             RainfallThisStep = 0;
             RefreshEvaporation(soilFactor, plantFactor, minimumRatio);
+            if (SurfaceWater <= 0) EvaporationRate *= Mathf.Clamp(SoilHumidity / Mathf.Max(.001f, settings != null ? settings.drySoilMoistureScale : .4f), settings != null ? settings.minimumDrySoilMultiplier : .05f, 1);
             float surfaceLoss = Mathf.Min(SurfaceWater, EvaporationRate);
             SurfaceWater -= surfaceLoss;
             float soilLoss = Mathf.Min(SoilWater, Mathf.Max(0, EvaporationRate - surfaceLoss));
@@ -150,6 +154,7 @@ namespace Hiking.Journey
             EvaporatedThisStep = surfaceLoss + soilLoss;
             PendingVapor += EvaporatedThisStep;
             UpdateWaterGrass();
+            UpdateWaterTemperature(settings);
             if (plantCatalog != null && NaturalPlants.Length > 0)
             {
                 foreach (var plant in NaturalPlants)
@@ -159,18 +164,20 @@ namespace Hiking.Journey
                         definition.HighestSuitableStage(SoilContent, SoilHumidity * 100f);
                     int ceiling = allowedStage < 0 ? 0 : definition.LifeCeiling(allowedStage);
                     int previousLife = plant.life;
+                    float growthCost = definition != null ? Mathf.Max(0, definition.growthWaterPerLife) : .03f;
                     bool flooded = Depth == WaterDepth.Deep ||
                         Depth == WaterDepth.Medium && (definition == null || !definition.floodTolerant);
-                    if (flooded || SoilWater < .1f || plant.life > ceiling)
+                    if (flooded || SoilWater < growthCost || plant.life > ceiling)
                         plant.life = Mathf.Max(0, plant.life - 1);
                     else if (plant.life < ceiling)
                     {
-                        SoilWater -= .1f;
+                        SoilWater -= growthCost;
                         plant.life++;
                         while (plant.stageIndex + 1 <= allowedStage &&
                             plant.life >= definition.stages[plant.stageIndex + 1].minLife)
                             plant.stageIndex++;
                     }
+                    plant.stageIndex = definition == null ? 0 : definition.StageAtLife(plant.life, definition.StageCount - 1);
                     plant.lastLifeChange = plant.life - previousLife;
                 }
                 NaturalPlants = Array.FindAll(NaturalPlants, plant => plant.life > 0);
@@ -203,6 +210,19 @@ namespace Hiking.Journey
                 }
             }
             LastChange = Snapshot() - before;
+        }
+
+        void UpdateWaterTemperature(RingMapSettings settings)
+        {
+            float neutral = settings != null ? settings.waterTargetTemperature : 10;
+            float extra = Mathf.Max(0, SoilWater + SurfaceWater - ReferenceWater - (settings != null ? settings.extraWaterDeadband : 1));
+            float influence = Mathf.Clamp01(extra / Mathf.Max(.001f, settings != null ? settings.fullInfluenceWater : 8));
+            float target = ClimateTemperature + (neutral - ClimateTemperature) * influence;
+            bool approaching = Mathf.Abs(target-neutral) < Mathf.Abs(Temperature-neutral);
+            float rate = settings != null ? (approaching ? settings.thermalApproachRate : settings.thermalRecoveryRate) : (approaching ? .06f : .002f);
+            float cap = settings != null ? (approaching ? settings.thermalApproachCap : settings.thermalRecoveryCap) : (approaching ? .15f : .01f);
+            Temperature = Mathf.Clamp(Temperature + Mathf.Clamp((target-Temperature)*rate, -cap, cap), 0, 20);
+            Category = Temperature < 5 ? StationTheme.Snow : Temperature < 12 ? StationTheme.Grass : StationTheme.Desert;
         }
 
         public void RecordStepChange(TileSnapshot before) => LastChange = Snapshot() - before;

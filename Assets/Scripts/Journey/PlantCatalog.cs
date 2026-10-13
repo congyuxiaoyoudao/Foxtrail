@@ -25,6 +25,7 @@ namespace Hiking.Journey
         public int life = 1;
         public int lastLifeChange;
         public int matureSteps;
+        public int nextSeedStep;
         public float positionOffset;
         public PlantInstance(string plantId, int stageIndex = 0)
         {
@@ -65,13 +66,16 @@ namespace Hiking.Journey
         public string id = "flower";
         public string displayName = "小花";
         public PlantHabitat suitableHabitats = PlantHabitat.Grass;
+        public bool enabledForGeneration = true;
+        public PlantHabitat initialHabitats = PlantHabitat.Grass;
+        [Min(0)] public float growthWaterPerLife = .03f;
         public bool isForeground = true;
         [Tooltip("该植物成熟阶段的画面高度；所有阶段按生命阶段比例缩放")]
         [Min(.05f)] public float visualHeight = .35f;
         [Tooltip("中等积水时仍可正常生长；深水会伤害所有陆地植物")]
         public bool floodTolerant;
-        [Range(0, 100)] public int maxHumidityPercent = 90;
-        [Range(0, 100)] public int maxSoilPercent = 90;
+        [Range(0, 100)] public int maxHumidityPercent = 100;
+        [Range(0, 100)] public int maxSoilPercent = 100;
         [Min(0)] public int maxLife = 90;
         public PlantStage[] stages =
         {
@@ -103,7 +107,7 @@ namespace Hiking.Journey
         {
             int stage = 0;
             for (int i = 1; i <= Mathf.Min(highestStage, StageCount - 1); i++)
-                if (life >= stages[i].minLife) stage = i;
+                if (life > stages[i].minLife) stage = i;
             return stage;
         }
         PlantRange Range(int stage, Func<PlantStage, int> minimum, int maximum)
@@ -120,6 +124,8 @@ namespace Hiking.Journey
             maxHumidityPercent = Mathf.Clamp(maxHumidityPercent, 0, 100);
             maxSoilPercent = Mathf.Clamp(maxSoilPercent, 0, 100);
             maxLife = Mathf.Max(0, maxLife);
+            growthWaterPerLife = Mathf.Max(0, growthWaterPerLife);
+            initialHabitats &= PlantHabitat.Snow | PlantHabitat.Grass | PlantHabitat.Desert;
             visualHeight = Mathf.Max(.05f, visualHeight);
             suitableHabitats &= PlantHabitat.Snow | PlantHabitat.Grass | PlantHabitat.Desert;
             if (stages == null || stages.Length == 0) stages = new[] { new PlantStage() };
@@ -149,7 +155,7 @@ namespace Hiking.Journey
             var eligible = new List<PlantDefinition>();
             if (plants != null)
                 foreach (var plant in plants)
-                    if (plant != null && !string.IsNullOrWhiteSpace(plant.id) && plant.Suits(theme))
+                    if (plant != null && !string.IsNullOrWhiteSpace(plant.id) && plant.enabledForGeneration && (plant.initialHabitats & (theme == StationTheme.Snow ? PlantHabitat.Snow : theme == StationTheme.Grass ? PlantHabitat.Grass : PlantHabitat.Desert)) != 0 && plant.Suits(theme))
                         eligible.Add(plant);
             return eligible.ToArray();
         }
