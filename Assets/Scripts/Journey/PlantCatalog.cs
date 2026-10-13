@@ -66,6 +66,8 @@ namespace Hiking.Journey
         public string displayName = "小花";
         public PlantHabitat suitableHabitats = PlantHabitat.Grass;
         public bool isForeground = true;
+        [Tooltip("该植物成熟阶段的画面高度；所有阶段按生命阶段比例缩放")]
+        [Min(.05f)] public float visualHeight = .35f;
         [Tooltip("中等积水时仍可正常生长；深水会伤害所有陆地植物")]
         public bool floodTolerant;
         [Range(0, 100)] public int maxHumidityPercent = 90;
@@ -118,6 +120,7 @@ namespace Hiking.Journey
             maxHumidityPercent = Mathf.Clamp(maxHumidityPercent, 0, 100);
             maxSoilPercent = Mathf.Clamp(maxSoilPercent, 0, 100);
             maxLife = Mathf.Max(0, maxLife);
+            visualHeight = Mathf.Max(.05f, visualHeight);
             suitableHabitats &= PlantHabitat.Snow | PlantHabitat.Grass | PlantHabitat.Desert;
             if (stages == null || stages.Length == 0) stages = new[] { new PlantStage() };
             int lastHumidity = 0, lastSoil = 0, lastLife = 0;

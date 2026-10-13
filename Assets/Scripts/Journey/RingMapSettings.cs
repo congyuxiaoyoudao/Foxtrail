@@ -25,13 +25,26 @@ namespace Hiking.Journey
         public Sprite fallbackPlantSprite;
         [Tooltip("背景植物未配置 Sprite 时使用的树形占位图，按阶段占位色着色")]
         public Sprite fallbackBackgroundPlantSprite;
-        [Header("植物前后景位置（新地图生效）")]
+        [Header("狐狸相对地块位置（运行时生效）")]
+        [Tooltip("在主题近景共享位移之外，单独调整狐狸的 X/Y 位置；不移动地块或植物")]
+        [InspectorName("狐狸相对地块位移 X/Y")] public Vector2 foxPositionOffset;
+        [Header("植物前后景位置（运行时生效）")]
         [Tooltip("前景植物相对道路顶面的 Y 轴高度；背景植物以此为基线")]
         [InspectorName("前景基线高度（Y）")] public float foregroundPlantY = .13f;
         [Tooltip("背景植物相对前景基线沿 Y 轴向上移动的距离")]
         [InspectorName("背景上移量"), Min(0)] public float backgroundPlantOffset = .96f;
+        [Tooltip("前景植物在基线之外的独立 X/Y 位移；与近景共享位移叠加")]
+        [InspectorName("前景植物附加位移 X/Y")] public Vector2 foregroundPlantPositionOffset;
+        [Tooltip("背景植物在基线之外的独立 X/Y 位移")]
+        [InspectorName("背景植物附加位移 X/Y")] public Vector2 backgroundPlantPositionOffset;
+        [Tooltip("前景和背景植物相对各自位置向左右随机移动的最大格宽比例；0 表示不随机")]
+        [InspectorName("植物水平随机范围（格宽比例）"), Min(0)] public float plantHorizontalScatter = .1f;
+        [Tooltip("前景和背景植物相对各自基线向上下随机移动的最大世界单位；0 表示不随机")]
+        [InspectorName("植物垂直随机范围（世界单位）"), Min(0)] public float plantVerticalScatter = .12f;
         [InspectorName("背景植物占位高度"), Min(.1f)] public float backgroundPlantHeight = 2f;
-        [Header("主题远景（每站一张，新地图生效）")]
+        [Header("场景主题图层（新地图生效）")]
+        public SceneThemeCatalog sceneThemes;
+        [Header("旧版单图远景（缺少主题图层时备用）")]
         public Sprite snowLandscape;
         public Sprite grassLandscape;
         public Sprite desertLandscape;
@@ -42,7 +55,7 @@ namespace Hiking.Journey
         [Tooltip("远景离道路的纵深距离；数值越大越远")]
         public float landscapeDepth = 1.6f;
         [Tooltip("保持远景宽度不变，向上延展画幅以填满天空")]
-        [Min(.1f)] public float landscapeHeightScale = 1.4f;
+        [Min(.1f)] public float landscapeHeightScale = 1f;
         public Sprite LandscapeFor(StationTheme theme) => theme == StationTheme.Snow ? snowLandscape :
             theme == StationTheme.Grass ? grassLandscape : desertLandscape;
         [Header("地块随机初值（湿度以 0～1 填写，新地图生效）")]
@@ -86,6 +99,8 @@ namespace Hiking.Journey
         [Min(.1f)] public float rainStreakSpeed = 3.6f;
         [Tooltip("雨丝透明度")]
         [Range(0, 1)] public float rainStreakOpacity = .42f;
+        [Tooltip("下雨时覆盖世界画面的冷灰色滤镜透明度；界面不受影响")]
+        [InspectorName("阴天滤镜强度"), Range(0, .4f)] public float rainOvercastOpacity = .16f;
         public Font tileLabelFont;
         public TileState CreateTile(StationTheme theme)
         {
@@ -107,8 +122,7 @@ namespace Hiking.Journey
             Mathf.Clamp(Mathf.Min(range.x, range.y), min, max), Mathf.Clamp(Mathf.Max(range.x, range.y), min, max));
         static int Sample(Vector2Int range, int min, int max) => Random.Range(
             Mathf.Clamp(Mathf.Min(range.x, range.y), min, max), Mathf.Clamp(Mathf.Max(range.x, range.y), min, max) + 1);
-        [Header("道路与完成全景")]
-        [InspectorName("全景圆环尺寸倍率"), Min(1)] public float panoramaScale = 1.5f;
+        [Header("道路")]
         [InspectorName("道路厚度"), Range(.1f, 2f)] public float ringThickness = .5f;
         void OnValidate()
         {

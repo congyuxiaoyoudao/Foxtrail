@@ -1,0 +1,105 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b64e5ab9e8345b3a61fc63a8ed37158, type: 3}
+  m_Name: SceneThemeCatalog
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.SceneThemeCatalog
+  themes:
+  - theme: 0
+    farSky: {fileID: 0}
+    farClouds: {fileID: 0}
+    farMountains: {fileID: 0}
+    middle: {fileID: 0}
+    farSkyOffset: {x: 0, y: 0}
+    farCloudsOffset: {x: 0, y: 0}
+    farMountainsOffset: {x: 0, y: 0}
+    middleOffset: {x: 0, y: 0}
+    fallbackOffset: {x: 0, y: 0}
+    nearGround: {fileID: 0}
+    pond:
+      wetSingle: {fileID: 21300000, guid: d850c8af0302c1b4c87720704cf6e61a, type: 3}
+      wetLeft: {fileID: 21300000, guid: 58719ac550493ca45975f6f4af814129, type: 3}
+      wetMiddle: {fileID: 21300000, guid: be669be471aa9494fbf697be40f5a729, type: 3}
+      wetRight: {fileID: 21300000, guid: 45cbbadbab1212d40864b0422022e869, type: 3}
+      wetFree01: {fileID: 21300000, guid: ee99d22bdf9bdb4439842215da41f8d4, type: 3}
+      wetFree02: {fileID: 21300000, guid: 67ac4ebc77974954a89f16e14af4c49d, type: 3}
+      drySingle: {fileID: 21300000, guid: 7ba51b13130a6b643a650196a063b59a, type: 3}
+      tileHeightRatio: 0.55
+      dryFadeSeconds: 4
+    nearOffset: {x: 0, y: -1.1}
+    fallbackLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
+    skyFillColor: {r: 0.537, g: 0.718, b: 0.82, a: 1}
+    groundFillColor: {r: 0.961, g: 0.98, b: 0.957, a: 1}
+    landscapeYOffset: 0.1
+    farHeightMultiplier: 1
+    middleHeightMultiplier: 1
+    nearHeightMultiplier: 1
+    nearGroundTopOffset: -0.24
+  - theme: 1
+    farSky: {fileID: 21300000, guid: ebec8b7abb5ebf842b4a7ae2cf34b4ee, type: 3}
+    farClouds: {fileID: 21300000, guid: 71f02ea203fc31b47ac350fe70fd0a74, type: 3}
+    farMountains: {fileID: 21300000, guid: f2ab9a319974782459dad2074c99158d, type: 3}
+    middle: {fileID: 21300000, guid: d9dfce14907c4ee4c89ce244f7a6fbaa, type: 3}
+    farSkyOffset: {x: 0, y: 0}
+    farCloudsOffset: {x: 0, y: 0}
+    farMountainsOffset: {x: 0, y: 0}
+    middleOffset: {x: 0, y: 0}
+    fallbackOffset: {x: 0, y: 0}
+    nearGround: {fileID: 21300000, guid: f076e0f30414c3c4cb3755f305c7cecf, type: 3}
+    pond:
+      wetSingle: {fileID: 21300000, guid: d850c8af0302c1b4c87720704cf6e61a, type: 3}
+      wetLeft: {fileID: 21300000, guid: 58719ac550493ca45975f6f4af814129, type: 3}
+      wetMiddle: {fileID: 21300000, guid: be669be471aa9494fbf697be40f5a729, type: 3}
+      wetRight: {fileID: 21300000, guid: 45cbbadbab1212d40864b0422022e869, type: 3}
+      wetFree01: {fileID: 21300000, guid: ee99d22bdf9bdb4439842215da41f8d4, type: 3}
+      wetFree02: {fileID: 21300000, guid: 67ac4ebc77974954a89f16e14af4c49d, type: 3}
+      drySingle: {fileID: 21300000, guid: 7ba51b13130a6b643a650196a063b59a, type: 3}
+      tileHeightRatio: 0.55
+      dryFadeSeconds: 4
+    nearOffset: {x: 0, y: -1.1}
+    fallbackLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}
+    skyFillColor: {r: 0.663, g: 0.894, b: 0.945, a: 1}
+    groundFillColor: {r: 0.773, g: 0.859, b: 0.38, a: 1}
+    landscapeYOffset: 0.1
+    farHeightMultiplier: 1
+    middleHeightMultiplier: 1
+    nearHeightMultiplier: 1
+    nearGroundTopOffset: -0.24
+  - theme: 2
+    farSky: {fileID: 0}
+    farClouds: {fileID: 0}
+    farMountains: {fileID: 0}
+    middle: {fileID: 0}
+    farSkyOffset: {x: 0, y: 0}
+    farCloudsOffset: {x: 0, y: 0}
+    farMountainsOffset: {x: 0, y: 0}
+    middleOffset: {x: 0, y: 0}
+    fallbackOffset: {x: 0, y: 0}
+    nearGround: {fileID: 0}
+    pond:
+      wetSingle: {fileID: 21300000, guid: d850c8af0302c1b4c87720704cf6e61a, type: 3}
+      wetLeft: {fileID: 21300000, guid: 58719ac550493ca45975f6f4af814129, type: 3}
+      wetMiddle: {fileID: 21300000, guid: be669be471aa9494fbf697be40f5a729, type: 3}
+      wetRight: {fileID: 21300000, guid: 45cbbadbab1212d40864b0422022e869, type: 3}
+      wetFree01: {fileID: 21300000, guid: ee99d22bdf9bdb4439842215da41f8d4, type: 3}
+      wetFree02: {fileID: 21300000, guid: 67ac4ebc77974954a89f16e14af4c49d, type: 3}
+      drySingle: {fileID: 21300000, guid: 7ba51b13130a6b643a650196a063b59a, type: 3}
+      tileHeightRatio: 0.55
+      dryFadeSeconds: 4
+    nearOffset: {x: 0, y: -1.1}
+    fallbackLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
+    skyFillColor: {r: 0.898, g: 0.718, b: 0.475, a: 1}
+    groundFillColor: {r: 0.945, g: 0.831, b: 0.549, a: 1}
+    landscapeYOffset: 0.1
+    farHeightMultiplier: 1
+    middleHeightMultiplier: 1
+    nearHeightMultiplier: 1
+    nearGroundTopOffset: -0.24

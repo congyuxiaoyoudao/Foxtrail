@@ -35,19 +35,11 @@ namespace Hiking.Journey
         public void Select(string id)
         {
             if (!flow.UI.PlacementPromptOpen || !IsAtSlot(PendingSlot) || (id != "water" && id != "seed")) return;
-            SelectedMaterialId = id; SetQuantity(SelectedQuantity); RefreshHighlights();
+            SelectedMaterialId = id; SetQuantity(SelectedQuantity);
         }
         public void SetQuantity(int value) => SelectedQuantity = Mathf.Clamp(value, 1, Mathf.Max(1, flow.Session.Stock(SelectedMaterialId)));
         public void AdjustQuantity(int delta) => SetQuantity(SelectedQuantity + delta);
-        public void ClearSelection() { PendingSlot = null; SelectedMaterialId = null; SelectedQuantity = 1; RefreshHighlights(); }
-        public void RefreshHighlights()
-        {
-            if (flow == null || flow.Map == null) return;
-            var material = flow.Material(SelectedMaterialId);
-            foreach (var station in flow.Map.stations)
-                foreach (var slot in station.slots)
-                    slot.Highlight(slot == PendingSlot && IsAtSlot(slot) && material != null, material != null ? material.color : Color.white);
-        }
+        public void ClearSelection() { PendingSlot = null; SelectedMaterialId = null; SelectedQuantity = 1; }
         void Update()
         {
             if (flow == null || !flow.UI.IsModalOpen) return;

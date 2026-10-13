@@ -4,7 +4,7 @@ namespace Hiking.Journey
 {
     public class MapProvider : MonoBehaviour
     {
-        [Tooltip("直线路线与完成后的圆环配置")]
+        [Tooltip("直线路线与地块环境的配置")]
         public RingMapSettings ringSettings;
         
         // themes 为空时按原有规则随机；读档时必须传入存档里的主题，

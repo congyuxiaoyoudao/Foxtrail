@@ -6,15 +6,37 @@ namespace Hiking.Journey
     public class TravelerController : MonoBehaviour
     {
         public Transform visual;
+        [Header("Fox walk animation")]
+        public SpriteRenderer spriteRenderer;
+        public Sprite[] walkFrames;
+        [Min(1f)] public float walkFramesPerSecond = 18f;
         public bool IsMoving { get; private set; }
-        public float Progress01 { get; private set; }
         public bool Paused { get; set; }
+        public float Progress01 { get; private set; }
         public float MoveFraction { get; private set; }
         public float MoveDirection { get; private set; }
         Coroutine movement;
         JourneyMap map;
-        float? transitionInset;
-        public void SetTransitionInset(float? inset) => transitionInset = inset;
+        float animationSeconds;
+        float finalJumpHeight;
+        void Update()
+        {
+            if (Paused || walkFrames == null || walkFrames.Length == 0) return;
+            if (!IsMoving)
+            {
+                animationSeconds = 0;
+                ShowFrame(0);
+                return;
+            }
+            animationSeconds += Time.unscaledDeltaTime;
+            ShowFrame(Mathf.FloorToInt(animationSeconds * Mathf.Max(1f, walkFramesPerSecond)) % walkFrames.Length);
+        }
+        void ShowFrame(int index)
+        {
+            if (spriteRenderer == null && visual != null)
+                spriteRenderer = visual.GetComponentInChildren<SpriteRenderer>();
+            if (spriteRenderer != null) spriteRenderer.sprite = walkFrames[index];
+        }
         public void PlaceOnRoute(JourneyMap route)
         {
             CancelMovement(); map = route; Progress01 = 0;
@@ -38,9 +60,16 @@ namespace Hiking.Journey
         }
         public void FaceCamera(Camera camera)
         {
+            RefreshPosition();
             transform.rotation = camera.transform.rotation;
             if (visual == null) return;
-            visual.localPosition = new Vector3(transitionInset ?? 0, 0, 0);
+            visual.localPosition = new Vector3(0, finalJumpHeight, 0);
+        }
+        public void SetFinalJump(float height) => finalJumpHeight = Mathf.Max(0, height);
+        public void ResetFinalJump()
+        {
+            finalJumpHeight = 0;
+            if (visual != null) visual.localPosition = Vector3.zero;
         }
         public void MoveToProgress(float target, float duration, Action arrived)
         {
@@ -74,8 +103,10 @@ namespace Hiking.Journey
         public void CancelMovement()
         {
             if (movement != null) StopCoroutine(movement);
-            movement = null; IsMoving = false;
-            transitionInset = null;
+            movement = null; IsMoving = false; Paused = false;
+            finalJumpHeight = 0;
+            animationSeconds = 0;
+            if (walkFrames != null && walkFrames.Length > 0) ShowFrame(0);
             if (visual != null) visual.localPosition = Vector3.zero;
         }
         void OnDisable() => CancelMovement();

@@ -32,6 +32,7 @@ public sealed class PlantCatalogEditor : Editor
             plant.FindPropertyRelative("displayName").stringValue = "新植物";
             plant.FindPropertyRelative("suitableHabitats").intValue = (int)PlantHabitat.Grass;
             plant.FindPropertyRelative("isForeground").boolValue = true;
+            plant.FindPropertyRelative("visualHeight").floatValue = .35f;
             plant.FindPropertyRelative("floodTolerant").boolValue = false;
             plant.FindPropertyRelative("maxHumidityPercent").intValue = 90;
             plant.FindPropertyRelative("maxSoilPercent").intValue = 90;
@@ -83,6 +84,7 @@ public sealed class PlantCatalogEditor : Editor
             EditorGUILayout.PropertyField(name, new GUIContent("名称"));
             EditorGUILayout.PropertyField(habitats, new GUIContent("适宜地块"));
             EditorGUILayout.PropertyField(foreground, new GUIContent("前景植物"));
+            EditorGUILayout.PropertyField(plant.FindPropertyRelative("visualHeight"), new GUIContent("成熟画面高度"));
             EditorGUILayout.PropertyField(floodTolerant, new GUIContent("耐中等积水"));
             if (habitats.intValue == 0) EditorGUILayout.HelpBox("请至少选择一种适宜地块。", MessageType.Warning);
             EditorGUILayout.BeginHorizontal();

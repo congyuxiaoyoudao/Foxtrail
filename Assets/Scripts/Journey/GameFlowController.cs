@@ -24,7 +24,17 @@ namespace Hiking.Journey
         double lastTime;
         float environmentSeconds;
         int generation;
+        string runId;
+        JourneyArchive archive;
+        Coroutine appreciationEntrance;
+        public bool IsAppreciating { get; private set; }
         public bool IsPreviewing { get; private set; }
+        public bool IsBrowsingPanorama => IsPreviewing || IsAppreciating;
+        public bool IsEnteringAppreciation { get; private set; }
+        public bool HasAppreciated { get; private set; }
+        public bool IsFinalized { get; private set; }
+        public string SaveError { get; private set; }
+        public int LevelIndex { get; private set; } = 1;
         public bool IsDebugMode { get; private set; }
         public int DebugStepCount { get; private set; }
         public Station CurrentStation => Map != null ? Map.stations[Session.StationIndex] : null;
@@ -50,6 +60,8 @@ namespace Hiking.Journey
             Application.runInBackground = true;
             Placement.Initialize(this); Camera.Initialize(this); UI.Initialize(this);
             ReturnToStart();
+            try { archive = JourneyArchiveStore.Load(); }
+            catch (Exception error) { SaveError = error.Message; Debug.LogException(error); }
         }
         void Update()
         {
@@ -57,10 +69,10 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             // 离线结算期间不推进旅途、不结算行动点：这一段时间属于"读档"，不属于游戏
             if (IsSettlingOffline) return;
-            if (IsPreviewing || IsDebugMode) return;
+            if (IsDebugMode || IsPreviewing || Activity == JourneyActivity.Complete) return;
             Session.Tick(delta);
             TickAutosave(delta);
-            if (Map == null || UI.IsModalOpen || Activity == JourneyActivity.Complete) return;
+            if (Map == null || UI.IsModalOpen) return;
             environmentSeconds += Mathf.Max(0, delta);
             while (environmentSeconds >= 1f)
             {
@@ -242,13 +254,30 @@ namespace Hiking.Journey
         public void StartJourney(JourneyMode mode)
         {
             if (Session.Phase != JourneyPhase.Start || Map != null) return;
+            if (archive == null) { UI.Notify("无法读取旅途存档：" + SaveError); return; }
+            StartLevel(mode);
+        }
+        void StartLevel(JourneyMode mode)
+        {
+            JourneyMap next = null;
             try
             {
-                Map = MapProvider.CreateMap(WorldRoot);
-                if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
-                Session.Begin(Map.stations.Length, .1, Config.materials);
-                generation++; Mode = mode; CurrentTileIndex = 0; environmentSeconds = 0;
-                Traveler.gameObject.SetActive(true); Traveler.PlaceOnRoute(Map);
+                next = MapProvider.CreateMap(WorldRoot);
+                if (!next.Validate(out string error)) throw new InvalidOperationException(error);
+                var previous = Map;
+                Traveler.transform.SetParent(null, true);
+                Session.Begin(next.stations.Length, .1, Config.materials,
+                    carried: archive.nextLevelIndex > 1 ? archive.carryInventory : null);
+                Map = next; next = null;
+                if (previous != null) { previous.gameObject.SetActive(false); Destroy(previous.gameObject); }
+                generation++; Mode = mode; LevelIndex = archive.nextLevelIndex;
+                runId = Guid.NewGuid().ToString("N");
+                CurrentTileIndex = 0; environmentSeconds = 0;
+                IsAppreciating = false; IsEnteringAppreciation = false; IsPreviewing = false;
+                IsFinalized = false; HasAppreciated = false; SaveError = null;
+                Camera.ResetCamera();
+                Traveler.ResetFinalJump(); Traveler.gameObject.SetActive(true); Traveler.PlaceOnRoute(Map);
+                if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = true;
                 Camera.ShowStation(CurrentStation);
                 lastTime = Time.realtimeSinceStartupAsDouble;
                 Placement.ClearSelection();
@@ -258,7 +287,8 @@ namespace Hiking.Journey
             }
             catch (Exception error)
             {
-                ReturnToStart(); UI.Notify("无法开始旅途：" + error.Message); Debug.LogException(error);
+                if (next != null) Destroy(next.gameObject);
+                UI.Notify("无法开始旅途：" + error.Message); Debug.LogException(error);
             }
         }
         public void StartDebugMode()
@@ -307,7 +337,7 @@ namespace Hiking.Journey
         }
         public void CompletePlacementVisit()
         {
-            if (Activity != JourneyActivity.AwaitingPlacement || IsPreviewing) return;
+            if (IsPreviewing || Activity != JourneyActivity.AwaitingPlacement) return;
             UI.ClosePlacementPrompt(false);
             SaveNow();   // 策划的关键操作：投放确认后保存，记录与扣除后的库存一起落盘
             Advance();
@@ -320,10 +350,7 @@ namespace Hiking.Journey
             if (Session.StationIndex == Map.stations.Length - 1)
             {
                 Session.Arrive(); Activity = JourneyActivity.Complete;
-                Camera.RevealPanorama(Map.panoramaBounds, () =>
-                {
-                    if (generation == currentGeneration) Session.FinishReveal();
-                });
+                TryFinalize();
                 return;
             }
             Activity = JourneyActivity.BetweenStations;
@@ -333,6 +360,75 @@ namespace Hiking.Journey
                 CurrentTileIndex = 0; Camera.ShowStation(CurrentStation);
                 CollectOnTileEntry(); Advance();
             });
+        }
+        public void TryFinalize()
+        {
+            if (Activity != JourneyActivity.Complete || IsFinalized || Map == null || archive == null) return;
+            try
+            {
+                archive = JourneyArchiveStore.SaveCompleted(archive, runId, LevelIndex,
+                    Mode, Session, Map, Config.materials);
+                IsFinalized = true; SaveError = null;
+                Session.CompleteFinalization();
+                Camera.ShowStation(CurrentStation);
+            }
+            catch (Exception error)
+            {
+                SaveError = error.Message;
+                Debug.LogException(error);
+            }
+        }
+        public void EnterAppreciation()
+        {
+            if (!IsFinalized || IsAppreciating || IsEnteringAppreciation || Map == null) return;
+            appreciationEntrance = StartCoroutine(EnterAppreciationRoutine());
+        }
+        public void PreviewPanorama()
+        {
+            if (Map == null || IsDebugMode || IsBrowsingPanorama || IsEnteringAppreciation ||
+                Activity == JourneyActivity.Complete || UI.IsModalOpen) return;
+            IsPreviewing = true;
+            Traveler.Paused = true;
+            if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = false;
+            Camera.ShowScrollAtStart();
+        }
+        public void ExitPreview()
+        {
+            if (!IsPreviewing || Map == null) return;
+            IsPreviewing = false;
+            Traveler.Paused = false;
+            if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = true;
+            Camera.ShowStation(CurrentStation);
+            lastTime = Time.realtimeSinceStartupAsDouble;
+        }
+        IEnumerator EnterAppreciationRoutine()
+        {
+            IsEnteringAppreciation = true;
+            float elapsed = 0f;
+            float height = Camera.WorldCamera.orthographicSize * 2.5f;
+            while (elapsed < .55f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                Traveler.SetFinalJump(Mathf.Sin(Mathf.Clamp01(elapsed / .55f) * Mathf.PI * .5f) * height);
+                yield return null;
+            }
+            Traveler.gameObject.SetActive(false);
+            Camera.ShowScrollAtStart();
+            IsAppreciating = true; IsEnteringAppreciation = false; HasAppreciated = true;
+            appreciationEntrance = null;
+        }
+        public void ExitAppreciation()
+        {
+            if (!IsAppreciating || Map == null) return;
+            IsAppreciating = false;
+            Traveler.ResetFinalJump(); Traveler.gameObject.SetActive(true);
+            Camera.ShowStation(CurrentStation);
+        }
+        public void ContinueJourney()
+        {
+            if (!IsFinalized || IsAppreciating || IsEnteringAppreciation ||
+                Session.Phase != JourneyPhase.Completed) return;
+            StartLevel(Mode);
         }
         int CurrentGlobalTile => Session.StationIndex * RingMapSettings.TilesPerStation + CurrentTileIndex;
         float CollectRainAtCurrentTile(int eventId, int globalTile, float amount)
@@ -363,25 +459,17 @@ namespace Hiking.Journey
         public void ReturnToStart()
         {
             generation++; UI.CloseExitPrompt(); UI.ClosePlacementPrompt(false);
-            IsPreviewing = false; IsDebugMode = false; DebugStepCount = 0; environmentSeconds = 0; Traveler.Paused = false;
+            if (appreciationEntrance != null) StopCoroutine(appreciationEntrance);
+            appreciationEntrance = null; IsAppreciating = false; IsEnteringAppreciation = false; IsPreviewing = false;
+            IsFinalized = false; HasAppreciated = false; runId = null;
+            IsDebugMode = false; DebugStepCount = 0; environmentSeconds = 0;
             Activity = JourneyActivity.None; CurrentTileIndex = 0;
             Traveler.CancelMovement(); Camera.ResetCamera(); Placement.ClearSelection();
+            if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = true;
+            Traveler.ResetFinalJump();
             Traveler.transform.SetParent(null, true); Traveler.gameObject.SetActive(false);
             if (Map != null) { Map.gameObject.SetActive(false); Destroy(Map.gameObject); Map = null; }
             Session.Reset(); lastTime = Time.realtimeSinceStartupAsDouble; UI.Notify("");
-        }
-        public void PreviewPanorama()
-        {
-            if (Map == null || IsDebugMode || IsPreviewing || UI.IsModalOpen || Session.Phase == JourneyPhase.Revealing || Session.Phase == JourneyPhase.Panorama) return;
-            IsPreviewing = true; Traveler.Paused = true;
-            Camera.RevealPanorama(Map.panoramaBounds, () => { });
-        }
-        public void ExitPreview()
-        {
-            if (!IsPreviewing || Map == null) return;
-            Camera.ResetCamera(); Map.ShowJourney(); Traveler.RefreshPosition();
-            IsPreviewing = false; Traveler.Paused = false; lastTime = Time.realtimeSinceStartupAsDouble;
-            Camera.RestoreJourneyView(); Placement.RefreshHighlights();
         }
         void OnDestroy() { if (Traveler != null) Traveler.CancelMovement(); }
     }
