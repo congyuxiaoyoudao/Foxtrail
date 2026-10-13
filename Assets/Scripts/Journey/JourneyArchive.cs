@@ -17,7 +17,7 @@ namespace Hiking.Journey
     {
         public float soilContent, soilWater, surfaceWater, temperature, baseEvaporation;
         public float pendingVapor, drainageLoss;
-        public int height, waterGrassStage, waterGrassAge, waterGrassRetreat;
+        public int height;
         public PlantInstance[] plants;
         public SeedInstance[] seeds;
     }
@@ -123,8 +123,7 @@ namespace Hiking.Journey
                         surfaceWater = tile.SurfaceWater, temperature = tile.Temperature,
                         baseEvaporation = tile.BaseEvaporationRate,
                         pendingVapor = tile.PendingVapor, drainageLoss = tile.DrainageLoss,
-                        height = tile.Height, waterGrassStage = (int)tile.WaterGrass,
-                        waterGrassAge = tile.WaterGrassAge, waterGrassRetreat = tile.WaterGrassRetreat,
+                        height = tile.Height,
                         plants = tile.NaturalPlants, seeds = tile.Seeds.ToArray()
                     };
                 }

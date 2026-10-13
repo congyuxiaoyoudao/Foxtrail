@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Hiking.Journey
 {
     public enum WaterDepth { Dry, Medium, Deep }
-    public enum WaterGrassStage { None, Small, Large }
     [Serializable]
     public sealed class TileState
     {
@@ -27,9 +26,6 @@ namespace Hiking.Journey
         public float SurfaceWater { get; private set; }
         public WaterDepth Depth => SurfaceWater >= 25 ? WaterDepth.Deep : SurfaceWater > 10 ? WaterDepth.Medium : WaterDepth.Dry;
         public bool IsPuddle => Depth != WaterDepth.Dry;
-        public WaterGrassStage WaterGrass { get; private set; }
-        public int WaterGrassAge { get; private set; }
-        public int WaterGrassRetreat { get; private set; }
         public float DrainageLoss { get; private set; }
         public float PendingVapor { get; private set; }
         public float EvaporatedThisStep { get; private set; }
@@ -58,10 +54,9 @@ namespace Hiking.Journey
             DrainageLoss = Mathf.Max(0, surfaceWater - SurfaceCapacity);
             Temperature = Mathf.Clamp(temperature, 0, 20);
             ClimateTemperature = Temperature; ReferenceWater = SoilWater + SurfaceWater;
-            StartWaterGrassIfDeep();
         }
 
-        // 读档恢复。构造函数覆盖不了种子队列、水草状态、待回落水汽和排水损失——它只接受"初始状态"。
+        // 读档恢复。构造函数覆盖不了种子队列、待回落水汽和排水损失——它只接受"初始状态"。
         // 这些字段都是私有 set，只能在类内部赋值，所以恢复入口必须放在这里。
         public static TileState Restore(TileData data)
         {
@@ -99,9 +94,6 @@ namespace Hiking.Journey
             }
             tile.PendingVapor = Mathf.Max(0, data.pendingVapor);
             tile.DrainageLoss = Mathf.Max(0, data.drainageLoss);
-            tile.WaterGrass = (WaterGrassStage)data.waterGrass;
-            tile.WaterGrassAge = Mathf.Max(0, data.waterGrassAge);
-            tile.WaterGrassRetreat = Mathf.Max(0, data.waterGrassRetreat);
 
             tile.Seeds.Clear();
             if (data.seeds != null)
@@ -147,7 +139,6 @@ namespace Hiking.Journey
             float next = SurfaceWater + quantity;
             DrainageLoss += Mathf.Max(0, next - SurfaceCapacity);
             SurfaceWater = Mathf.Min(SurfaceCapacity, next);
-            StartWaterGrassIfDeep();
         }
 
         public float TakeSurfaceWater(float quantity)
@@ -189,7 +180,6 @@ namespace Hiking.Journey
             float next = SurfaceWater + change;
             DrainageLoss += Mathf.Max(0, next - SurfaceCapacity);
             SurfaceWater = Mathf.Clamp(next, 0, SurfaceCapacity);
-            StartWaterGrassIfDeep();
         }
 
         // One step is one simulated second. Neighbor exchange and infiltration have already run.
@@ -207,7 +197,6 @@ namespace Hiking.Journey
             SoilWater -= soilLoss;
             EvaporatedThisStep = surfaceLoss + soilLoss;
             PendingVapor += EvaporatedThisStep;
-            UpdateWaterGrass();
             UpdateWaterTemperature(settings);
             if (plantCatalog != null && NaturalPlants.Length > 0)
             {
@@ -281,29 +270,6 @@ namespace Hiking.Journey
 
         public void RecordStepChange(TileSnapshot before) => LastChange = Snapshot() - before;
 
-        void UpdateWaterGrass()
-        {
-            if (Depth == WaterDepth.Deep)
-            {
-                WaterGrassRetreat = 0;
-                StartWaterGrassIfDeep();
-                if (WaterGrass == WaterGrassStage.Small && ++WaterGrassAge >= 20) WaterGrass = WaterGrassStage.Large;
-            }
-            else if (WaterGrass != WaterGrassStage.None && ++WaterGrassRetreat >= 5)
-            {
-                WaterGrass = WaterGrassStage.None;
-                WaterGrassAge = 0;
-                WaterGrassRetreat = 0;
-            }
-        }
-
-        void StartWaterGrassIfDeep()
-        {
-            if (Depth != WaterDepth.Deep || WaterGrass != WaterGrassStage.None) return;
-            WaterGrass = WaterGrassStage.Small;
-            WaterGrassAge = 0;
-            WaterGrassRetreat = 0;
-        }
     }
 
     public static class TileNeighborFlow
@@ -391,12 +357,12 @@ namespace Hiking.Journey
     public struct TileSnapshot
     {
         public float SoilContent, MaxWater, SoilWater, SoilHumidity, EvaporationRate, SurfaceWater, Temperature, DrainageLoss, PendingVapor;
-        public int PlantCount, SeedCount, Height, EffectiveHeight, WaterGrass;
+        public int PlantCount, SeedCount, Height, EffectiveHeight;
         public TileSnapshot(TileState tile)
         {
             SoilContent = tile.SoilContent; MaxWater = tile.MaxWater; PlantCount = tile.PlantCount; SeedCount = tile.SeedCount;
             SoilWater = tile.SoilWater; SoilHumidity = tile.SoilHumidity; EvaporationRate = tile.EvaporationRate;
-            Height = tile.Height; EffectiveHeight = tile.EffectiveHeight; WaterGrass = (int)tile.WaterGrass;
+            Height = tile.Height; EffectiveHeight = tile.EffectiveHeight;
             SurfaceWater = tile.SurfaceWater; Temperature = tile.Temperature; DrainageLoss = tile.DrainageLoss;
             PendingVapor = tile.PendingVapor;
         }
@@ -406,7 +372,7 @@ namespace Hiking.Journey
             PlantCount = a.PlantCount - b.PlantCount, SeedCount = a.SeedCount - b.SeedCount,
             SoilWater = a.SoilWater - b.SoilWater, SoilHumidity = a.SoilHumidity - b.SoilHumidity,
             EvaporationRate = a.EvaporationRate - b.EvaporationRate, Height = a.Height - b.Height,
-            EffectiveHeight = a.EffectiveHeight - b.EffectiveHeight, WaterGrass = a.WaterGrass - b.WaterGrass,
+            EffectiveHeight = a.EffectiveHeight - b.EffectiveHeight,
             SurfaceWater = a.SurfaceWater - b.SurfaceWater, Temperature = a.Temperature - b.Temperature,
             DrainageLoss = a.DrainageLoss - b.DrainageLoss, PendingVapor = a.PendingVapor - b.PendingVapor
         };

@@ -10,6 +10,11 @@ namespace Hiking.Journey
         Station station;
         SpriteRenderer image;
         bool ground;
+        bool transitionActive;
+        float transitionCenter;
+        float transitionAlpha = 1f;
+        int baseSortingOrder;
+        int sortingOffset;
 
         public void Configure(JourneyMap owner, RingMapSettings source, Station home,
             SpriteRenderer renderer, bool isGround)
@@ -19,6 +24,16 @@ namespace Hiking.Journey
             station = home;
             image = renderer;
             ground = isGround;
+            baseSortingOrder = renderer.sortingOrder;
+            RefreshPosition();
+        }
+
+        public void SetTransition(bool active, float center, float alpha, int orderOffset)
+        {
+            transitionActive = active;
+            transitionCenter = center;
+            transitionAlpha = active ? Mathf.Clamp01(alpha) : 1f;
+            sortingOffset = active ? orderOffset : 0;
             RefreshPosition();
         }
 
@@ -28,14 +43,20 @@ namespace Hiking.Journey
                 return;
             var layers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
             if (layers == null) return;
-            image.color = ground ? layers.groundFillColor : layers.skyFillColor;
-            float top = settings.ringThickness * .5f + settings.landscapeBaseHeight +
-                layers.landscapeYOffset + (layers.HasLandscape ? layers.middleOffset.y : layers.fallbackOffset.y);
+            var color = ground ? layers.groundFillColor : layers.skyFillColor;
+            color.a *= transitionAlpha;
+            image.color = color;
+            image.sortingOrder = baseSortingOrder + sortingOffset;
+            var layout = settings.sceneLayout;
+            float top = settings.ringThickness * .5f +
+                (settings.sceneLayout != null ? settings.sceneLayout.landscapeBaseY : 0f) +
+                (layout != null ? (layers.HasLandscape ? layout.middleY : layout.fallbackY) : 0f);
             // Start the solid ground just below the source art edge. The sprite's
             // transparent top pixels otherwise expose a thin ground-colored stripe.
             float centerY = ground ? top - 10.2f : 0f;
             map.UpdateRouteObject(transform, new Vector3(
-                station.startDistance + station.length * .5f, centerY,
+                transitionActive ? transitionCenter : station.startDistance + station.length * .5f,
+                centerY,
                 Mathf.Max(0, settings.landscapeDepth) + .1f));
             transform.localScale = new Vector3(
                 station.length / Mathf.Max(.001f, image.sprite.bounds.size.x),

@@ -250,7 +250,7 @@ namespace Hiking.Journey
                     !hasSuitablePlant ? "当前主题没有适宜生长的植物" :
                     quantity > tile.FreePlantCapacity ? $"地块最多还能接收 {tile.FreePlantCapacity} 颗种子" :
                     $"投种 {quantity} 份：待萌发种子最多存活 30 秒";
-                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 地表水 {tile.SurfaceWater:0.0} · 已投种子 {slot.SeedCount} · 待萌发 {tile.SeedCount}\n{action}";
+                placementPromptText.text = $"第 {slot.tileIndex + 1} 块 · 可播 {tile.FreePlantCapacity} 颗 · 地表水 {tile.SurfaceWater:0.0} · 已投种子 {slot.SeedCount} · 待萌发 {tile.SeedCount}\n{action}";
                 if (!quantityInput.isFocused) quantityInput.SetTextWithoutNotify(quantity.ToString());
                 quantityMinus.interactable = quantity > 1;
                 quantityPlus.interactable = quantity < flow.Session.Stock(flow.Placement.SelectedMaterialId);

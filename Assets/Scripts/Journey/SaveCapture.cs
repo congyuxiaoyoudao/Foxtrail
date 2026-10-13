@@ -119,9 +119,6 @@ namespace Hiking.Journey
             data.pendingVapor = tile.PendingVapor;
             data.drainageLoss = tile.DrainageLoss;
             data.height = tile.Height;
-            data.waterGrass = (int)tile.WaterGrass;
-            data.waterGrassAge = tile.WaterGrassAge;
-            data.waterGrassRetreat = tile.WaterGrassRetreat;
 
             var plants = new List<PlantData>();
             if (tile.NaturalPlants != null)

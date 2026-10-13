@@ -5,6 +5,7 @@ namespace Hiking.Journey
 {
     public class JourneyMap : MonoBehaviour
     {
+        public const float FoxHeightAboveRoad = .5f;
         public Station[] stations;
         public Transform finishPoint;
         public RingMapSettings sourceSettings;
@@ -21,6 +22,7 @@ namespace Hiking.Journey
         readonly List<Vector3> objectCoordinates = new List<Vector3>();
         readonly HashSet<Transform> nearRouteObjects = new HashSet<Transform>();
         readonly List<Renderer> landscapes = new List<Renderer>();
+        readonly List<Station> landscapeStations = new List<Station>();
         readonly List<Material> landscapeMaterials = new List<Material>();
         readonly List<Mesh> landscapeMeshes = new List<Mesh>();
         RainStreakVisual rainVisual;
@@ -38,17 +40,37 @@ namespace Hiking.Journey
         public void RegisterLandscape(Renderer renderer, Material material = null, Mesh mesh = null)
         {
             landscapes.Add(renderer);
+            landscapeStations.Add(renderer.GetComponentInParent<Station>());
             landscapeMaterials.Add(material);
             landscapeMeshes.Add(mesh);
         }
-        public void FrameLandscapes(Camera camera)
+        public void FrameLandscapes(Camera camera, int blendFromStation = -1,
+            float blendProgress = 0f, float blendCenter = 0f)
         {
             bool visible = camera != null && camera.orthographic;
-            if (visible) RefreshNearRouteObjects();
-            foreach (var landscape in landscapes)
+            bool blending = visible && stations != null && blendFromStation >= 0 &&
+                blendFromStation < stations.Length - 1;
+            Station outgoing = blending ? stations[blendFromStation] : null;
+            Station incoming = blending ? stations[blendFromStation + 1] : null;
+            if (visible)
             {
+                RefreshRouteMeshPositions();
+                RefreshNearRouteObjects();
+            }
+            for (int index = 0; index < landscapes.Count; index++)
+            {
+                var landscape = landscapes[index];
                 if (landscape == null) continue;
-                landscape.enabled = visible;
+                var station = landscapeStations[index];
+                bool isIncoming = blending && station == incoming;
+                bool participates = blending && (station == outgoing || isIncoming);
+                var layer = landscape.GetComponent<SceneLandscapeLayer>();
+                if (layer != null) layer.SetTransition(participates, blendCenter,
+                    isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
+                var fill = landscape.GetComponent<SceneThemeFill>();
+                if (fill != null) fill.SetTransition(participates, blendCenter,
+                    isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
+                landscape.enabled = visible && (!blending || participates);
                 if (visible) landscape.transform.rotation = camera.transform.rotation;
             }
             if (visible && stations != null)
@@ -68,10 +90,25 @@ namespace Hiking.Journey
             generatedMeshes = routeMeshes.ToArray();
             var original = System.Array.Find(GetComponentsInChildren<MeshFilter>(), f => f.sharedMesh == mesh);
             var renderer = original.GetComponent<MeshRenderer>();
+            float groundY = (sourceSettings?.sceneLayout?.nearSharedY ?? 0f) +
+                (sourceSettings?.sceneLayout?.groundY ?? 0f);
+            renderer.transform.localPosition = new Vector3(0f, groundY, 0f);
             var tint = new MaterialPropertyBlock();
             tint.SetColor("_Color", Color.white);
             renderer.SetPropertyBlock(tint);
             routeRenderers.Add(renderer);
+        }
+        void RefreshRouteMeshPositions()
+        {
+            float groundY = (sourceSettings?.sceneLayout?.nearSharedY ?? 0f) +
+                (sourceSettings?.sceneLayout?.groundY ?? 0f);
+            foreach (var renderer in routeRenderers)
+            {
+                if (renderer == null) continue;
+                var position = renderer.transform.localPosition;
+                position.y = groundY;
+                renderer.transform.localPosition = position;
+            }
         }
         public void SetRouteMeshColor(Mesh mesh, Color color)
         {
@@ -113,21 +150,11 @@ namespace Hiking.Journey
             Vector3 route = objectCoordinates[index];
             if (nearRouteObjects.Contains(routeObjects[index]))
             {
-                Vector2 offset = NearOffsetAtDistance(route.x);
-                route.x += offset.x;
-                route.y += offset.y;
+                route.y += NearOffsetAtDistance(route.x);
             }
             return route;
         }
-        public Vector2 NearOffsetAtDistance(float distance)
-        {
-            if (stations == null || stations.Length == 0 || sourceSettings == null ||
-                sourceSettings.sceneThemes == null) return Vector2.zero;
-            int index = Mathf.Clamp(Mathf.FloorToInt(distance / Mathf.Max(.001f, ViewWidth)),
-                0, stations.Length - 1);
-            var layers = sourceSettings.sceneThemes.For(stations[index].theme);
-            return layers != null && layers.nearGround != null ? layers.nearOffset : Vector2.zero;
-        }
+        public float NearOffsetAtDistance(float distance) => sourceSettings?.sceneLayout?.nearSharedY ?? 0f;
         public bool IsPondAt(int globalTile)
         {
             if (stations == null || globalTile < 0 ||
@@ -219,11 +246,10 @@ namespace Hiking.Journey
 
         public Vector3 ProgressPoint(float progress)
         {
-            var route = new Vector3(RouteDistanceAtProgress(progress), sourceSettings.ringThickness * .5f + .5f, 0);
-            Vector2 near = NearOffsetAtDistance(route.x);
-            Vector2 fox = sourceSettings.foxPositionOffset;
-            route.x += near.x + fox.x;
-            route.y += near.y + fox.y;
+            var route = new Vector3(RouteDistanceAtProgress(progress),
+                sourceSettings.ringThickness * .5f + FoxHeightAboveRoad, 0);
+            var layout = sourceSettings?.sceneLayout;
+            route.y += (layout?.nearSharedY ?? 0f) + (layout?.foxY ?? 0f);
             return transform.TransformPoint(RoutePoint(route));
         }
 

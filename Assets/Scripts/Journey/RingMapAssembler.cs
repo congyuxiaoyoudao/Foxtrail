@@ -58,7 +58,8 @@ namespace Hiking.Journey
                                 throw new InvalidOperationException("请为主题远景配置材质。");
                             var backdrop = Anchor(map, station.transform, "Landscape_" + station.theme,
                                 new Vector3(station.startDistance + station.length * .5f,
-                                    settings.ringThickness * .5f + settings.landscapeBaseHeight,
+                                    settings.ringThickness * .5f +
+                                        (settings.sceneLayout != null ? settings.sceneLayout.landscapeBaseY : 0f),
                                     Mathf.Max(0, settings.landscapeDepth)));
                             var mesh = new Mesh { name = "LandscapeQuad" };
                             mesh.vertices = new[] { new Vector3(-.5f, 0, 0), new Vector3(.5f, 0, 0),
@@ -183,17 +184,22 @@ namespace Hiking.Journey
                 map.RegisterRouteMesh(mesh);
                 station.SetPatchMesh(p, mesh, baseColor, map);
                 var layers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
-                if (layers == null || layers.nearGround == null) continue;
-                var sprite = layers.nearGround;
+                var sprite = layers != null && layers.nearGround != null ?
+                    layers.nearGround : settings.fallbackPlantSprite;
+                if (sprite == null) continue;
                 float xScale = station.TileWidth / Mathf.Max(.001f, sprite.bounds.size.x);
-                float yScale = xScale * Mathf.Max(.1f, layers.nearHeightMultiplier);
-                float height = sprite.bounds.size.y * yScale;
+                float height = layers?.nearGround != null ? sprite.bounds.size.y * xScale :
+                    settings.GroundPlaceholderHeight(station.TileWidth);
+                float yScale = height / Mathf.Max(.001f, sprite.bounds.size.y);
+                var layout = settings.sceneLayout;
+                float groundY = layout != null ? layout.groundY : 0f;
                 var image = Anchor(map, station.transform, "GroundTile_" + p,
                     new Vector3(station.TileCenter(p),
-                        settings.ringThickness * .5f + layers.nearGroundTopOffset - height * .5f,
+                        settings.ringThickness * .5f + groundY - height * .5f,
                         -.05f));
                 var visual = image.gameObject.AddComponent<SpriteRenderer>();
                 visual.sprite = sprite;
+                visual.color = layers?.nearGround != null ? Color.white : baseColor;
                 visual.sortingOrder = -900;
                 image.localScale = new Vector3(xScale, yScale, 1);
                 map.RegisterLandscape(visual);
@@ -205,7 +211,7 @@ namespace Hiking.Journey
                     float waterHeight = Mathf.Min(.55f, height);
                     var water = Anchor(map, station.transform, "GroundWaterTint_" + p,
                         new Vector3(station.TileCenter(p),
-                            settings.ringThickness * .5f + layers.nearGroundTopOffset - waterHeight * .5f,
+                            settings.ringThickness * .5f + groundY - waterHeight * .5f,
                             -.055f));
                     waterOverlay = water.gameObject.AddComponent<SpriteRenderer>();
                     waterOverlay.sprite = settings.fallbackPlantSprite;

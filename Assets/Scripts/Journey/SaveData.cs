@@ -129,9 +129,6 @@ namespace Hiking.Journey
         public float pendingVapor;
         public float drainageLoss;
         public int height;
-        public int waterGrass;
-        public int waterGrassAge;
-        public int waterGrassRetreat;
         public PlantData[] plants = Array.Empty<PlantData>();
         public SeedData[] seeds = Array.Empty<SeedData>();
     }

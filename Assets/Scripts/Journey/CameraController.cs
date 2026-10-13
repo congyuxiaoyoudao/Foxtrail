@@ -13,6 +13,8 @@ namespace Hiking.Journey
         TextMesh[] labels;
 
         float journeyCenter;
+        bool blendingStationLandscapes;
+        float landscapeBlend;
         float debugCenter;
         float scrollCenter;
         float ScrollViewWidth => flow.Map.stations[0].length;
@@ -42,7 +44,8 @@ namespace Hiking.Journey
             WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
             var target = map.transform.position + new Vector3(scrollCenter - map.RouteLength * .5f, .6f, 0);
-            target += rotation * Vector3.up * (2 * WorldCamera.orthographicSize * flow.Config.journeyVerticalOffset);
+            target += rotation * Vector3.up * (2 * WorldCamera.orthographicSize *
+                (map.sourceSettings.sceneLayout?.cameraFrameHeightRatio ?? 0f));
             WorldCamera.transform.SetPositionAndRotation(target - rotation * Vector3.forward * 30, rotation);
         }
         public float DebugCenter => debugCenter;
@@ -127,21 +130,35 @@ namespace Hiking.Journey
             else if (flow.IsBrowsingPanorama) FrameScroll();
             else FrameJourney();
             if (flow.Traveler.gameObject.activeSelf) flow.Traveler.FaceCamera(WorldCamera);
-            flow.Map.FrameLandscapes(WorldCamera);
+            flow.Map.FrameLandscapes(WorldCamera,
+                !flow.IsDebugMode && !flow.IsBrowsingPanorama && blendingStationLandscapes ?
+                    flow.Session.StationIndex : -1,
+                landscapeBlend, journeyCenter);
             if (labels == null) labels = flow.Map.GetComponentsInChildren<TextMesh>(true);
             foreach (var label in labels) label.transform.rotation = WorldCamera.transform.rotation;
         }
         void FrameJourney()
         {
             var map = flow.Map;
+            blendingStationLandscapes = false;
+            landscapeBlend = 0f;
             WorldCamera.ResetProjectionMatrix();
             float width = JourneyViewWidth;
             var station = flow.CurrentStation;
             journeyCenter = station.startDistance + width * .5f;
             if (flow.Session.StationIndex < map.stations.Length - 1)
             {
+                var nextStation = map.stations[flow.Session.StationIndex + 1];
+                float lastTileCenter = station.TileCenter(station.tileCount - 1);
+                float foxDistance = map.RouteDistanceAtProgress(flow.Traveler.Progress01);
+                if (foxDistance >= lastTileCenter)
+                {
+                    blendingStationLandscapes = true;
+                    landscapeBlend = Mathf.InverseLerp(lastTileCenter,
+                        nextStation.TileCenter(0), foxDistance);
+                }
                 int startTile = station.tileCount - Mathf.Clamp(flow.Config.cameraTransitionStartFromEnd, 1, station.tileCount);
-                float walkedTiles = Mathf.Max(0, (map.RouteDistanceAtProgress(flow.Traveler.Progress01) - station.TileCenter(startTile)) / station.TileWidth);
+                float walkedTiles = Mathf.Max(0, (foxDistance - station.TileCenter(startTile)) / station.TileWidth);
                 int remainingSteps = station.tileCount - 1 - startTile;
                 // Weight each segment by its duration so the slower crossing does not change camera speed.
                 // Deriving progress from the fox also freezes the camera during decisions.
@@ -157,7 +174,8 @@ namespace Hiking.Journey
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
             var target = new Vector3(cameraX, map.transform.position.y + .6f, map.transform.position.z);
             // Moving the camera up in screen space lowers the entire route without changing gameplay coordinates.
-            target += rotation * Vector3.up * (2 * WorldCamera.orthographicSize * flow.Config.journeyVerticalOffset);
+            target += rotation * Vector3.up * (2 * WorldCamera.orthographicSize *
+                (map.sourceSettings.sceneLayout?.cameraFrameHeightRatio ?? 0f));
             WorldCamera.transform.SetPositionAndRotation(target - rotation * Vector3.forward * 30, rotation);
         }
     }

@@ -42,7 +42,7 @@ namespace Hiking.Journey
             flow.Map.Weather.Restore(data.weather);
             flow.Session.Restore(data.session);
 
-            // 表现层跟着数据走：水分标签、水面颜色、植物与水草标记
+            // 表现层跟着数据走：水分标签、水面颜色与植物标记
             float elapsedSeconds = (float)Math.Max(0, (DateTime.UtcNow - SaveSystem.SavedAtUtc(data)).TotalSeconds);
             for (int i = 0; i < stations.Length; i++)
             {
