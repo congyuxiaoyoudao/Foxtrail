@@ -58,6 +58,54 @@ namespace Hiking.Journey
             StartWaterGrassIfDeep();
         }
 
+        // 读档恢复。构造函数覆盖不了种子队列、水草状态、待回落水汽和排水损失——它只接受"初始状态"。
+        // 这些字段都是私有 set，只能在类内部赋值，所以恢复入口必须放在这里。
+        public static TileState Restore(TileData data)
+        {
+            if (data == null) return null;
+
+            int plantCount = data.plants == null ? 0 : data.plants.Length;
+            var plants = new PlantInstance[plantCount];
+            for (int i = 0; i < plantCount; i++)
+            {
+                var source = data.plants[i];
+                plants[i] = new PlantInstance(source.plantId, source.stageIndex)
+                {
+                    life = source.life,
+                    lastLifeChange = source.lastLifeChange,
+                    matureSteps = source.matureSteps
+                };
+            }
+
+            var tile = new TileState((StationTheme)data.category, data.soilContent, plantCount, 0f,
+                data.baseEvaporationRate, data.height, data.surfaceWater, data.temperature, plants);
+
+            // positionOffset 必须在构造之后再写：构造函数会按索引重算一遍，
+            // 而那是"初始一排植物"的排布；后来萌发出来的植物用的是自由位置，
+            // 直接覆盖掉会让它们读档后叠在一起。
+            for (int i = 0; i < tile.NaturalPlants.Length && i < data.plants.Length; i++)
+                tile.NaturalPlants[i].positionOffset = data.plants[i].positionOffset;
+
+            // 覆盖构造函数算出来的近似值，用存档里的真实值
+            tile.SoilWater = Mathf.Clamp(data.soilWater, 0, tile.MaxWater);
+            tile.PendingVapor = Mathf.Max(0, data.pendingVapor);
+            tile.DrainageLoss = Mathf.Max(0, data.drainageLoss);
+            tile.WaterGrass = (WaterGrassStage)data.waterGrass;
+            tile.WaterGrassAge = Mathf.Max(0, data.waterGrassAge);
+            tile.WaterGrassRetreat = Mathf.Max(0, data.waterGrassRetreat);
+
+            tile.Seeds.Clear();
+            if (data.seeds != null)
+                foreach (var seed in data.seeds)
+                    tile.Seeds.Add(new SeedInstance(seed.plantId, seed.createdStep)
+                    {
+                        remainingSteps = seed.remainingSteps
+                    });
+
+            tile.RefreshEvaporation();
+            return tile;
+        }
+
         public TileSnapshot Snapshot() => new TileSnapshot(this);
 
         public void RefreshEvaporation(float soilFactor = .004f, float plantFactor = .3f,

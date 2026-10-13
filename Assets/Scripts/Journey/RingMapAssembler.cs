@@ -15,7 +15,9 @@ namespace Hiking.Journey
             return (StationTheme)UnityEngine.Random.Range(0, 3);
         }
 
-        public static JourneyMap Build(RingMapSettings settings, Transform parent)
+        // themes 为空时按相邻规则随机；读档时传入存档里的主题，
+        // 让远景贴图、路面颜色、地块初始化三处一次性就对。
+        public static JourneyMap Build(RingMapSettings settings, Transform parent, StationTheme[] themes = null)
         {
             if (settings == null || settings.pathMaterial == null || settings.blockCount < 1)
                 throw new InvalidOperationException("请配置路线设置与路径材质。");
@@ -35,7 +37,9 @@ namespace Hiking.Journey
                     station.transform.SetParent(root.transform, false);
                     station.stationId = "station-" + (i + 1);
                     station.startDistance = i * section; station.length = section; station.tileCount = patches;
-                    station.theme = ChooseTheme(i == 0 ? (StationTheme?)null : map.stations[i - 1].theme);
+                    station.theme = themes != null && i < themes.Length
+                        ? themes[i]
+                        : ChooseTheme(i == 0 ? (StationTheme?)null : map.stations[i - 1].theme);
                     station.cameraRange = new Vector2(i * section, (i + 1) * section);
                     map.stations[i] = station;
                     station.InitializeTiles(settings);

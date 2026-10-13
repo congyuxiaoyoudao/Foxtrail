@@ -38,6 +38,23 @@ namespace Hiking.Journey
         public bool IsDebugMode { get; private set; }
         public int DebugStepCount { get; private set; }
         public Station CurrentStation => Map != null ? Map.stations[Session.StationIndex] : null;
+
+        [Header("存档")]
+        [Tooltip("自动保存间隔（秒）。对应策划的『定期保存，间隔作为可配置参数』。")]
+        [Min(5f)] public float autosaveIntervalSec = 60f;
+        [Tooltip("离线推进上限（小时）。超过按上限结算，避免离线一周后开游戏卡死。已定为 2 小时。")]
+        [Min(0f)] public float offlineAdvanceCapHours = 2f;
+        [Tooltip("单次读档最多推进的模拟步数预算。注意它和上面是「谁小谁生效」的关系：" +
+            "2 小时离线 = 7200 步，所以这个值必须不小于 7200，否则上限会被预算悄悄截短。" +
+            "它同时是读档卡顿的保险丝——每步要更新 72 格地块与植物，步数越大读档冻得越久。")]
+        [Min(0)] public int offlineStepBudget = 7200;
+        [Tooltip("离线结算时每帧最多花多少毫秒。太大掉帧，太小结算变慢。8 毫秒约等于 120fps 的余量。")]
+        [Min(.5f)] public float offlineStepBudgetMsPerFrame = 8f;
+        // 读档时离线结算是分帧跑的：玩家看得见进度，画面也不会假死
+        public bool IsSettlingOffline { get; private set; }
+        public float OfflineProgress01 { get; private set; }
+        string offlineSummary;
+        float autosaveSeconds;
         void Start()
         {
             Application.runInBackground = true;
@@ -50,8 +67,11 @@ namespace Hiking.Journey
         {
             double now = Time.realtimeSinceStartupAsDouble;
             float delta = (float)(now - lastTime); lastTime = now;
+            // 离线结算期间不推进旅途、不结算行动点：这一段时间属于"读档"，不属于游戏
+            if (IsSettlingOffline) return;
             if (IsDebugMode || IsPreviewing || Activity == JourneyActivity.Complete) return;
             Session.Tick(delta);
+            TickAutosave(delta);
             if (Map == null || UI.IsModalOpen) return;
             environmentSeconds += Mathf.Max(0, delta);
             while (environmentSeconds >= 1f)
@@ -60,6 +80,176 @@ namespace Hiking.Journey
                 environmentSeconds -= 1f;
             }
         }
+
+        // 定期自动保存（关键操作后的保存见 CollectOnTileEntry / CompletePlacementVisit）
+        void TickAutosave(float delta)
+        {
+            if (Map == null || Session.Phase == JourneyPhase.Start) return;
+            autosaveSeconds += Mathf.Max(0, delta);
+            if (autosaveSeconds < Mathf.Max(5f, autosaveIntervalSec)) return;
+            autosaveSeconds = 0;
+            SaveNow();
+        }
+
+        // ---- 存档 ----
+
+        public bool HasSave() => SaveSystem.Exists;
+
+        public bool SaveNow()
+        {
+            if (Map == null || IsDebugMode || Session.Phase == JourneyPhase.Start) return false;
+            var data = SaveCapture.Capture(this);
+            return data != null && SaveSystem.Write(data);
+        }
+
+        public bool LoadGame()
+        {
+            var data = SaveSystem.Read();
+            if (data == null) { UI.Notify("没有可继续的存档"); return false; }
+            return RestoreFrom(data);
+        }
+
+        // 读档编排：建地图 → 覆盖数据 → 离线推进 → 按退出状态表恢复交互。
+        // 期间先把 generation 推到新值，让上一局遗留的移动回调失效（和 StartJourney 一样）。
+        public bool RestoreFrom(SaveData data)
+        {
+            if (data == null || Map != null || IsDebugMode) return false;
+            try
+            {
+                // 用存档里的站点主题建图：主题决定远景贴图、路面颜色和地块初始化，
+                // 事后改主题要追三处，不如一开始就建对。
+                var themes = new StationTheme[data.stations == null ? 0 : data.stations.Length];
+                for (int i = 0; i < themes.Length; i++) themes[i] = (StationTheme)data.stations[i].theme;
+
+                Map = MapProvider.CreateMap(WorldRoot, themes);
+                if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
+
+                generation++;
+                Mode = (JourneyMode)data.player.mode;
+                Session.Begin(Map.stations.Length, .1, Config.materials);
+                Traveler.gameObject.SetActive(true);
+                Traveler.RestorePosition(Map, data.player.progress01);
+
+                if (!SaveRestore.Apply(this, data)) throw new InvalidOperationException("存档与当前地图结构不匹配。");
+
+                CurrentTileIndex = Mathf.Clamp(data.player.currentTileIndex, 0, Mathf.Max(0, CurrentStation.tileCount - 1));
+                Activity = (JourneyActivity)data.player.activity;
+                environmentSeconds = 0; autosaveSeconds = 0;
+                lastTime = Time.realtimeSinceStartupAsDouble;
+                Camera.ShowStation(CurrentStation);
+
+                ComputeOfflineSteps(data, out int offlineSteps, out double offlineSeconds);
+                if (offlineSteps <= 0)
+                {
+                    ResumeInteraction();
+                }
+                else
+                {
+                    StartOfflineSettle(offlineSteps, offlineSeconds);
+                }
+                return true;
+            }
+            catch (Exception error)
+            {
+                ReturnToStart(); UI.Notify("读档失败：" + error.Message); Debug.LogException(error);
+                return false;
+            }
+        }
+
+        // 离线推进沿用在线语义：只推进环境，不动狐狸、不结算采集、不替玩家做决定。
+        // 狐狸仍能接雨——CollectRainAtCurrentTile 只认它当前所在的格子。
+        // 这里只算「要推进多少步」，实际推进交给 SettleOffline 分帧做。
+        void ComputeOfflineSteps(SaveData data, out int steps, out double seconds)
+        {
+            steps = 0;
+            seconds = 0;
+            if (Map == null) return;
+            seconds = (DateTime.UtcNow - SaveSystem.SavedAtUtc(data)).TotalSeconds;
+            if (seconds <= 0) return;
+            double cap = Math.Max(0f, offlineAdvanceCapHours) * 3600.0;
+            steps = (int)Math.Min(Math.Min(seconds, cap), Math.Max(0, offlineStepBudget));
+        }
+
+        void StartOfflineSettle(int steps, double seconds)
+        {
+            IsSettlingOffline = true;
+            OfflineProgress01 = 0f;
+            offlineSummary = "离线 " + DescribeSpan(seconds) + " · 生态已继续" + (seconds > steps ? "（按上限结算）" : "");
+            StartCoroutine(SettleOffline(steps));
+        }
+
+        // 每帧只花 offlineStepBudgetMsPerFrame 毫秒推进，剩下的时间留给画面刷新。
+        // 之前是一次性跑完 7200 步约 3 秒，窗口看起来像卡死；现在同样是这些步数，
+        // 但玩家看到的是进度在走。
+        IEnumerator SettleOffline(int total)
+        {
+            var watch = new System.Diagnostics.Stopwatch();
+            float budgetMs = Mathf.Max(.5f, offlineStepBudgetMsPerFrame);
+            int done = 0;
+            while (done < total && Map != null)
+            {
+                watch.Restart();
+                while (done < total && watch.Elapsed.TotalMilliseconds < budgetMs)
+                {
+                    Map.StepEnvironment(CollectRainAtCurrentTile);
+                    done++;
+                }
+                OfflineProgress01 = total <= 0 ? 1f : (float)done / total;
+                yield return null;
+            }
+            environmentSeconds = 0;
+            OfflineProgress01 = 1f;
+            IsSettlingOffline = false;
+            UI.Notify(offlineSummary);
+            ResumeInteraction();
+        }
+
+        static string DescribeSpan(double seconds)
+        {
+            if (seconds >= 3600) return (seconds / 3600.0).ToString("0.#") + " 小时";
+            if (seconds >= 60) return (seconds / 60.0).ToString("0.#") + " 分钟";
+            return Math.Max(1, (int)seconds) + " 秒";
+        }
+
+        // 按策划的「退出前状态 / 读档后行为」对照表恢复交互。
+        void ResumeInteraction()
+        {
+            Placement.ClearSelection();   // 「只选了材料，尚未确认」→ 取消，回到等待状态
+            switch (Activity)
+            {
+                case JourneyActivity.Walking:
+                    // 「正在两格之间行走」→ 从保存位置继续走到下一格
+                    Advance();
+                    break;
+                case JourneyActivity.AwaitingPlacement:
+                    // 「在投放格等待选择」→ 继续等待玩家操作
+                    Placement.OnTravelerArrived();
+                    break;
+                case JourneyActivity.BetweenStations:
+                    ResumeBetweenStations();
+                    break;
+                default:
+                    // 「已确认投放」的记录与扣除后的库存都已随地块一起恢复，这里不重复执行
+                    break;
+            }
+        }
+
+        void ResumeBetweenStations()
+        {
+            int target = Session.StationIndex + 1;
+            if (Map == null || target >= Map.stations.Length) { Activity = JourneyActivity.None; return; }
+            int currentGeneration = generation;
+            Traveler.MoveToProgress(Map.stations[target].stopProgress, StationTransitionSeconds, () =>
+            {
+                if (generation != currentGeneration || !Session.Arrive()) return;
+                CurrentTileIndex = 0; Camera.ShowStation(CurrentStation);
+                CollectOnTileEntry(); Advance();
+            });
+        }
+
+        // 策划要求：直接关闭窗口时也尝试保存
+        void OnApplicationQuit() { SaveNow(); }
+        void OnApplicationPause(bool paused) { if (paused) SaveNow(); }
         public MaterialDefinition Material(string id) => Array.Find(Config.materials, entry => entry.id == id);
         public void StartJourney(JourneyMode mode)
         {
@@ -148,7 +338,9 @@ namespace Hiking.Journey
         public void CompletePlacementVisit()
         {
             if (IsPreviewing || Activity != JourneyActivity.AwaitingPlacement) return;
-            UI.ClosePlacementPrompt(false); Advance();
+            UI.ClosePlacementPrompt(false);
+            SaveNow();   // 策划的关键操作：投放确认后保存，记录与扣除后的库存一起落盘
+            Advance();
         }
         void Depart()
         {
@@ -260,6 +452,9 @@ namespace Hiking.Journey
             }
             if (seeds > 0 || water > 0)
                 UI.Notify($"采集：种子 +{seeds} · 水 +{water:0.##}");
+            // 策划的关键操作：进入格子并完成采集后保存。
+            // 库存变化和「该格已首次领取」标记必须同一次写入，否则读档后会重复领取。
+            SaveNow();
         }
         public void ReturnToStart()
         {

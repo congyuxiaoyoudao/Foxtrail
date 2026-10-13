@@ -81,3 +81,39 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 保留场景、配置及脚本的 GUID 和现有按钮绑定；不要用早期资源或旧方案覆盖用户的新修改。
 - 主 Unity 编辑器可能正在运行。编译与 PlayMode 验证使用 `.utmp/JourneyValidation` 隔离项目，不打断主编辑器；不要恢复用户已删除的旧测试目录。
 - 隔离 PlayMode 验证使用 `.utmp/JourneyValidation`。旧的 `Logs/early-camera-tests.xml` 只记录环形预览移除前的历史行为，不作为当前全景逻辑依据。
+
+## 本分支开发任务（gwynaire/ui2 · 旅途保存与加载）
+
+- 分支 `gwynaire/ui2`，基线 `2e7de53`。开发场景 `Assets/Scenes/gwynaire-DevScene.unity`（由 GameScene 复制）；**存档相关改动全部在脚本与这个副本里，GameScene 未改动**。
+
+### 已完成
+
+- **数据结构**：`SaveData`（含 `SaveSystem` 读写）只存原始状态；派生值（最大含水量、土壤湿度、蒸发率、水深、植物数量）一律不存，避免读档后两套真相。JsonUtility 不支持字典与集合，背包、投放记录、已领取格一律用数组；枚举存 `int`，以后加值不影响老档。
+- **读写与容错**：先写临时文件、读回校验、再替换正式档，旧档转 `.bak`；读档遇到坏档或版本不符自动回退备份。带 `schemaVersion`。
+- **捕获与恢复**：`SaveCapture` 只读抓取（实测 6 站 72 格全覆盖）；`SaveRestore` 覆盖数据并刷新表现；`TileState` / `Station` / `JourneyMap`（含 `RainWeatherSystem`）/ `JourneySession` / `TravelerController` 各加一个恢复入口——只加方法，不改现有逻辑。
+- **流程编排**：`GameFlowController.RestoreFrom` = 建地图 → 覆盖数据 → 离线推进 → 按「退出前状态／读档后行为」对照表恢复交互（行走中接着走、投放格继续等待、只选材料未确认则取消、站间移动重起换站）；`AdvanceOffline` 调用与在线完全相同的 `StepEnvironment(CollectRainAtCurrentTile)`，狐狸不动、不结算采集、仍可接雨。
+- **自动保存**：定期（`autosaveIntervalSec`）、进入格子并完成采集后、投放确认后、关窗口时（`OnApplicationQuit` / `OnApplicationPause`）。
+- **离线推进分帧与进度**：`SettleOffline` 协程按每帧时间预算（`offlineStepBudgetMsPerFrame`，默认 8 毫秒）推进，每帧刷新 `OfflineProgress01`；结算期间 `Update` 直接返回，旅途与行动点都不推进。`Canvas/LoadingText` 显示「正在结算离线时间… N%」，默认隐藏，由 `GameUIController.loadingText` 驱动。
+- **界面**：开始界面 `ContinueButton`（仅在存在存档时显示，接 `GameUIController.continueButton`）；旅途界面右上角 `SaveQuitButton`（接 `saveQuitButton`，先保存再回到开始菜单，不退进程）。两按钮均复制现有按钮制作，复制带来的持久化 onClick 已清除，改在 `Initialize` 里用代码注册。
+
+### 验证方式与结论
+
+- 往返测试：推进 45 步（含进行中的降雨）→ 存档 → 再推进 30 步改变状态 → 恢复 → 重新抓取，**两份数据逐字节一致**；站点主题序列一致。
+- 读档集成测试：伪造离线 2 小时后读档，模拟步恰好按预算截断（20 → 3620），狐狸进度未变、已领取格数未变——对应对照表中的「不走路、不重复结算」。
+- 离线接雨：人工构造覆盖狐狸所在格的降雨后伪造离线，**每场雨 2 单位上限生效、同一场雨不重复给、离线确实接到水**（2.000 → 2.083）。注意：背包满 20 时本该不接，第一次测返回 0 是正确行为，不是 bug。
+- 分帧离线：伪造 2 小时离线后读档，进度从 0% 走到 100%，窗口全程可响应（用户 Play 实测确认）。
+
+### 待办与未决
+
+- **离线时长已定 2 小时**：`offlineAdvanceCapHours = 2`、`offlineStepBudget = 7200`，两者必须配套——它们是「谁小谁生效」的关系，只改上限不改预算的话，上限会被预算悄悄截短。**这两个值同时序列化在场景里**，改 C# 默认值不影响已保存的场景，两边都要改。实测 7200 步纯计算约 3 秒；分帧后每帧只用 8 毫秒，实际结算约 6 秒，但画面始终可响应。
+- **结算态恢复**：策划要求区分「已到终点／正在结算／结算完成」，但上游结算功能尚未实现，暂无可恢复的状态。
+- **作品冻结与回看**：归属未定，未开工。
+- **合并回 GameScene 时**：需要在开始界面与旅途界面各加一个按钮，并接到 `GameUIController.continueButton` / `saveQuitButton`。
+
+### 维护备忘
+
+- **`Packages/manifest.json` 里的 `com.coplaydev.unity-mcp` 是有意不提交的**（本机装了 Unity MCP 编辑器插件，便于 AI 直接读场景与报错）。它一旦进主干，拉代码的人都得能访问 GitHub 才能解析依赖，所以只留在本地未提交状态。切分支后若丢失，把这一行加回 `dependencies` 第一行即可：`"com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main"`。
+- `ProjectSettings/EditorBuildSettings.asset` 与 `ShaderGraphSettings.asset` 长期显示被修改，实际只是行尾符差异，内容未变，不必提交。
+- **`GameUIController.toast` 目前是空引用**（场景里没有 Toast 对象），`Notify` 会静默返回，所以存档相关的提示——存档失败、离线结算完成、采集提示——都看不到文字。这不是本次改动引入的，是上游一直缺的接线。用 `Notify` 判断功能是否生效时要留意这一点。
+- **不要在编辑器里跑会生成运行期对象的测试。** `GameFlowController.ReturnToStart` 用 `Destroy` 清理地图，而 `Destroy` 在编辑器下是空操作（要 `DestroyImmediate`）。在编辑器里调用 `StartJourney` 之后，整张地图（6 站、144 段网格、114 株植物、90 条雨条）会留在场景里，下一次保存场景就把它整个写进文件——曾出现 2.6MB 的污染场景（正常约 260KB），表现为 git diff 突然多出八万行。需要用编辑器测试时，事后显式 `DestroyImmediate(WorldRoot 下的 JourneyRoute)` 再保存。`WorldRoot` 在正常场景里应当是空的。
+- 存档路径为 `Application.persistentDataPath/journey_save.json`；当前项目公司名仍是 `DefaultCompany`，打包前应改。

@@ -42,6 +42,18 @@ namespace Hiking.Journey
             CancelMovement(); map = route; Progress01 = 0;
             transform.SetParent(map.transform, false); RefreshPosition();
         }
+        // 读档：把狐狸放回路线上并设到保存的进度。此刻不启动行走——
+        // 是否继续走由 GameFlowController 按存档里的流程阶段决定
+        // （策划的退出状态表：两格之间行走的，从保存位置继续走）。
+        public void RestorePosition(JourneyMap route, float progress01)
+        {
+            if (route == null) return;
+            CancelMovement();
+            map = route;
+            transform.SetParent(map.transform, false);
+            Progress01 = Mathf.Clamp01(progress01);
+            RefreshPosition();
+        }
         public void RefreshPosition()
         {
             if (map != null) transform.position = map.ProgressPoint(Progress01);
