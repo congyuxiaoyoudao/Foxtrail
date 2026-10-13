@@ -74,7 +74,7 @@ namespace Hiking.Journey
             if (IsPreviewing || IsDebugMode || Activity == JourneyActivity.Complete) return;
             Session.Tick(delta);
             TickAutosave(delta);
-            if (Map == null || UI.IsModalOpen) return;
+            if (Map == null) return;
             environmentSeconds += Mathf.Max(0, delta);
             while (environmentSeconds >= 1f)
             {

@@ -113,6 +113,9 @@ namespace Hiking.Journey
             data.baseEvaporationRate = tile.BaseEvaporationRate;
             data.surfaceWater = tile.SurfaceWater;
             data.temperature = tile.Temperature;
+            data.hasExtendedEcologyState = true;
+            data.climateTemperature = tile.ClimateTemperature;
+            data.referenceWater = tile.ReferenceWater;
             data.pendingVapor = tile.PendingVapor;
             data.drainageLoss = tile.DrainageLoss;
             data.height = tile.Height;
@@ -130,6 +133,7 @@ namespace Hiking.Journey
                         life = plant.life,
                         lastLifeChange = plant.lastLifeChange,
                         matureSteps = plant.matureSteps,
+                        nextSeedStep = plant.nextSeedStep,
                         positionOffset = plant.positionOffset
                     });
             data.plants = plants.ToArray();

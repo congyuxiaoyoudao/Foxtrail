@@ -59,19 +59,19 @@ namespace Hiking.Journey
         public Sprite LandscapeFor(StationTheme theme) => theme == StationTheme.Snow ? snowLandscape :
             theme == StationTheme.Grass ? grassLandscape : desertLandscape;
         [Header("地块随机初值（湿度以 0～1 填写，新地图生效）")]
-        public Vector2 soilContentRange = new Vector2(1, 100);
-        public Vector2Int plantCountRange = new Vector2Int(0, 5);
-        public Vector2 soilHumidityRange = new Vector2(0, 1);
+        [HideInInspector] public Vector2 soilContentRange = new Vector2(1, 100);
+        [HideInInspector] public Vector2Int plantCountRange = new Vector2Int(0, 5);
+        [HideInInspector] public Vector2 soilHumidityRange = new Vector2(0, 1);
         [Tooltip("基础蒸发量 / 秒；实际蒸发量还受泥土含量和植物数量影响")]
-        public Vector2 evaporationRateRange = new Vector2(.1f, .6f);
-        public Vector2Int heightRange = new Vector2Int(0, 6);
-        public Vector2 surfaceWaterRange = new Vector2(0, 35);
+        public Vector2 evaporationRateRange = new Vector2(.01f, .03f);
+        public Vector2Int heightRange = new Vector2Int(0, 1);
+        public Vector2 surfaceWaterRange = new Vector2(0, 3);
         [Header("相邻地块流动（每步，先于渗水和蒸发）")]
-        [InspectorName("温度流动（°C）"), Min(0)] public float temperatureFlowPerStep = .01f;
-        [InspectorName("土壤水流动（水量）"), Min(0)] public float soilWaterFlowPerStep = .1f;
+        [InspectorName("温度流动（°C）"), Min(0)] public float temperatureFlowPerStep = .002f;
+        [InspectorName("土壤水流动（水量）"), Min(0)] public float soilWaterFlowPerStep = .02f;
         [InspectorName("地表水流动上限（单位/秒）"), Min(0)] public float surfaceWaterFlowPerStep = 1f;
         [Tooltip("每增加多少地表水，水面高度增加 1")]
-        [Min(.01f)] public float waterUnitsPerHeight = 10f;
+        [Min(.01f)] public float waterUnitsPerHeight = 35f;
         [Header("单步水分模拟")]
         [Tooltip("每秒渗水量 = 泥土含量 × 3 / 100，受地表水和土壤剩余容量限制")]
         [Min(0)] public float infiltrationFactor = .03f;
@@ -83,11 +83,11 @@ namespace Hiking.Journey
         [Tooltip("每隔多少秒抽取一段连续 15 格；未达到门槛时等待下一周期")]
         [Min(1)] public int rainCheckInterval = 40;
         [Tooltip("所选 15 格的待回落水汽量总和达到此值才下雨")]
-        [Min(0)] public float rainVaporThreshold = 5f;
+        [Min(0)] public float rainVaporThreshold = 30f;
         [Tooltip("达到门槛时，水汽回落为雨水的比例")]
         [Range(0, 1)] public float rainReturnRatio = .9f;
         [Tooltip("单场降雨总量上限，均分给连续 15 格")]
-        [Min(0)] public float maxRainPerEvent = 5f;
+        [Min(0)] public float maxRainPerEvent = 80f;
         [Tooltip("单场降雨持续秒数")]
         [Min(1)] public int rainDuration = 40;
         [Header("雨丝占位效果")]
@@ -102,19 +102,33 @@ namespace Hiking.Journey
         [Tooltip("下雨时覆盖世界画面的冷灰色滤镜透明度；界面不受影响")]
         [InspectorName("阴天滤镜强度"), Range(0, .4f)] public float rainOvercastOpacity = .16f;
         public Font tileLabelFont;
-        public TileState CreateTile(StationTheme theme)
+        [Header("生态初值（按主题）")]
+        public Vector2 snowSoilRange = new Vector2(30,65), grassSoilRange = new Vector2(40,80), desertSoilRange = new Vector2(20,50);
+        public Vector2 snowHumidityRange = new Vector2(.45f,.75f), grassHumidityRange = new Vector2(.45f,.7f), desertHumidityRange = new Vector2(.2f,.4f);
+        public Vector2 snowTemperatureRange = new Vector2(1,4), grassTemperatureRange = new Vector2(7,10), desertTemperatureRange = new Vector2(14,18);
+        [Range(0,1)] public float initialPlantProbability = .3f;
+        public bool createStationBasin = true;
+        public Vector2 basinWaterRange = new Vector2(26,32);
+        [Header("水温影响与干土蒸发（每秒）")]
+        [Min(.001f)] public float drySoilMoistureScale = .4f;
+        [Range(0,1)] public float minimumDrySoilMultiplier = .05f;
+        [Min(0)] public float extraWaterDeadband = 1;
+        [Min(.001f)] public float fullInfluenceWater = 8;
+        [Range(5,11.99f)] public float waterTargetTemperature = 10;
+        [Range(0,1)] public float thermalApproachRate = .06f, thermalRecoveryRate = .002f;
+        [Min(0)] public float thermalApproachCap = .15f, thermalRecoveryCap = .01f;
+        [Min(1)] public int matureSeedInterval = 30;
+        public TileState CreateTile(StationTheme theme, bool basin = false, bool basinEdge = false)
         {
-            Vector2 temperature = theme == StationTheme.Snow ? new Vector2(0, 5) :
-                theme == StationTheme.Grass ? new Vector2(5, 12) : new Vector2(12, 20);
-            int count = Sample(plantCountRange, 0, 5);
-            float soilContent = Sample(soilContentRange, 1, 100);
-            float humidity = Sample(soilHumidityRange, 0, 1);
-            var naturalPlants = plantCatalog != null ? plantCatalog.SpawnNaturalPlants(theme, count,
-                soilContent, humidity * 100f) : null;
-            var tile = new TileState(theme, soilContent, count,
-                humidity, Sample(evaporationRateRange, 0, float.MaxValue),
-                Sample(heightRange, 0, 6), Sample(surfaceWaterRange, 0, 35), Random.Range(temperature.x, temperature.y),
-                naturalPlants);
+            Vector2 temperature = theme == StationTheme.Snow ? snowTemperatureRange : theme == StationTheme.Grass ? grassTemperatureRange : desertTemperatureRange;
+            Vector2 soil = theme == StationTheme.Snow ? snowSoilRange : theme == StationTheme.Grass ? grassSoilRange : desertSoilRange;
+            Vector2 wetness = theme == StationTheme.Snow ? snowHumidityRange : theme == StationTheme.Grass ? grassHumidityRange : desertHumidityRange;
+            int count = !basin && Random.Range(0f,1f) < initialPlantProbability ? 1 : 0;
+            float soilContent = Sample(soil, 1, 100), humidity = basin ? 1 : Sample(wetness, 0, 1);
+            var naturalPlants = plantCatalog != null ? plantCatalog.SpawnNaturalPlants(theme, count, soilContent, humidity * 100f) : System.Array.Empty<PlantInstance>();
+            var tile = new TileState(theme, soilContent, naturalPlants.Length, humidity,
+                Sample(evaporationRateRange, 0, float.MaxValue), basin ? 0 : basinEdge ? 1 : Sample(heightRange, 0, 6),
+                Sample(basin ? basinWaterRange : surfaceWaterRange, 0, 35), Sample(temperature, 0, 20), naturalPlants);
             tile.RefreshEvaporation(evaporationSoilFactor, evaporationPlantFactor, minimumEvaporationRatio);
             return tile;
         }
@@ -134,3 +148,4 @@ namespace Hiking.Journey
         }
     }
 }
+

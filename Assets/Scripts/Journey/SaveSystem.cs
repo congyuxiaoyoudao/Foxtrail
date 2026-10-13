@@ -63,7 +63,7 @@ namespace Hiking.Journey
                 if (!File.Exists(path)) return null;
                 var data = JsonUtility.FromJson<SaveData>(File.ReadAllText(path, Encoding.UTF8));
                 if (data == null) return null;
-                if (data.schemaVersion != 1 && data.schemaVersion != SaveData.CurrentVersion)
+                if (data.schemaVersion < 1 || data.schemaVersion > SaveData.CurrentVersion)
                 {
                     Debug.LogWarning("存档版本不匹配，已忽略：" + data.schemaVersion);
                     return null;

@@ -17,7 +17,7 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
 
         public int schemaVersion = CurrentVersion;
         public long savedAtUtcTicks;
@@ -116,6 +116,7 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class TileData
     {
+        public bool hasExtendedEcologyState;
         public int category;
         public float soilContent;
         public float soilWater;
@@ -123,6 +124,8 @@ namespace Hiking.Journey
         public float surfaceWater;
         public float pondFadeRemainingSeconds;
         public float temperature;
+        public float climateTemperature;
+        public float referenceWater;
         public float pendingVapor;
         public float drainageLoss;
         public int height;
@@ -141,6 +144,7 @@ namespace Hiking.Journey
         public int life = 1;
         public int lastLifeChange;
         public int matureSteps;
+        public int nextSeedStep;
         public float positionOffset;
     }
 

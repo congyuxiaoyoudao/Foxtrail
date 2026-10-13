@@ -186,13 +186,9 @@ namespace Hiking.Journey
                 foreach (var plant in tile.NaturalPlants)
                 {
                     var definition = sourceSettings.plantCatalog?.Find(plant.plantId);
-                    bool mature = definition != null && definition.StageCount >= 3 && plant.stageIndex >= 2 &&
-                        plant.life >= definition.stages[2].minLife &&
-                        definition.HighestSuitableStage(tile.SoilContent, tile.SoilHumidity * 100f) >= 2 &&
-                        (tile.Depth == WaterDepth.Dry || tile.Depth == WaterDepth.Medium && definition.floodTolerant);
-                    plant.matureSteps = mature ? plant.matureSteps + 1 : 0;
-                    if (plant.matureSteps < 30) continue;
-                    plant.matureSteps = 0;
+                    bool mature = definition != null && definition.StageCount >= 3 && plant.stageIndex >= 2 && plant.life > definition.stages[2].minLife;
+                    if (!mature || SimulationStep < plant.nextSeedStep) continue;
+                    plant.nextSeedStep = SimulationStep + Mathf.Max(1, sourceSettings.matureSeedInterval);
                     emissions.Add((index, plant.plantId));
                 }
             }
@@ -200,13 +196,9 @@ namespace Hiking.Journey
             foreach (var emission in emissions)
             {
                 int left = emission.tile - 1, right = emission.tile + 1;
-                bool canLeft = left >= 0 && TileAt(left).FreePlantCapacity > 0;
-                bool canRight = right < total && TileAt(right).FreePlantCapacity > 0;
-                if (!canLeft && !canRight) continue;
-                int target = canLeft && canRight ? (UnityEngine.Random.Range(0, 2) == 0 ? left : right) :
-                    canLeft ? left : right;
-                if (TileAt(target).TryAddSeed(emission.plantId, SimulationStep))
-                    stations[target / RingMapSettings.TilesPerStation].RefreshTile(target % RingMapSettings.TilesPerStation, false);
+                foreach (int target in new[] { left, right })
+                    if (target >= 0 && target < total && TileAt(target).TryAddSeed(emission.plantId, SimulationStep))
+                        stations[target / RingMapSettings.TilesPerStation].RefreshTile(target % RingMapSettings.TilesPerStation, false);
             }
             Weather.Advance(tiles, sourceSettings, SimulationStep, collectRain);
             if (rainVisual != null) rainVisual.SyncWeather(Weather);
