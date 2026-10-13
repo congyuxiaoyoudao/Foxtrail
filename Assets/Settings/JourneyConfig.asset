@@ -20,6 +20,7 @@ MonoBehaviour:
   cameraTransitionStartFromEnd: 3
   stationTransitionSeconds: 5
   fastStationTransitionSeconds: 1.5
+  panoramaScrollStationsPerSecond: 1.2
   normalWaitSeconds: 300
   quickWaitSeconds: 30
   demoWaitSeconds: 3
@@ -28,9 +29,7 @@ MonoBehaviour:
   finishTravelSeconds: 1
   visibleTileCount: 7
   walkTilesPerSecond: 3
-  revealSeconds: 2
   localCameraSize: 4.8
-  panoramaCameraSize: 4.55
   wheelDistance: 10
   wheelSmoothTime: 0.2
   returnToTravelerSmoothTime: 0.35
@@ -38,8 +37,8 @@ MonoBehaviour:
   - id: water
     displayName: "\u6C34"
     color: {r: 0.28, g: 0.7, b: 0.95, a: 1}
-    startingCount: 18
+    startingCount: 10
   - id: seed
     displayName: "\u79CD\u5B50"
     color: {r: 0.62, g: 0.82, b: 0.32, a: 1}
-    startingCount: 18
+    startingCount: 10

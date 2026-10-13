@@ -26,7 +26,6 @@ namespace Hiking.Journey
             {
                 map.sourceSettings = settings;
                 map.RouteLength = Mathf.Max(2, settings.stationLength) * settings.blockCount;
-                map.radius = map.RouteLength / (2 * Mathf.PI);
                 map.stations = new Station[settings.blockCount];
                 float section = map.RouteLength / settings.blockCount;
                 int patches = RingMapSettings.TilesPerStation;
@@ -115,10 +114,10 @@ namespace Hiking.Journey
                         patches, settings, settings.ThemeColor(station.theme));
                     station.SyncPlantMarkers(map);
                 }
+                map.SyncPondVisuals();
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",
                     new Vector3(map.RouteLength - map.TileWidth * .5f, settings.ringThickness * .5f + .5f, 0));
                 map.InitializeRainVisual();
-                map.SetBend(0);
                 if (!map.Validate(out string error)) throw new InvalidOperationException(error);
                 return map;
             }

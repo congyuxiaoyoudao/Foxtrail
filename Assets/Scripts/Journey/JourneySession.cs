@@ -34,13 +34,18 @@ namespace Hiking.Journey
         float rainCollected;
         bool approachingFirstStation;
 
-        public void Begin(int stationCount, double waitSeconds, IEnumerable<MaterialDefinition> materials, bool approachFirstStation = false)
+        public void Begin(int stationCount, double waitSeconds, IEnumerable<MaterialDefinition> materials,
+            bool approachFirstStation = false, SavedInventory[] carried = null)
         {
             if (stationCount < 1 || waitSeconds <= 0) throw new ArgumentOutOfRangeException();
             inventory.Clear(); placements.Clear(); seedCollectedTiles.Clear();
             rainEventId = -1; rainCollected = 0;
             foreach (var material in materials)
                 inventory.Add(material.id, Math.Min(CarryCapacity, Math.Max(0, material.startingCount)));
+            if (carried != null)
+                foreach (var entry in carried)
+                    if (entry != null && entry.id != null && inventory.ContainsKey(entry.id))
+                        inventory[entry.id] = Math.Min(CarryCapacity, Math.Max(0, entry.amount));
             StationCount = stationCount;
             WaitSeconds = waitSeconds;
             ResidenceSeconds = 0;
@@ -102,7 +107,7 @@ namespace Hiking.Journey
                 Phase = JourneyPhase.AtStation;
                 return true;
             }
-            if (StationIndex == StationCount - 1) Phase = JourneyPhase.Revealing;
+            if (StationIndex == StationCount - 1) Phase = JourneyPhase.Finalizing;
             else
             {
                 StationIndex++;
@@ -112,10 +117,10 @@ namespace Hiking.Journey
             }
             return true;
         }
-        public bool FinishReveal()
+        public bool CompleteFinalization()
         {
-            if (Phase != JourneyPhase.Revealing) return false;
-            Phase = JourneyPhase.Panorama;
+            if (Phase != JourneyPhase.Finalizing) return false;
+            Phase = JourneyPhase.Completed;
             return true;
         }
         // Slot membership is validated by PlacementController against the live map.

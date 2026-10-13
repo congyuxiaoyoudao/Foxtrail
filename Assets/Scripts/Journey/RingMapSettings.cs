@@ -37,6 +37,10 @@ namespace Hiking.Journey
         [InspectorName("前景植物附加位移 X/Y")] public Vector2 foregroundPlantPositionOffset;
         [Tooltip("背景植物在基线之外的独立 X/Y 位移")]
         [InspectorName("背景植物附加位移 X/Y")] public Vector2 backgroundPlantPositionOffset;
+        [Tooltip("前景和背景植物相对各自位置向左右随机移动的最大格宽比例；0 表示不随机")]
+        [InspectorName("植物水平随机范围（格宽比例）"), Min(0)] public float plantHorizontalScatter = .1f;
+        [Tooltip("前景和背景植物相对各自基线向上下随机移动的最大世界单位；0 表示不随机")]
+        [InspectorName("植物垂直随机范围（世界单位）"), Min(0)] public float plantVerticalScatter = .12f;
         [InspectorName("背景植物占位高度"), Min(.1f)] public float backgroundPlantHeight = 2f;
         [Header("场景主题图层（新地图生效）")]
         public SceneThemeCatalog sceneThemes;
@@ -95,6 +99,8 @@ namespace Hiking.Journey
         [Min(.1f)] public float rainStreakSpeed = 3.6f;
         [Tooltip("雨丝透明度")]
         [Range(0, 1)] public float rainStreakOpacity = .42f;
+        [Tooltip("下雨时覆盖世界画面的冷灰色滤镜透明度；界面不受影响")]
+        [InspectorName("阴天滤镜强度"), Range(0, .4f)] public float rainOvercastOpacity = .16f;
         public Font tileLabelFont;
         public TileState CreateTile(StationTheme theme)
         {
@@ -116,8 +122,7 @@ namespace Hiking.Journey
             Mathf.Clamp(Mathf.Min(range.x, range.y), min, max), Mathf.Clamp(Mathf.Max(range.x, range.y), min, max));
         static int Sample(Vector2Int range, int min, int max) => Random.Range(
             Mathf.Clamp(Mathf.Min(range.x, range.y), min, max), Mathf.Clamp(Mathf.Max(range.x, range.y), min, max) + 1);
-        [Header("道路与完成全景")]
-        [InspectorName("全景圆环尺寸倍率"), Min(1)] public float panoramaScale = 1.5f;
+        [Header("道路")]
         [InspectorName("道路厚度"), Range(.1f, 2f)] public float ringThickness = .5f;
         void OnValidate()
         {
