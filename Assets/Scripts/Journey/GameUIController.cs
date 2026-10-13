@@ -7,6 +7,11 @@ namespace Hiking.Journey
     {
         GameFlowController flow;
         public GameObject startPanel, journeyPanel, panoramaPanel;
+        [Header("终局与长卷浏览（布局及按钮事件保存在 Canvas）")]
+        public Button previewPanoramaButton, continueButton, exitAppreciationButton,
+            returnToTitleButton, scrollLeftButton, scrollRightButton;
+        public Text panoramaHint;
+        public Image foxOutsideFrame;
         [Header("地块调试（布局及按钮事件保存在 Canvas）")]
         public GameObject debugPanel;
         public Text debugStatus;
@@ -50,6 +55,12 @@ namespace Hiking.Journey
         public Button startButton, modeButton, depart, returnButton;
         public Image progress;
         [HideInInspector] public Button returnToTravelerButton;
+        [Tooltip("开始界面的「继续游戏」，仅在存在存档时显示")]
+        public Button loadGameButton;
+        [Tooltip("旅途中的「保存并退出」")]
+        public Button saveQuitButton;
+        [Tooltip("离线结算进度提示，结算期间才显示")]
+        public Text loadingText;
         [Serializable]
         public class MaterialButton
         {
@@ -86,8 +97,17 @@ namespace Hiking.Journey
             }
             if (mode != JourneyMode.Quick) mode = JourneyMode.Normal;
             if (returnToTravelerButton != null) returnToTravelerButton.gameObject.SetActive(false);
+            if (loadGameButton != null) loadGameButton.onClick.AddListener(ContinueGame);
+            if (saveQuitButton != null) saveQuitButton.onClick.AddListener(SaveAndQuit);
             foreach (var label in panoramaPanel.GetComponentsInChildren<Text>(true))
                 if (label.text.Contains("旅途完成")) { panoramaTitle = label; break; }
+            if (scrollLeftButton != null)
+                scrollLeftButton.GetComponent<ScrollHoldButton>()?.Configure(flow, -1);
+            if (scrollRightButton != null)
+                scrollRightButton.GetComponent<ScrollHoldButton>()?.Configure(flow, 1);
+            if (foxOutsideFrame != null && flow.Traveler.walkFrames != null &&
+                flow.Traveler.walkFrames.Length > 0)
+                foxOutsideFrame.sprite = flow.Traveler.walkFrames[0];
             RefreshModeLabel();
         }
         void CommitQuantity(string text)
@@ -115,15 +135,45 @@ namespace Hiking.Journey
             if (modeButton != null && modeButton.targetGraphic != null)
                 modeButton.targetGraphic.color = mode == JourneyMode.Quick ? new Color(.28f,.49f,.43f) : new Color(.17f,.29f,.31f);
         }
-        public void ReturnToStart() { if (flow.IsPreviewing) flow.ExitPreview(); else flow.ReturnToStart(); }
+        public void ReturnToStart() => flow.ReturnToStart();
+        public void ReturnToTitle() => SaveAndQuit();
+        // ---- 存档入口：策划要求提供「继续游戏」和「保存并退出」----
+        // 直接关闭窗口也保存，那条在 GameFlowController 里（OnApplicationQuit / OnApplicationPause）。
+        public void ContinueGame() { if (flow != null) flow.LoadGame(); }
+        public void SaveAndQuit()
+        {
+            if (flow == null) return;
+            if (!flow.SaveNow()) { Notify("保存失败，请重试"); return; }
+            // 按确认：退到开始菜单，不退进程。玩家不用重启程序就能开新局；
+            // 退出后回到开始界面，存档还在，所以「继续游戏」能接着玩。
+            flow.ReturnToStart();
+        }
         public void PreviewPanorama() => flow.PreviewPanorama();
+        public void PrimaryCompletionAction()
+        {
+            if (flow.IsPreviewing) { flow.ExitPreview(); return; }
+            if (!flow.IsFinalized) flow.TryFinalize();
+            else flow.EnterAppreciation();
+        }
+        public void ContinueJourney() => flow.ContinueJourney();
+        public void ExitAppreciation() => flow.ExitAppreciation();
         public void SelectMaterial(string id) => flow.Placement.Select(id);
         void LateUpdate()
         {
             if (flow == null) return;
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
-            journeyPanel.SetActive(!flow.IsDebugMode && !flow.IsPreviewing && session.Phase != JourneyPhase.Start && session.Phase != JourneyPhase.Panorama);
+            journeyPanel.SetActive(!flow.IsSettlingOffline && !flow.IsDebugMode && !flow.IsPreviewing &&
+                flow.Activity != JourneyActivity.Complete && session.Phase != JourneyPhase.Start);
+            if (previewPanoramaButton != null) previewPanoramaButton.interactable = !IsModalOpen;
+            // 没有存档时不显示「继续游戏」，免得点了没反应
+            if (loadGameButton != null) loadGameButton.gameObject.SetActive(flow.HasSave());
+            if (loadingText != null)
+            {
+                bool settling = flow.IsSettlingOffline;
+                if (loadingText.gameObject.activeSelf != settling) loadingText.gameObject.SetActive(settling);
+                if (settling) loadingText.text = "正在结算离线时间… " + (flow.OfflineProgress01 * 100f).ToString("0") + "%";
+            }
             if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
             if (flow.IsDebugMode)
             {
@@ -138,10 +188,44 @@ namespace Hiking.Journey
                         rain + " · 拖动 / 滚轮 / ← → 浏览全图";
                 }
             }
-            panoramaPanel.SetActive(flow.IsPreviewing || session.Phase == JourneyPhase.Panorama);
-            if (panoramaTitle != null) panoramaTitle.text = flow.IsPreviewing ? "全景预览" : "旅途完成 · 全景观察";
+            bool finished = flow.Activity == JourneyActivity.Complete;
+            bool previewing = flow.IsPreviewing;
+            bool appreciating = flow.IsAppreciating;
+            panoramaPanel.SetActive((finished || previewing) && !flow.IsEnteringAppreciation);
+            if (panoramaTitle != null) panoramaTitle.text =
+                previewing ? $"第 {flow.LevelIndex} 段旅途 · 全景预览" :
+                appreciating ? $"第 {flow.LevelIndex} 段旅途 · 长卷欣赏" :
+                flow.IsFinalized ? $"第 {flow.LevelIndex} 段旅途已定稿保存" :
+                "保存失败 · 请重试";
             var returnLabel = returnButton.GetComponentInChildren<Text>();
-            if (returnLabel != null) returnLabel.text = flow.IsPreviewing ? "返回旅途" : "返回开始";
+            if (returnLabel != null) returnLabel.text = previewing ? "返回旅途" : !flow.IsFinalized ? "重试保存" :
+                flow.HasAppreciated ? "再次欣赏" : "欣赏本次旅途";
+            returnButton.gameObject.SetActive(!appreciating);
+            if (continueButton != null)
+            {
+                continueButton.gameObject.SetActive(finished && !appreciating);
+                continueButton.interactable = flow.IsFinalized;
+                var label = continueButton.GetComponentInChildren<Text>();
+                if (label != null) label.text = flow.HasAppreciated ? "继续旅途" : "开启下一段旅途";
+            }
+            if (returnToTitleButton != null) returnToTitleButton.gameObject.SetActive(previewing);
+            if (exitAppreciationButton != null) exitAppreciationButton.gameObject.SetActive(appreciating);
+            if (scrollLeftButton != null)
+            {
+                scrollLeftButton.gameObject.SetActive(flow.IsBrowsingPanorama);
+                scrollLeftButton.interactable = flow.Camera.CanScrollLeft;
+            }
+            if (scrollRightButton != null)
+            {
+                scrollRightButton.gameObject.SetActive(flow.IsBrowsingPanorama);
+                scrollRightButton.interactable = flow.Camera.CanScrollRight;
+            }
+            if (foxOutsideFrame != null) foxOutsideFrame.gameObject.SetActive(flow.IsBrowsingPanorama);
+            if (panoramaHint != null) panoramaHint.text = previewing ?
+                "点击箭头前进一站 · 按住连续浏览 · 返回旅途继续行走" : appreciating ?
+                "点击箭头前进一站 · 按住连续浏览 · 松开停止" :
+                flow.IsFinalized ? "本段地图与资源已保存 · 可欣赏长卷或直接继续" :
+                "未完成保存：" + flow.SaveError;
             string activity = flow.Activity == JourneyActivity.AwaitingPlacement ? "等待投放选择" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
                 flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
             if (flow.Map != null) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 第 {flow.CurrentTileIndex + 1} / 12 块 · {activity}" +

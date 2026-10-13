@@ -13,6 +13,22 @@ namespace Hiking.Journey
         public int tileCount;
         public static bool IsTransitionTile(int tile) => tile % 4 == 3;
         public TileState[] Tiles { get; private set; }
+        // 读档：整批换成存档里的地块。Tiles 是只读属性，只能在类内部赋值。
+        public void RestoreTiles(TileState[] tiles) => Tiles = tiles;
+        // 读档前必须清掉植物标记：plantMarkers 以植物对象为键，而读档会整批换成新对象，
+        // 旧键不会被 SyncPlantMarkers 判成死亡，结果屏幕上会留下"幽灵植物"。
+        // 水草标记是复用加开关的（SyncWaterGrassMarkers），不用清。
+        public void ClearPlantMarkers(JourneyMap map)
+        {
+            foreach (var pair in plantMarkers)
+            {
+                if (pair.Value == null) continue;
+                if (map != null) map.UnregisterRouteObject(pair.Value.transform);
+                if (Application.isPlaying) Destroy(pair.Value.gameObject);
+                else DestroyImmediate(pair.Value.gameObject);
+            }
+            plantMarkers.Clear();
+        }
         TextMesh[] moistureLabels;
         readonly Dictionary<PlantInstance, SpriteRenderer> plantMarkers = new Dictionary<PlantInstance, SpriteRenderer>();
         Mesh[] patchMeshes;
@@ -20,6 +36,9 @@ namespace Hiking.Journey
         SpriteRenderer[] patchWaterOverlays;
         Color[] patchColors;
         SpriteRenderer[] waterGrassMarkers;
+        SpriteRenderer[] pondMarkers;
+        bool[] pondWasWet;
+        float[] pondDryStart;
         RingMapSettings mapSettings;
         JourneyMap ownerMap;
         bool debugLabels;
@@ -31,11 +50,20 @@ namespace Hiking.Journey
             patchVisuals = new SpriteRenderer[tileCount];
             patchWaterOverlays = new SpriteRenderer[tileCount];
             waterGrassMarkers = new SpriteRenderer[tileCount];
+            pondMarkers = new SpriteRenderer[tileCount];
+            pondWasWet = new bool[tileCount];
+            pondDryStart = new float[tileCount];
+            for (int i = 0; i < tileCount; i++) pondDryStart[i] = -1f;
             int basin = settings.createStationBasin ? UnityEngine.Random.Range(0,3)*4+2 : -10;
             for (int i = 0; i < tileCount; i++) Tiles[i] = settings.CreateTile(theme, i == basin, Mathf.Abs(i-basin) == 1);
         }
         public float MoistureAt(int tile) => Tiles[tile].SurfaceWater;
-        public void RefreshTile(int tile) { RefreshMoisture(tile); RefreshWaterVisual(tile); }
+        public void RefreshTile(int tile, bool syncPond = true)
+        {
+            RefreshMoisture(tile);
+            RefreshWaterVisual(tile);
+            if (syncPond && ownerMap != null) ownerMap.SyncPondVisuals();
+        }
         public void SetPatchMesh(int tile, Mesh mesh, Color baseColor, JourneyMap map)
         {
             patchMeshes[tile] = mesh; patchColors[tile] = baseColor; ownerMap = map;
@@ -50,8 +78,11 @@ namespace Hiking.Journey
         void RefreshWaterVisual(int tile)
         {
             if (ownerMap == null || patchMeshes[tile] == null) return;
-            float blend = Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
-            ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(Tiles[tile].Category == theme ? patchColors[tile] : mapSettings.ThemeColor(Tiles[tile].Category), new Color(.18f, .58f, .92f), blend));
+            var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
+            float blend = pond != null && pond.HasWetSprites ? 0f :
+                Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
+            Color baseColor = Tiles[tile].Category == theme ? patchColors[tile] : mapSettings.ThemeColor(Tiles[tile].Category);
+            ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(baseColor, new Color(.18f, .58f, .92f), blend));
             if (patchVisuals[tile] != null)
             {
                 var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(Tiles[tile].Category) : null;
@@ -70,6 +101,98 @@ namespace Hiking.Journey
                 patchWaterOverlays[tile].color = new Color(.18f, .58f, .92f, blend);
             else if (patchVisuals[tile] != null)
                 patchVisuals[tile].color = Color.Lerp(Color.white, new Color(.38f, .72f, 1f), blend);
+        }
+        public void SyncPondVisuals(JourneyMap map, int stationIndex)
+        {
+            if (Tiles == null || pondMarkers == null || mapSettings == null) return;
+            var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme) : null;
+            var pond = layers?.pond;
+            if (pond == null || !pond.HasWetSprites) return;
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                bool wet = Tiles[tile].IsPuddle;
+                int globalTile = stationIndex * RingMapSettings.TilesPerStation + tile;
+                if (!wet && !pondWasWet[tile]) continue;
+                Sprite sprite = wet ? pond.WetFor(map.IsPondAt(globalTile - 1),
+                    map.IsPondAt(globalTile + 1), globalTile) : pond.drySingle;
+                var marker = pondMarkers[tile];
+                if (marker == null)
+                {
+                    var obj = new GameObject("PondTile_" + tile);
+                    obj.transform.SetParent(transform, false);
+                    marker = obj.AddComponent<SpriteRenderer>();
+                    marker.sortingOrder = -898;
+                    pondMarkers[tile] = marker;
+                    map.RegisterRouteObject(obj.transform, Vector3.zero);
+                    map.MarkNearRouteObject(obj.transform);
+                }
+                if (!wet && pondWasWet[tile]) pondDryStart[tile] = Time.unscaledTime;
+                if (wet) pondDryStart[tile] = -1f;
+                pondWasWet[tile] = wet;
+                marker.sprite = sprite;
+                marker.enabled = sprite != null;
+                marker.color = Color.white;
+                if (sprite == null) continue;
+                float height = TileWidth * Mathf.Max(.05f, pond.tileHeightRatio);
+                marker.transform.localScale = new Vector3(
+                    TileWidth / Mathf.Max(.001f, sprite.bounds.size.x),
+                    height / Mathf.Max(.001f, sprite.bounds.size.y), 1f);
+                map.UpdateRouteObject(marker.transform, new Vector3(TileCenter(tile),
+                    mapSettings.ringThickness * .5f + layers.nearGroundTopOffset - height * .5f,
+                    -.06f));
+            }
+        }
+        public float PondFadeRemaining(int tile)
+        {
+            if (Tiles == null || tile < 0 || tile >= Tiles.Length || Tiles[tile].IsPuddle ||
+                pondDryStart == null || pondDryStart[tile] < 0f) return 0f;
+            var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
+            return pond == null ? 0f : Mathf.Max(0f,
+                Mathf.Max(.05f, pond.dryFadeSeconds) - (Time.unscaledTime - pondDryStart[tile]));
+        }
+        public void RestorePondVisuals(JourneyMap map, int stationIndex, StationData saved, float elapsedSeconds)
+        {
+            if (Tiles == null || pondMarkers == null || saved?.tiles == null) return;
+            var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
+            if (pond == null || !pond.HasWetSprites) return;
+            float duration = Mathf.Max(.05f, pond.dryFadeSeconds);
+            var remaining = new float[tileCount];
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                remaining[tile] = Tiles[tile].IsPuddle ? 0f : Mathf.Clamp(
+                    saved.tiles[tile].pondFadeRemainingSeconds - elapsedSeconds, 0f, duration);
+                // Rebuilt maps may have randomly wet tiles. Replace that transient visual history
+                // with the saved fade state before syncing sprites.
+                pondWasWet[tile] = !Tiles[tile].IsPuddle && remaining[tile] > 0f;
+                pondDryStart[tile] = -1f;
+                if (!Tiles[tile].IsPuddle && remaining[tile] <= 0f && pondMarkers[tile] != null)
+                    pondMarkers[tile].enabled = false;
+            }
+            SyncPondVisuals(map, stationIndex);
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                if (remaining[tile] <= 0f) continue;
+                pondDryStart[tile] = Time.unscaledTime - (duration - remaining[tile]);
+                if (pondMarkers[tile] != null)
+                    pondMarkers[tile].color = new Color(1f, 1f, 1f, remaining[tile] / duration);
+            }
+        }
+        void FramePonds(Camera camera)
+        {
+            if (pondMarkers == null) return;
+            var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
+            if (pond == null) return;
+            for (int tile = 0; tile < pondMarkers.Length; tile++)
+            {
+                var marker = pondMarkers[tile];
+                if (marker == null || marker.sprite == null) continue;
+                marker.transform.rotation = camera.transform.rotation;
+                if (pondDryStart[tile] < 0f) continue;
+                float alpha = 1f - (Time.unscaledTime - pondDryStart[tile]) /
+                    Mathf.Max(.05f, pond.dryFadeSeconds);
+                marker.color = new Color(1f, 1f, 1f, Mathf.Clamp01(alpha));
+                marker.enabled = alpha > 0f;
+            }
         }
         public void SetMoistureLabel(int tile, TextMesh label)
         {
@@ -118,7 +241,7 @@ namespace Hiking.Journey
                 Tiles[i].Step(mapSettings.plantCatalog, currentStep, beforeFlow[firstTileIndex + i],
                     mapSettings.evaporationSoilFactor, mapSettings.evaporationPlantFactor,
                     mapSettings.minimumEvaporationRatio, mapSettings);
-                RefreshTile(i);
+                RefreshTile(i, false);
             }
             SyncPlantMarkers(map);
         }
@@ -177,11 +300,39 @@ namespace Hiking.Journey
         {
             Vector2 offset = definition.isForeground ? mapSettings.foregroundPlantPositionOffset :
                 mapSettings.backgroundPlantPositionOffset;
+            Vector2 scatter = PlantScatter(tile, plant);
             float baseline = mapSettings.ringThickness * .5f + mapSettings.foregroundPlantY +
                 (definition.isForeground ? 0f : Mathf.Max(0, mapSettings.backgroundPlantOffset));
             map.UpdateRouteObject(marker.transform,
-                new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth + offset.x,
-                    baseline + height * .5f + offset.y, definition.isForeground ? -.18f : .35f));
+                new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth + offset.x +
+                    scatter.x * Mathf.Max(0, mapSettings.plantHorizontalScatter) * TileWidth,
+                    baseline + height * .5f + offset.y +
+                    scatter.y * Mathf.Max(0, mapSettings.plantVerticalScatter),
+                    definition.isForeground ? -.18f : .35f));
+        }
+        Vector2 PlantScatter(int tile, PlantInstance plant)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                foreach (char letter in stationId ?? string.Empty) hash = (hash ^ letter) * 16777619u;
+                foreach (char letter in plant.plantId ?? string.Empty) hash = (hash ^ letter) * 16777619u;
+                hash = (hash ^ (uint)tile) * 16777619u;
+                hash = (hash ^ (uint)Mathf.RoundToInt(plant.positionOffset * 1000f)) * 16777619u;
+                return new Vector2(HashToSignedUnit(hash), HashToSignedUnit(hash ^ 0x9e3779b9u));
+            }
+        }
+        static float HashToSignedUnit(uint value)
+        {
+            unchecked
+            {
+                value ^= value >> 16;
+                value *= 0x7feb352du;
+                value ^= value >> 15;
+                value *= 0x846ca68bu;
+                value ^= value >> 16;
+                return (value & 0x00ffffffu) / 8388607.5f - 1f;
+            }
         }
         void RefreshPlantPositions()
         {
@@ -207,6 +358,7 @@ namespace Hiking.Journey
         public void FramePlants(Camera camera)
         {
             if (camera == null || !camera.orthographic) return;
+            FramePonds(camera);
             RefreshPlantPositions();
             Quaternion facing = camera.transform.rotation;
             foreach (var marker in plantMarkers.Values)
@@ -282,17 +434,6 @@ namespace Hiking.Journey
         public Transform stopPoint;
         public PlacementSlot[] slots;
         [Range(0, 1)] public float stopProgress;
-        // StopPoint is the single source of truth, so moving the marker changes the actual destination.
-        public float StopAngle
-        {
-            get
-            {
-                var map = GetComponentInParent<JourneyMap>();
-                Vector3 point = map.transform.InverseTransformPoint(stopPoint.position);
-                // XZ平面上的角度，逆时针方向（X使用负号）
-                return Mathf.Repeat(Mathf.Atan2(-point.x, point.z) * Mathf.Rad2Deg, 360);
-            }
-        }
         [Tooltip("按顺序经过这些点，再抵达下一站；最后一站通向终点")]
         public Transform[] outgoingWaypoints;
         [Tooltip("本站左右边界（路线距离）")]

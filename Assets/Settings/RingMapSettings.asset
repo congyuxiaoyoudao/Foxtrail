@@ -28,6 +28,8 @@ MonoBehaviour:
   backgroundPlantOffset: 0
   foregroundPlantPositionOffset: {x: 0, y: 0.12}
   backgroundPlantPositionOffset: {x: 0, y: -0.57}
+  plantHorizontalScatter: 0.1
+  plantVerticalScatter: 0.12
   backgroundPlantHeight: 2
   sceneThemes: {fileID: 11400000, guid: 58d3c068c46f44f2bfefeb66734e965c, type: 2}
   snowLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
@@ -60,8 +62,8 @@ MonoBehaviour:
   rainVisualHeight: 3.2
   rainStreakSpeed: 3.6
   rainStreakOpacity: 0.42
+  rainOvercastOpacity: 0.16
   tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
-  panoramaScale: 1.5
   ringThickness: 0.247
   snowSoilRange: {x: 30, y: 65}
   grassSoilRange: {x: 40, y: 80}

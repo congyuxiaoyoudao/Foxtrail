@@ -25,6 +25,12 @@ namespace Hiking.Journey
         public bool Ready => Phase == JourneyPhase.AtSpawn || Phase == JourneyPhase.AtStation && RemainingSeconds <= 0;
         public bool ApproachingFirstStation => approachingFirstStation;
         public IReadOnlyList<PlacementRequest> Placements => placements;
+        // 存档需要读取下面这些私有状态；只加只读入口，不改任何现有逻辑。
+        public bool ApproachingFirstStationFlag => approachingFirstStation;
+        public int RainEventId => rainEventId;
+        public float RainCollected => rainCollected;
+        public IReadOnlyDictionary<string, float> Inventory => inventory;
+        public IReadOnlyCollection<int> SeedCollectedTiles => seedCollectedTiles;
         public const int CarryCapacity = 20;
         public const float RainCollectionLimit = 2f;
         readonly Dictionary<string, float> inventory = new Dictionary<string, float>();
@@ -34,13 +40,18 @@ namespace Hiking.Journey
         float rainCollected;
         bool approachingFirstStation;
 
-        public void Begin(int stationCount, double waitSeconds, IEnumerable<MaterialDefinition> materials, bool approachFirstStation = false)
+        public void Begin(int stationCount, double waitSeconds, IEnumerable<MaterialDefinition> materials,
+            bool approachFirstStation = false, SavedInventory[] carried = null)
         {
             if (stationCount < 1 || waitSeconds <= 0) throw new ArgumentOutOfRangeException();
             inventory.Clear(); placements.Clear(); seedCollectedTiles.Clear();
             rainEventId = -1; rainCollected = 0;
             foreach (var material in materials)
                 inventory.Add(material.id, Math.Min(CarryCapacity, Math.Max(0, material.startingCount)));
+            if (carried != null)
+                foreach (var entry in carried)
+                    if (entry != null && entry.id != null && inventory.ContainsKey(entry.id))
+                        inventory[entry.id] = Math.Min(CarryCapacity, Math.Max(0, entry.amount));
             StationCount = stationCount;
             WaitSeconds = waitSeconds;
             ResidenceSeconds = 0;
@@ -102,7 +113,7 @@ namespace Hiking.Journey
                 Phase = JourneyPhase.AtStation;
                 return true;
             }
-            if (StationIndex == StationCount - 1) Phase = JourneyPhase.Revealing;
+            if (StationIndex == StationCount - 1) Phase = JourneyPhase.Finalizing;
             else
             {
                 StationIndex++;
@@ -112,10 +123,10 @@ namespace Hiking.Journey
             }
             return true;
         }
-        public bool FinishReveal()
+        public bool CompleteFinalization()
         {
-            if (Phase != JourneyPhase.Revealing) return false;
-            Phase = JourneyPhase.Panorama;
+            if (Phase != JourneyPhase.Finalizing) return false;
+            Phase = JourneyPhase.Completed;
             return true;
         }
         // Slot membership is validated by PlacementController against the live map.
@@ -134,6 +145,38 @@ namespace Hiking.Journey
             RemainingSeconds = 0; ResidenceSeconds = 0; inventory.Clear(); placements.Clear(); seedCollectedTiles.Clear();
             rainEventId = -1; rainCollected = 0;
             approachingFirstStation = false;
+        }
+
+        // 读档恢复。字段全是私有 set，只能在类内部赋值。
+        // 背包与"该格已首次领取"必须一起恢复：策划要求两者同时记录，
+        // 否则会出现"领了种子但标记没存"或反过来，读档后重复领取。
+        public void Restore(SessionData data)
+        {
+            if (data == null) return;
+
+            Phase = (JourneyPhase)data.phase;
+            StationIndex = data.stationIndex;
+            StationCount = data.stationCount;
+            RemainingSeconds = data.remainingSeconds;
+            WaitSeconds = data.waitSeconds;
+            ResidenceSeconds = data.residenceSeconds;
+            approachingFirstStation = data.approachingFirstStation;
+            rainEventId = data.rainEventId;
+            rainCollected = data.rainCollected;
+
+            inventory.Clear();
+            if (data.inventory != null)
+                foreach (var entry in data.inventory)
+                    if (!string.IsNullOrEmpty(entry.materialId)) inventory[entry.materialId] = entry.amount;
+
+            placements.Clear();
+            if (data.placements != null)
+                foreach (var entry in data.placements)
+                    placements.Add(new PlacementRequest(entry.stationIndex, entry.slotId, entry.materialId, entry.quantity));
+
+            seedCollectedTiles.Clear();
+            if (data.seedCollectedTiles != null)
+                foreach (var tile in data.seedCollectedTiles) seedCollectedTiles.Add(tile);
         }
     }
 }

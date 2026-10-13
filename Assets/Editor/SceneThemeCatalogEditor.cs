@@ -8,7 +8,7 @@ public sealed class SceneThemeCatalogEditor : Editor
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
-        EditorGUILayout.HelpBox("播放时可调整远、中景及近景共享位移，画面立即更新。前景与背景植物的独立位移在 RingMapSettings 中调整。", MessageType.Info);
+        EditorGUILayout.HelpBox("播放时可调整远、中景及近景共享位移，画面立即更新。前景与背景植物的独立位移在 RingMapSettings 中调整。池塘积水按相邻地块拼接，退水后每格使用单格干涸贴图并渐隐。", MessageType.Info);
         var themes = serializedObject.FindProperty("themes");
         for (int i = 0; i < themes.arraySize; i++)
         {
@@ -28,6 +28,7 @@ public sealed class SceneThemeCatalogEditor : Editor
             EditorGUILayout.PropertyField(entry.FindPropertyRelative("farMountainsOffset"), new GUIContent("山偏移 X/Y"));
             EditorGUILayout.PropertyField(entry.FindPropertyRelative("middleOffset"), new GUIContent("中景偏移 X/Y"));
             EditorGUILayout.PropertyField(entry.FindPropertyRelative("nearGround"), new GUIContent("近景地面"));
+            EditorGUILayout.PropertyField(entry.FindPropertyRelative("pond"), new GUIContent("池塘 · 积水与干涸"), true);
             EditorGUILayout.PropertyField(entry.FindPropertyRelative("nearOffset"), new GUIContent("近景共享偏移 X/Y"));
             EditorGUILayout.PropertyField(entry.FindPropertyRelative("fallbackLandscape"), new GUIContent("整张占位画"));
             EditorGUILayout.PropertyField(entry.FindPropertyRelative("skyFillColor"), new GUIContent("天空延展色"));
