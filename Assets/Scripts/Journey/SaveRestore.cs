@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 namespace Hiking.Journey
 {
@@ -42,9 +43,11 @@ namespace Hiking.Journey
             flow.Session.Restore(data.session);
 
             // 表现层跟着数据走：水分标签、水面颜色、植物与水草标记
+            float elapsedSeconds = (float)Math.Max(0, (DateTime.UtcNow - SaveSystem.SavedAtUtc(data)).TotalSeconds);
             for (int i = 0; i < stations.Length; i++)
             {
-                for (int t = 0; t < stations[i].tileCount; t++) stations[i].RefreshTile(t);
+                for (int t = 0; t < stations[i].tileCount; t++) stations[i].RefreshTile(t, false);
+                stations[i].RestorePondVisuals(flow.Map, i, data.stations[i], elapsedSeconds);
                 stations[i].SyncPlantMarkers(flow.Map);
             }
             return true;

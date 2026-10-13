@@ -17,10 +17,12 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
 
         public int schemaVersion = CurrentVersion;
         public long savedAtUtcTicks;
+        public string runId = "";
+        public int levelIndex;
         public string sceneLabel = "";
 
         public SessionData session = new SessionData();
@@ -119,6 +121,7 @@ namespace Hiking.Journey
         public float soilWater;
         public float baseEvaporationRate;
         public float surfaceWater;
+        public float pondFadeRemainingSeconds;
         public float temperature;
         public float pendingVapor;
         public float drainageLoss;

@@ -35,6 +35,7 @@ namespace Hiking.Journey
         public bool IsFinalized { get; private set; }
         public string SaveError { get; private set; }
         public int LevelIndex { get; private set; } = 1;
+        public string RunId => runId;
         public bool IsDebugMode { get; private set; }
         public int DebugStepCount { get; private set; }
         public Station CurrentStation => Map != null ? Map.stations[Session.StationIndex] : null;
@@ -62,6 +63,7 @@ namespace Hiking.Journey
             ReturnToStart();
             try { archive = JourneyArchiveStore.Load(); }
             catch (Exception error) { SaveError = error.Message; Debug.LogException(error); }
+            DiscardSettledSave();
         }
         void Update()
         {
@@ -69,7 +71,7 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             // 离线结算期间不推进旅途、不结算行动点：这一段时间属于"读档"，不属于游戏
             if (IsSettlingOffline) return;
-            if (IsDebugMode || IsPreviewing || Activity == JourneyActivity.Complete) return;
+            if (IsPreviewing || IsDebugMode || Activity == JourneyActivity.Complete) return;
             Session.Tick(delta);
             TickAutosave(delta);
             if (Map == null || UI.IsModalOpen) return;
@@ -97,15 +99,36 @@ namespace Hiking.Journey
 
         public bool SaveNow()
         {
-            if (Map == null || IsDebugMode || Session.Phase == JourneyPhase.Start) return false;
+            if (Map == null || IsDebugMode || IsSettlingOffline || IsFinalized ||
+                Activity == JourneyActivity.Complete || Session.Phase == JourneyPhase.Start) return false;
             var data = SaveCapture.Capture(this);
             return data != null && SaveSystem.Write(data);
+        }
+
+        void DiscardSettledSave()
+        {
+            if (archive == null || !SaveSystem.Exists) return;
+            var saved = SaveSystem.Read();
+            if (saved != null && saved.levelIndex > 0 && saved.levelIndex < archive.nextLevelIndex)
+                SaveSystem.Delete();
         }
 
         public bool LoadGame()
         {
             var data = SaveSystem.Read();
             if (data == null) { UI.Notify("没有可继续的存档"); return false; }
+            if (data.schemaVersion == 1 && archive != null && archive.nextLevelIndex == 1 &&
+                IsPlayableSave(data))
+            {
+                data.levelIndex = archive.nextLevelIndex;
+                data.runId = Guid.NewGuid().ToString("N");
+            }
+            if (archive == null || data.levelIndex != archive.nextLevelIndex ||
+                string.IsNullOrEmpty(data.runId) || !IsPlayableSave(data))
+            {
+                UI.Notify("进度档已过期或无法与当前关卡对应");
+                return false;
+            }
             return RestoreFrom(data);
         }
 
@@ -113,7 +136,12 @@ namespace Hiking.Journey
         // 期间先把 generation 推到新值，让上一局遗留的移动回调失效（和 StartJourney 一样）。
         public bool RestoreFrom(SaveData data)
         {
-            if (data == null || Map != null || IsDebugMode) return false;
+            if (data == null || Map != null || IsDebugMode || archive == null ||
+                data.levelIndex != archive.nextLevelIndex || string.IsNullOrEmpty(data.runId) ||
+                !IsPlayableSave(data) || data.map == null || data.weather == null ||
+                data.stations == null || data.stations.Length == 0 ||
+                data.session.stationIndex < 0 || data.session.stationIndex >= data.stations.Length ||
+                data.session.stationCount != data.stations.Length) return false;
             try
             {
                 // 用存档里的站点主题建图：主题决定远景贴图、路面颜色和地块初始化，
@@ -126,6 +154,8 @@ namespace Hiking.Journey
 
                 generation++;
                 Mode = (JourneyMode)data.player.mode;
+                LevelIndex = data.levelIndex;
+                runId = data.runId;
                 Session.Begin(Map.stations.Length, .1, Config.materials);
                 Traveler.gameObject.SetActive(true);
                 Traveler.RestorePosition(Map, data.player.progress01);
@@ -154,6 +184,15 @@ namespace Hiking.Journey
                 ReturnToStart(); UI.Notify("读档失败：" + error.Message); Debug.LogException(error);
                 return false;
             }
+        }
+
+        static bool IsPlayableSave(SaveData data)
+        {
+            if (data?.session == null || data.player == null ||
+                data.player.activity == (int)JourneyActivity.Complete) return false;
+            var phase = (JourneyPhase)data.session.phase;
+            return phase == JourneyPhase.AtStation || phase == JourneyPhase.Moving ||
+                phase == JourneyPhase.AtSpawn;
         }
 
         // 离线推进沿用在线语义：只推进环境，不动狐狸、不结算采集、不替玩家做决定。
@@ -230,6 +269,7 @@ namespace Hiking.Journey
                     break;
                 default:
                     // 「已确认投放」的记录与扣除后的库存都已随地块一起恢复，这里不重复执行
+                    if (Session.Phase == JourneyPhase.AtStation) Advance();
                     break;
             }
         }
@@ -239,10 +279,14 @@ namespace Hiking.Journey
             int target = Session.StationIndex + 1;
             if (Map == null || target >= Map.stations.Length) { Activity = JourneyActivity.None; return; }
             int currentGeneration = generation;
-            Traveler.MoveToProgress(Map.stations[target].stopProgress, StationTransitionSeconds, () =>
+            float targetProgress = Map.stations[target].stopProgress;
+            float duration = RemainingMoveSeconds(targetProgress,
+                CurrentStation.TileCenter(CurrentStation.tileCount - 1), StationTransitionSeconds);
+            Traveler.MoveToProgress(targetProgress, duration, () =>
             {
                 if (generation != currentGeneration || !Session.Arrive()) return;
                 CurrentTileIndex = 0; Camera.ShowStation(CurrentStation);
+                Activity = JourneyActivity.Walking;
                 CollectOnTileEntry(); Advance();
             });
         }
@@ -272,7 +316,8 @@ namespace Hiking.Journey
                 if (previous != null) { previous.gameObject.SetActive(false); Destroy(previous.gameObject); }
                 generation++; Mode = mode; LevelIndex = archive.nextLevelIndex;
                 runId = Guid.NewGuid().ToString("N");
-                CurrentTileIndex = 0; environmentSeconds = 0;
+                CurrentTileIndex = 0; Activity = JourneyActivity.Walking;
+                environmentSeconds = 0; autosaveSeconds = 0;
                 IsAppreciating = false; IsEnteringAppreciation = false; IsPreviewing = false;
                 IsFinalized = false; HasAppreciated = false; SaveError = null;
                 Camera.ResetCamera();
@@ -322,23 +367,34 @@ namespace Hiking.Journey
             if (CurrentTileIndex == CurrentStation.tileCount - 1) { Depart(); return; }
             Activity = JourneyActivity.Walking;
             int nextTile = CurrentTileIndex + 1, currentGeneration = generation;
-            Traveler.MoveToProgress(Map.ProgressAtDistance(CurrentStation.TileCenter(nextTile)), MoveSeconds, () =>
+            float targetProgress = Map.ProgressAtDistance(CurrentStation.TileCenter(nextTile));
+            float duration = RemainingMoveSeconds(targetProgress, CurrentStation.TileCenter(CurrentTileIndex), MoveSeconds);
+            Traveler.MoveToProgress(targetProgress, duration, () =>
             {
                 if (generation != currentGeneration) return;
                 CurrentTileIndex = nextTile;
+                bool awaitingPlacement = Placement.CurrentSlot != null;
+                Activity = awaitingPlacement ? JourneyActivity.AwaitingPlacement : JourneyActivity.Walking;
                 CollectOnTileEntry();
-                if (Placement.CurrentSlot != null)
+                if (awaitingPlacement)
                 {
-                    Activity = JourneyActivity.AwaitingPlacement;
                     Placement.OnTravelerArrived();
                 }
                 else Advance();
             });
         }
+        float RemainingMoveSeconds(float targetProgress, float startDistance, float fullDuration)
+        {
+            float targetDistance = Map.RouteDistanceAtProgress(targetProgress);
+            float remaining = Mathf.Max(0f, targetDistance - Map.RouteDistanceAtProgress(Traveler.Progress01));
+            float total = Mathf.Max(.001f, targetDistance - startDistance);
+            return Mathf.Max(.001f, fullDuration * Mathf.Clamp01(remaining / total));
+        }
         public void CompletePlacementVisit()
         {
-            if (IsPreviewing || Activity != JourneyActivity.AwaitingPlacement) return;
+            if (Activity != JourneyActivity.AwaitingPlacement || IsPreviewing) return;
             UI.ClosePlacementPrompt(false);
+            Activity = JourneyActivity.Walking;
             SaveNow();   // 策划的关键操作：投放确认后保存，记录与扣除后的库存一起落盘
             Advance();
         }
@@ -358,6 +414,7 @@ namespace Hiking.Journey
             {
                 if (generation != currentGeneration || !Session.Arrive()) return;
                 CurrentTileIndex = 0; Camera.ShowStation(CurrentStation);
+                Activity = JourneyActivity.Walking;
                 CollectOnTileEntry(); Advance();
             });
         }
@@ -371,6 +428,8 @@ namespace Hiking.Journey
                 IsFinalized = true; SaveError = null;
                 Session.CompleteFinalization();
                 Camera.ShowStation(CurrentStation);
+                try { SaveSystem.Delete(); }
+                catch (Exception error) { Debug.LogWarning("已保存完成作品，但清理旧进度档失败：" + error.Message); }
             }
             catch (Exception error)
             {

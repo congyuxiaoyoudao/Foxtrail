@@ -126,6 +126,41 @@ namespace Hiking.Journey
                     -.06f));
             }
         }
+        public float PondFadeRemaining(int tile)
+        {
+            if (Tiles == null || tile < 0 || tile >= Tiles.Length || Tiles[tile].IsPuddle ||
+                pondDryStart == null || pondDryStart[tile] < 0f) return 0f;
+            var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
+            return pond == null ? 0f : Mathf.Max(0f,
+                Mathf.Max(.05f, pond.dryFadeSeconds) - (Time.unscaledTime - pondDryStart[tile]));
+        }
+        public void RestorePondVisuals(JourneyMap map, int stationIndex, StationData saved, float elapsedSeconds)
+        {
+            if (Tiles == null || pondMarkers == null || saved?.tiles == null) return;
+            var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
+            if (pond == null || !pond.HasWetSprites) return;
+            float duration = Mathf.Max(.05f, pond.dryFadeSeconds);
+            var remaining = new float[tileCount];
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                remaining[tile] = Tiles[tile].IsPuddle ? 0f : Mathf.Clamp(
+                    saved.tiles[tile].pondFadeRemainingSeconds - elapsedSeconds, 0f, duration);
+                // Rebuilt maps may have randomly wet tiles. Replace that transient visual history
+                // with the saved fade state before syncing sprites.
+                pondWasWet[tile] = !Tiles[tile].IsPuddle && remaining[tile] > 0f;
+                pondDryStart[tile] = -1f;
+                if (!Tiles[tile].IsPuddle && remaining[tile] <= 0f && pondMarkers[tile] != null)
+                    pondMarkers[tile].enabled = false;
+            }
+            SyncPondVisuals(map, stationIndex);
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                if (remaining[tile] <= 0f) continue;
+                pondDryStart[tile] = Time.unscaledTime - (duration - remaining[tile]);
+                if (pondMarkers[tile] != null)
+                    pondMarkers[tile].color = new Color(1f, 1f, 1f, remaining[tile] / duration);
+            }
+        }
         void FramePonds(Camera camera)
         {
             if (pondMarkers == null) return;

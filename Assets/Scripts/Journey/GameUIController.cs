@@ -56,7 +56,7 @@ namespace Hiking.Journey
         public Image progress;
         [HideInInspector] public Button returnToTravelerButton;
         [Tooltip("开始界面的「继续游戏」，仅在存在存档时显示")]
-        public Button continueButton;
+        public Button loadGameButton;
         [Tooltip("旅途中的「保存并退出」")]
         public Button saveQuitButton;
         [Tooltip("离线结算进度提示，结算期间才显示")]
@@ -97,7 +97,7 @@ namespace Hiking.Journey
             }
             if (mode != JourneyMode.Quick) mode = JourneyMode.Normal;
             if (returnToTravelerButton != null) returnToTravelerButton.gameObject.SetActive(false);
-            if (continueButton != null) continueButton.onClick.AddListener(ContinueGame);
+            if (loadGameButton != null) loadGameButton.onClick.AddListener(ContinueGame);
             if (saveQuitButton != null) saveQuitButton.onClick.AddListener(SaveAndQuit);
             foreach (var label in panoramaPanel.GetComponentsInChildren<Text>(true))
                 if (label.text.Contains("旅途完成")) { panoramaTitle = label; break; }
@@ -136,17 +136,17 @@ namespace Hiking.Journey
                 modeButton.targetGraphic.color = mode == JourneyMode.Quick ? new Color(.28f,.49f,.43f) : new Color(.17f,.29f,.31f);
         }
         public void ReturnToStart() => flow.ReturnToStart();
-        public void ReturnToTitle() => flow.ReturnToStart();
+        public void ReturnToTitle() => SaveAndQuit();
         // ---- 存档入口：策划要求提供「继续游戏」和「保存并退出」----
         // 直接关闭窗口也保存，那条在 GameFlowController 里（OnApplicationQuit / OnApplicationPause）。
         public void ContinueGame() { if (flow != null) flow.LoadGame(); }
         public void SaveAndQuit()
         {
             if (flow == null) return;
-            flow.SaveNow();
+            if (!flow.SaveNow()) { Notify("保存失败，请重试"); return; }
             // 按确认：退到开始菜单，不退进程。玩家不用重启程序就能开新局；
             // 退出后回到开始界面，存档还在，所以「继续游戏」能接着玩。
-            ReturnToStart();
+            flow.ReturnToStart();
         }
         public void PreviewPanorama() => flow.PreviewPanorama();
         public void PrimaryCompletionAction()
@@ -163,17 +163,17 @@ namespace Hiking.Journey
             if (flow == null) return;
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
+            journeyPanel.SetActive(!flow.IsSettlingOffline && !flow.IsDebugMode && !flow.IsPreviewing &&
+                flow.Activity != JourneyActivity.Complete && session.Phase != JourneyPhase.Start);
+            if (previewPanoramaButton != null) previewPanoramaButton.interactable = !IsModalOpen;
             // 没有存档时不显示「继续游戏」，免得点了没反应
-            if (continueButton != null) continueButton.gameObject.SetActive(flow.HasSave());
+            if (loadGameButton != null) loadGameButton.gameObject.SetActive(flow.HasSave());
             if (loadingText != null)
             {
                 bool settling = flow.IsSettlingOffline;
                 if (loadingText.gameObject.activeSelf != settling) loadingText.gameObject.SetActive(settling);
                 if (settling) loadingText.text = "正在结算离线时间… " + (flow.OfflineProgress01 * 100f).ToString("0") + "%";
             }
-            journeyPanel.SetActive(!flow.IsDebugMode && !flow.IsPreviewing &&
-                flow.Activity != JourneyActivity.Complete && session.Phase != JourneyPhase.Start);
-            if (previewPanoramaButton != null) previewPanoramaButton.interactable = !IsModalOpen;
             if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
             if (flow.IsDebugMode)
             {

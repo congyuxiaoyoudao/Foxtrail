@@ -79,19 +79,20 @@ namespace Hiking.Journey
         IEnumerator Walk(float target, float duration, Action arrived)
         {
             IsMoving = true;
+            duration = Mathf.Max(.001f, duration);
             float start = Progress01;
             MoveFraction = 0; MoveDirection = Mathf.Sign(target - start);
             float elapsed = 0;
             double previousTime = Time.realtimeSinceStartupAsDouble;
             yield return null;
-            while (elapsed < Mathf.Max(.1f, duration) || Paused)
+            while (elapsed < duration || Paused)
             {
                 double now = Time.realtimeSinceStartupAsDouble;
                 float delta = Mathf.Max(0, (float)(now - previousTime));
                 previousTime = now;
                 if (Paused) { yield return null; continue; }
                 elapsed += delta;
-                MoveFraction = Mathf.Clamp01(elapsed / Mathf.Max(.1f, duration));
+                MoveFraction = Mathf.Clamp01(elapsed / duration);
                 Progress01 = Mathf.Lerp(start, target, MoveFraction);
                 RefreshPosition();
                 // Finish on the arrival frame so the next step starts without an idle frame.

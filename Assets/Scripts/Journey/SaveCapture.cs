@@ -12,6 +12,8 @@ namespace Hiking.Journey
             if (flow == null || flow.Map == null || flow.Session == null) return null;
 
             var data = new SaveData();
+            data.runId = flow.RunId;
+            data.levelIndex = flow.LevelIndex;
             var session = flow.Session;
 
             var s = data.session;
@@ -90,7 +92,12 @@ namespace Hiking.Journey
             if (station.Tiles == null) return data;
 
             var tiles = new List<TileData>(station.Tiles.Length);
-            foreach (var tile in station.Tiles) tiles.Add(CaptureTile(tile));
+            for (int i = 0; i < station.Tiles.Length; i++)
+            {
+                var tile = CaptureTile(station.Tiles[i]);
+                tile.pondFadeRemainingSeconds = station.PondFadeRemaining(i);
+                tiles.Add(tile);
+            }
             data.tiles = tiles.ToArray();
             return data;
         }

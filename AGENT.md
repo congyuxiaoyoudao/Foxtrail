@@ -21,7 +21,7 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 进入欣赏时狐狸向上跳出画框，完整六站地图恢复为横向长卷。镜头每次只显示约一站，点击左右按钮移动一站，按住持续滚动，松开停止，到两端不能继续；狐狸与按钮固定在画面上。退出欣赏返回本关结束界面，可“继续旅途”或“再次欣赏”，不返回主菜单。
 - 已完成关卡写入 `Application.persistentDataPath/journey-archive.json`，包含六站地块、植物、种子、投放、天气和背包快照。下一关新建地图并按上关结算库存设置初值；旅途 ID 和关卡序号阻止重复结算与重复继承。
 - 旅途中可点“预览全景”进入同一条直线长卷，行走和环境结算暂停；可用左右按钮浏览，点“返回旅途”恢复进度，或点“回到标题”清理当前旅途。预览不触发定稿存档。
-- 狐狸使用 `Assets/Arts/Character/Fox_Walk_0000.png` 至 `Fox_Walk_0025.png` 的 26 帧透明序列，保留各帧 `.meta` GUID；`TravelerController` 在行走时以 18 帧/秒循环播放，停下回到首帧。场景中的 `FoxSprite` 保持排序值 10，Sprite 像素单位统一为 750，并按透明画布内的可见狐狸位置对齐地块中心与路面。普通旅途每真实秒结算一次环境，调试模式每点“更新一步”结算一次；当前只存已完成关卡，没有关卡中途读档入口。
+- 狐狸使用 `Assets/Arts/Character/Fox_Walk_0000.png` 至 `Fox_Walk_0025.png` 的 26 帧透明序列，保留各帧 `.meta` GUID；`TravelerController` 在行走时以 18 帧/秒循环播放，停下回到首帧。场景中的 `FoxSprite` 保持排序值 10，Sprite 像素单位统一为 750，并按透明画布内的可见狐狸位置对齐地块中心与路面。普通旅途每真实秒结算一次环境，调试模式每点“更新一步”结算一次；进行中旅途可保存并从标题界面继续。
 
 ## 地块属性与调试模式
 
@@ -82,38 +82,8 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 - 主 Unity 编辑器可能正在运行。编译与 PlayMode 验证使用 `.utmp/JourneyValidation` 隔离项目，不打断主编辑器；不要恢复用户已删除的旧测试目录。
 - 隔离 PlayMode 验证使用 `.utmp/JourneyValidation`。旧的 `Logs/early-camera-tests.xml` 只记录环形预览移除前的历史行为，不作为当前全景逻辑依据。
 
-## 本分支开发任务（gwynaire/ui2 · 旅途保存与加载）
+## 进行中旅途存档
 
-- 分支 `gwynaire/ui2`，基线 `2e7de53`。开发场景 `Assets/Scenes/gwynaire-DevScene.unity`（由 GameScene 复制）；**存档相关改动全部在脚本与这个副本里，GameScene 未改动**。
-
-### 已完成
-
-- **数据结构**：`SaveData`（含 `SaveSystem` 读写）只存原始状态；派生值（最大含水量、土壤湿度、蒸发率、水深、植物数量）一律不存，避免读档后两套真相。JsonUtility 不支持字典与集合，背包、投放记录、已领取格一律用数组；枚举存 `int`，以后加值不影响老档。
-- **读写与容错**：先写临时文件、读回校验、再替换正式档，旧档转 `.bak`；读档遇到坏档或版本不符自动回退备份。带 `schemaVersion`。
-- **捕获与恢复**：`SaveCapture` 只读抓取（实测 6 站 72 格全覆盖）；`SaveRestore` 覆盖数据并刷新表现；`TileState` / `Station` / `JourneyMap`（含 `RainWeatherSystem`）/ `JourneySession` / `TravelerController` 各加一个恢复入口——只加方法，不改现有逻辑。
-- **流程编排**：`GameFlowController.RestoreFrom` = 建地图 → 覆盖数据 → 离线推进 → 按「退出前状态／读档后行为」对照表恢复交互（行走中接着走、投放格继续等待、只选材料未确认则取消、站间移动重起换站）；`AdvanceOffline` 调用与在线完全相同的 `StepEnvironment(CollectRainAtCurrentTile)`，狐狸不动、不结算采集、仍可接雨。
-- **自动保存**：定期（`autosaveIntervalSec`）、进入格子并完成采集后、投放确认后、关窗口时（`OnApplicationQuit` / `OnApplicationPause`）。
-- **离线推进分帧与进度**：`SettleOffline` 协程按每帧时间预算（`offlineStepBudgetMsPerFrame`，默认 8 毫秒）推进，每帧刷新 `OfflineProgress01`；结算期间 `Update` 直接返回，旅途与行动点都不推进。`Canvas/LoadingText` 显示「正在结算离线时间… N%」，默认隐藏，由 `GameUIController.loadingText` 驱动。
-- **界面**：开始界面 `ContinueButton`（仅在存在存档时显示，接 `GameUIController.continueButton`）；旅途界面右上角 `SaveQuitButton`（接 `saveQuitButton`，先保存再回到开始菜单，不退进程）。两按钮均复制现有按钮制作，复制带来的持久化 onClick 已清除，改在 `Initialize` 里用代码注册。
-
-### 验证方式与结论
-
-- 往返测试：推进 45 步（含进行中的降雨）→ 存档 → 再推进 30 步改变状态 → 恢复 → 重新抓取，**两份数据逐字节一致**；站点主题序列一致。
-- 读档集成测试：伪造离线 2 小时后读档，模拟步恰好按预算截断（20 → 3620），狐狸进度未变、已领取格数未变——对应对照表中的「不走路、不重复结算」。
-- 离线接雨：人工构造覆盖狐狸所在格的降雨后伪造离线，**每场雨 2 单位上限生效、同一场雨不重复给、离线确实接到水**（2.000 → 2.083）。注意：背包满 20 时本该不接，第一次测返回 0 是正确行为，不是 bug。
-- 分帧离线：伪造 2 小时离线后读档，进度从 0% 走到 100%，窗口全程可响应（用户 Play 实测确认）。
-
-### 待办与未决
-
-- **离线时长已定 2 小时**：`offlineAdvanceCapHours = 2`、`offlineStepBudget = 7200`，两者必须配套——它们是「谁小谁生效」的关系，只改上限不改预算的话，上限会被预算悄悄截短。**这两个值同时序列化在场景里**，改 C# 默认值不影响已保存的场景，两边都要改。实测 7200 步纯计算约 3 秒；分帧后每帧只用 8 毫秒，实际结算约 6 秒，但画面始终可响应。
-- **结算态恢复**：策划要求区分「已到终点／正在结算／结算完成」，但上游结算功能尚未实现，暂无可恢复的状态。
-- **作品冻结与回看**：归属未定，未开工。
-- **合并回 GameScene 时**：需要在开始界面与旅途界面各加一个按钮，并接到 `GameUIController.continueButton` / `saveQuitButton`。
-
-### 维护备忘
-
-- **`Packages/manifest.json` 里的 `com.coplaydev.unity-mcp` 是有意不提交的**（本机装了 Unity MCP 编辑器插件，便于 AI 直接读场景与报错）。它一旦进主干，拉代码的人都得能访问 GitHub 才能解析依赖，所以只留在本地未提交状态。切分支后若丢失，把这一行加回 `dependencies` 第一行即可：`"com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main"`。
-- `ProjectSettings/EditorBuildSettings.asset` 与 `ShaderGraphSettings.asset` 长期显示被修改，实际只是行尾符差异，内容未变，不必提交。
-- **`GameUIController.toast` 目前是空引用**（场景里没有 Toast 对象），`Notify` 会静默返回，所以存档相关的提示——存档失败、离线结算完成、采集提示——都看不到文字。这不是本次改动引入的，是上游一直缺的接线。用 `Notify` 判断功能是否生效时要留意这一点。
-- **不要在编辑器里跑会生成运行期对象的测试。** `GameFlowController.ReturnToStart` 用 `Destroy` 清理地图，而 `Destroy` 在编辑器下是空操作（要 `DestroyImmediate`）。在编辑器里调用 `StartJourney` 之后，整张地图（6 站、144 段网格、114 株植物、90 条雨条）会留在场景里，下一次保存场景就把它整个写进文件——曾出现 2.6MB 的污染场景（正常约 260KB），表现为 git diff 突然多出八万行。需要用编辑器测试时，事后显式 `DestroyImmediate(WorldRoot 下的 JourneyRoute)` 再保存。`WorldRoot` 在正常场景里应当是空的。
-- 存档路径为 `Application.persistentDataPath/journey_save.json`；当前项目公司名仍是 `DefaultCompany`，打包前应改。
+- `SaveData` / `SaveCapture` / `SaveRestore` / `SaveSystem` 保存并恢复当前关卡的会话、库存、地块、植物、降雨和狐狸进度；`GameScene/Canvas/StartPanel/ContinueButton` 与 `JourneyPanel/Controls/SaveQuitButton` 是玩家入口，`Canvas/LoadingText` 显示离线结算进度。
+- 进度档包含 `runId` 和 `levelIndex`，只允许恢复与 `JourneyArchiveStore.nextLevelIndex` 一致的关卡。关卡完成并写入作品档后清除进度档，避免重复结算或继承；旧版进度档仅能在尚无已完成关卡时补齐标识。
+- 离线推进只调用地图环境更新，不移动狐狸，也不重复触发进格采集。结算分帧执行，期间暂停在线逻辑和交互。主场景序列化了 60 秒自动保存、2 小时离线上限、7200 步预算和每帧 8 毫秒预算。
