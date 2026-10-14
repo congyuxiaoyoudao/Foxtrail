@@ -39,18 +39,6 @@ namespace Hiking.Journey
         [InspectorName("背景植物中期高度比例"), Range(.1f, 1f)] public float backgroundMediumHeightRatio = .87f;
         [Header("场景主题图层（新地图生效）")]
         public SceneThemeCatalog sceneThemes;
-        [Tooltip("站内已转变地块（类别不再等于本站主题）达到该比例时，整站远景切到新类别；低于阈值时按同一比例回退")]
-        [InspectorName("远景切换比例"), Range(0, 1)] public float farThemeSwitchRatio = .6f;
-        [Tooltip("站内已转变地块达到该比例时，整站中景切到新类别；中景只换地面，装饰物不跟随")]
-        [InspectorName("中景切换比例"), Range(0, 1)] public float middleThemeSwitchRatio = .8f;
-        [Tooltip("地块温度距 5°C、12°C 分界不超过该值时进入过渡表现：原类别背景 + 预期类别半高背景，地面换成预期类别的土地素材。策划案为 1（即 4～6、11～13）")]
-        [InspectorName("过渡温度带宽度"), Min(.1f)] public float transitionBandWidth = 1f;
-        [Tooltip("半高后片的高度：相对整站远景层的层高（0.5 即策划案的半高）。只由这一项决定，出现后不会再变化")]
-        [InspectorName("过渡后片高度比例"), Range(.05f, 1f)] public float transitionBackdropHeightRatio = .25f;
-        [Tooltip("半高后片的宽度：相对一格宽。小于 1 时旁边会露出这一格还没有改变的后景")]
-        [InspectorName("过渡后片宽度比例"), Range(.1f, 1f)] public float transitionBackdropWidthRatio = 1f;
-        [Tooltip("半高后片底边在整站远景层高度里的位置：0 = 层底（贴着中景），1 = 层顶。抬高它，这一格与中景之间就会露出还没有改变的后景")]
-        [InspectorName("过渡后片底边高度比例"), Range(0f, 1f)] public float transitionBackdropBottomRatio = .45f;
         public float GroundPlaceholderHeight(float tileWidth)
         {
             if (sceneThemes?.themes != null)

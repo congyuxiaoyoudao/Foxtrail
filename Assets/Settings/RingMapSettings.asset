@@ -30,12 +30,6 @@ MonoBehaviour:
   backgroundSaplingHeightRatio: 0.5
   backgroundMediumHeightRatio: 0.87
   sceneThemes: {fileID: 11400000, guid: 58d3c068c46f44f2bfefeb66734e965c, type: 2}
-  farThemeSwitchRatio: 0.6
-  middleThemeSwitchRatio: 0.8
-  transitionBandWidth: 1
-  transitionBackdropHeightRatio: 0.25
-  transitionBackdropWidthRatio: 1
-  transitionBackdropBottomRatio: 0.45
   snowLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
   grassLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}
   desertLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
@@ -49,7 +43,7 @@ MonoBehaviour:
   heightRange: {x: 0, y: 1}
   surfaceWaterRange: {x: 0, y: 3}
   temperatureFlowPerStep: 0.002
-  soilWaterFlowPerStep: 0.25
+  soilWaterFlowPerStep: 0.02
   surfaceWaterFlowPerStep: 1
   waterUnitsPerHeight: 35
   infiltrationFactor: 0.03
@@ -78,15 +72,15 @@ MonoBehaviour:
   desertTemperatureRange: {x: 14, y: 18}
   initialPlantProbability: 0.3
   createStationBasin: 1
-  basinWaterRange: {x: 32, y: 35}
+  basinWaterRange: {x: 26, y: 32}
   drySoilMoistureScale: 0.4
   minimumDrySoilMultiplier: 0.05
-  extraWaterDeadband: 0.2
-  fullInfluenceWater: 1
+  extraWaterDeadband: 1
+  fullInfluenceWater: 8
   waterTargetTemperature: 10
-  thermalApproachRate: 0.02
+  thermalApproachRate: 0.06
   thermalRecoveryRate: 0.002
-  thermalApproachCap: 0.05
+  thermalApproachCap: 0.15
   thermalRecoveryCap: 0.01
   matureSeedInterval: 30
   ringThickness: 0.247

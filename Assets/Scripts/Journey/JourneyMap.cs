@@ -70,9 +70,6 @@ namespace Hiking.Journey
                 var fill = landscape.GetComponent<SceneThemeFill>();
                 if (fill != null) fill.SetTransition(participates, blendCenter,
                     isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
-                var piece = landscape.GetComponent<SceneTransitionPiece>();
-                if (piece != null) piece.SetTransition(participates, blendCenter,
-                    isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
                 landscape.enabled = visible && (!blending || participates);
                 if (visible) landscape.transform.rotation = camera.transform.rotation;
             }

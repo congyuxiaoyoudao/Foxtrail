@@ -10,7 +10,6 @@ namespace Hiking.Journey
         Station station;
         SpriteRenderer image;
         bool ground;
-        StationTheme fillTheme;
         bool transitionActive;
         float transitionCenter;
         float transitionAlpha = 1f;
@@ -26,17 +25,6 @@ namespace Hiking.Journey
             image = renderer;
             ground = isGround;
             baseSortingOrder = renderer.sortingOrder;
-            fillTheme = home.theme;
-            RefreshPosition();
-        }
-
-        public bool IsGround => ground;
-        public StationTheme FillTheme => fillTheme;
-        // 天空填充跟随远景、地面填充跟随中景，两者可以各自切换。
-        public void SetFillTheme(StationTheme theme)
-        {
-            if (fillTheme == theme) return;
-            fillTheme = theme;
             RefreshPosition();
         }
 
@@ -53,7 +41,7 @@ namespace Hiking.Journey
         {
             if (map == null || settings == null || station == null || image == null || image.sprite == null)
                 return;
-            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(fillTheme) : null;
+            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
             if (layers == null) return;
             var color = ground ? layers.groundFillColor : layers.skyFillColor;
             color.a *= transitionAlpha;
