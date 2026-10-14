@@ -11,6 +11,7 @@ namespace Hiking.Journey
         SpriteRenderer image;
         Sprite fallbackSprite;
         int layerIndex;
+        StationTheme artTheme;
         bool transitionActive;
         float transitionCenter;
         float transitionAlpha = 1f;
@@ -26,6 +27,7 @@ namespace Hiking.Journey
             image = renderer;
             layerIndex = index;
             baseSortingOrder = renderer.sortingOrder;
+            artTheme = home.theme;
             RefreshPosition();
         }
 
@@ -38,8 +40,21 @@ namespace Hiking.Journey
             fallbackSprite = sprite;
             layerIndex = -1;
             baseSortingOrder = GetComponent<MeshRenderer>().sortingOrder;
+            artTheme = home.theme;
             RefreshPosition();
         }
+
+        public int LayerIndex => layerIndex;
+        public StationTheme ArtTheme => artTheme;
+        // 整站地块转变后换用别的主题素材：0～2 是远景，3 是中景。
+        public void SetArtTheme(StationTheme theme)
+        {
+            if (artTheme == theme) return;
+            artTheme = theme;
+            RefreshPosition();
+        }
+        static Sprite SpriteFor(SceneThemeLayers layers, int index) => index == 0 ? layers.farSky :
+            index == 1 ? layers.farClouds : index == 2 ? layers.farMountains : layers.middle;
 
         public void SetTransition(bool active, float center, float alpha, int orderOffset)
         {
@@ -54,8 +69,13 @@ namespace Hiking.Journey
         {
             if (map == null || settings == null || station == null)
                 return;
-            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
+            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(artTheme) : null;
             if (layers == null) return;
+            if (layerIndex >= 0 && image != null)
+            {
+                var art = SpriteFor(layers, layerIndex);
+                if (image.sprite != art) image.sprite = art;
+            }
             var sprite = layerIndex < 0 ? fallbackSprite : image != null ? image.sprite : null;
             if (sprite == null) return;
             float widthScale = station.length / Mathf.Max(.001f, sprite.bounds.size.x);

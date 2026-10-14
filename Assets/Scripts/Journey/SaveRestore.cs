@@ -49,6 +49,7 @@ namespace Hiking.Journey
                 for (int t = 0; t < stations[i].tileCount; t++) stations[i].RefreshTile(t, false);
                 stations[i].RestorePondVisuals(flow.Map, i, data.stations[i], elapsedSeconds);
                 stations[i].SyncPlantMarkers(flow.Map);
+                stations[i].RefreshThemeConversion();
             }
             return true;
         }
