@@ -1,0 +1,124 @@
+using UnityEngine;
+
+namespace Hiking.Journey
+{
+    // World decoration attached to a route slot. The actual plan and settlement live in PlacementSlot.
+    public sealed class PlacementSignVisual : MonoBehaviour
+    {
+        SpriteRenderer board;
+        SpriteRenderer bubble;
+        SpriteRenderer warning;
+        TextMesh bubbleText;
+        Camera worldCamera;
+        bool hidden;
+
+        public void Configure(RingMapSettings settings)
+        {
+            var sprite = settings.fallbackPlantSprite;
+            var font = settings.tileLabelFont;
+            MakePanel("Post", sprite, new Color(.42f, .27f, .14f),
+                new Vector3(0, .22f, 0), new Vector2(.10f, .50f), 11);
+            MakePanel("BoardBorder", sprite, new Color(.38f, .25f, .14f),
+                new Vector3(0, .56f, -.01f), new Vector2(.64f, .39f), 12);
+            board = MakePanel("WoodenBoard", sprite, new Color(.73f, .53f, .29f),
+                new Vector3(0, .56f, -.02f), new Vector2(.57f, .32f), 13);
+            MakeText("BoardMark", "•", font, new Vector3(0, .54f, -.03f), .21f,
+                new Color(.32f, .22f, .12f), 14);
+
+            bubble = MakePanel("PlanBubble", sprite, new Color(.97f, .94f, .80f),
+                new Vector3(0, 1.02f, -.04f), new Vector2(1.05f, .36f), 22);
+            MakePanel("PlanBubbleTail", sprite, new Color(.97f, .94f, .80f),
+                new Vector3(-.20f, .83f, -.04f), new Vector2(.13f, .13f), 21)
+                .transform.localRotation = Quaternion.Euler(0, 0, 45);
+            bubbleText = MakeText("PlanValue", "", font, new Vector3(0, 1.01f, -.05f), .13f,
+                new Color(.24f, .28f, .18f), 23);
+            warning = MakePanel("WarningBubble", sprite, new Color(1f, .86f, .47f),
+                new Vector3(.46f, .72f, -.06f), new Vector2(.29f, .31f), 25);
+            MakeText("WarningMark", "!", font, new Vector3(.46f, .70f, -.07f), .21f,
+                new Color(.60f, .21f, .12f), 26);
+            HideBubble();
+        }
+
+        SpriteRenderer MakePanel(string name, Sprite sprite, Color color, Vector3 position,
+            Vector2 size, int sortingOrder)
+        {
+            var child = new GameObject(name).transform;
+            child.SetParent(transform, false);
+            child.localPosition = position;
+            var renderer = child.gameObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.color = color;
+            renderer.sortingOrder = sortingOrder;
+            Vector2 spriteSize = sprite != null ? sprite.bounds.size : Vector2.one;
+            child.localScale = new Vector3(size.x / Mathf.Max(.001f, spriteSize.x),
+                size.y / Mathf.Max(.001f, spriteSize.y), 1);
+            return renderer;
+        }
+
+        TextMesh MakeText(string name, string text, Font font, Vector3 position,
+            float size, Color color, int sortingOrder)
+        {
+            var child = new GameObject(name).transform;
+            child.SetParent(transform, false);
+            child.localPosition = position;
+            var label = child.gameObject.AddComponent<TextMesh>();
+            label.text = text;
+            label.fontSize = 48;
+            label.characterSize = size / 48f;
+            label.anchor = TextAnchor.MiddleCenter;
+            label.color = color;
+            if (font != null)
+            {
+                label.font = font;
+                label.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+            }
+            label.GetComponent<MeshRenderer>().sortingOrder = sortingOrder;
+            return label;
+        }
+
+        public void Frame(Camera camera, PlacementSlot slot, bool showPlans, bool hovered)
+        {
+            if (hidden || camera == null) return;
+            worldCamera = camera;
+            transform.rotation = camera.transform.rotation;
+            board.color = hovered ? new Color(.96f, .75f, .39f) : new Color(.73f, .53f, .29f);
+            bool showPlan = slot.HasCustomPlan && showPlans;
+            bubble.gameObject.SetActive(showPlan);
+            transform.Find("PlanBubbleTail").gameObject.SetActive(showPlan);
+            bubbleText.gameObject.SetActive(showPlan);
+            if (showPlan) bubbleText.text = $"水{slot.PlannedWater}  种{slot.PlannedSeeds}";
+            bool showWarning = slot.WarningAtArrival;
+            warning.gameObject.SetActive(showWarning);
+            transform.Find("WarningMark").gameObject.SetActive(showWarning);
+        }
+
+        public bool Contains(Vector2 pointer, bool warningOnly = false)
+        {
+            if (hidden || worldCamera == null) return false;
+            var center = warningOnly ? warning.transform.position : board.transform.position;
+            Vector3 screen = worldCamera.WorldToScreenPoint(center);
+            if (screen.z <= 0) return false;
+            Vector3 edge = worldCamera.WorldToScreenPoint(center + worldCamera.transform.right *
+                (warningOnly ? .26f : .42f));
+            Vector3 top = worldCamera.WorldToScreenPoint(center + worldCamera.transform.up *
+                (warningOnly ? .25f : .34f));
+            return Mathf.Abs(pointer.x - screen.x) <= Mathf.Abs(edge.x - screen.x) &&
+                Mathf.Abs(pointer.y - screen.y) <= Mathf.Abs(top.y - screen.y);
+        }
+
+        public Vector2 ScreenPosition(Camera camera) =>
+            camera == null ? Vector2.zero : camera.WorldToScreenPoint(transform.position +
+                camera.transform.up * 1.15f);
+
+        void HideBubble()
+        {
+            bubble.gameObject.SetActive(false);
+            transform.Find("PlanBubbleTail").gameObject.SetActive(false);
+            bubbleText.gameObject.SetActive(false);
+            warning.gameObject.SetActive(false);
+            transform.Find("WarningMark").gameObject.SetActive(false);
+        }
+
+        public void Hide() { hidden = true; gameObject.SetActive(false); }
+    }
+}

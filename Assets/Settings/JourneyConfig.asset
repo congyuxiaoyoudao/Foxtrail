@@ -19,6 +19,10 @@ MonoBehaviour:
   cameraTransitionStartFromEnd: 1
   stationTransitionSeconds: 5
   fastStationTransitionSeconds: 1.5
+  defaultPlacementWater: 1
+  defaultPlacementSeeds: 1
+  placementStopSeconds: 2
+  placementWarningSeconds: 3
   panoramaScrollStationsPerSecond: 1.2
   normalWaitSeconds: 300
   quickWaitSeconds: 30

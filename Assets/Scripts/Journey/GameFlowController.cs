@@ -150,6 +150,7 @@ namespace Hiking.Journey
                 for (int i = 0; i < themes.Length; i++) themes[i] = (StationTheme)data.stations[i].theme;
 
                 Map = MapProvider.CreateMap(WorldRoot, themes);
+                Placement.InitializeSlots();
                 if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
 
                 generation++;
@@ -313,6 +314,7 @@ namespace Hiking.Journey
                 Session.Begin(next.stations.Length, .1, Config.materials,
                     carried: archive.nextLevelIndex > 1 ? archive.carryInventory : null);
                 Map = next; next = null;
+                Placement.InitializeSlots();
                 if (previous != null) { previous.gameObject.SetActive(false); Destroy(previous.gameObject); }
                 generation++; Mode = mode; LevelIndex = archive.nextLevelIndex;
                 runId = Guid.NewGuid().ToString("N");
@@ -446,6 +448,7 @@ namespace Hiking.Journey
         {
             if (Map == null || IsDebugMode || IsBrowsingPanorama || IsEnteringAppreciation ||
                 Activity == JourneyActivity.Complete || UI.IsModalOpen) return;
+            if (Placement.EditingSlot != null) Placement.CancelEditor();
             IsPreviewing = true;
             Traveler.Paused = true;
             if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = false;

@@ -41,6 +41,27 @@ namespace Hiking.Journey
             flow.Map.RestoreSimulationStep(data.map.simulationStep);
             flow.Map.Weather.Restore(data.weather);
             flow.Session.Restore(data.session);
+            foreach (var station in stations)
+                foreach (var slot in station.slots)
+                {
+                    var savedPlan = Array.Find(data.session.placementPlans ?? Array.Empty<PlacementPlanEntry>(),
+                        plan => plan != null && plan.slotId == slot.slotId);
+                    if (savedPlan != null)
+                        slot.RestorePlan(savedPlan.water, savedPlan.seeds,
+                            savedPlan.custom, savedPlan.committed, savedPlan.warningAtArrival);
+                    else if (data.schemaVersion < 4)
+                    {
+                        int stationIndex = Array.IndexOf(stations, station);
+                        bool passed = stationIndex < data.session.stationIndex ||
+                            stationIndex == data.session.stationIndex &&
+                            (slot.tileIndex < data.player.currentTileIndex ||
+                             slot.tileIndex == data.player.currentTileIndex &&
+                             data.player.activity != (int)JourneyActivity.AwaitingPlacement);
+                        slot.RestorePlan(slot.PlannedWater, slot.PlannedSeeds, false, passed);
+                    }
+                }
+            flow.Placement.RestoreRemaining(data.schemaVersion >= 4 ?
+                data.player.placementStopRemaining : -1f);
 
             // 表现层跟着数据走：水分标签、水面颜色与植物标记
             float elapsedSeconds = (float)Math.Max(0, (DateTime.UtcNow - SaveSystem.SavedAtUtc(data)).TotalSeconds);

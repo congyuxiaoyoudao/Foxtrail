@@ -17,7 +17,7 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
 
         public int schemaVersion = CurrentVersion;
         public long savedAtUtcTicks;
@@ -48,6 +48,7 @@ namespace Hiking.Journey
         public InventoryEntry[] inventory = Array.Empty<InventoryEntry>();
         public int[] seedCollectedTiles = Array.Empty<int>();
         public PlacementEntry[] placements = Array.Empty<PlacementEntry>();
+        public PlacementPlanEntry[] placementPlans = Array.Empty<PlacementPlanEntry>();
     }
 
     [Serializable]
@@ -66,6 +67,17 @@ namespace Hiking.Journey
         public int quantity;
     }
 
+    [Serializable]
+    public sealed class PlacementPlanEntry
+    {
+        public string slotId;
+        public int water;
+        public int seeds;
+        public bool custom;
+        public bool committed;
+        public bool warningAtArrival;
+    }
+
     // 狐狸的位置与"是否正在两格之间行走"，对应 TravelerController。
     // moveFraction 是这一格走了多少（0~1），读档后从保存位置继续走。
     [Serializable]
@@ -78,6 +90,7 @@ namespace Hiking.Journey
         public bool isMoving;
         public float moveFraction;
         public float moveDirection;
+        public float placementStopRemaining = -1f;
         public bool debugMode;
         public int debugStepCount;
     }

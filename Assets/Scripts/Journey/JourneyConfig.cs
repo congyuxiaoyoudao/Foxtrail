@@ -29,6 +29,11 @@ namespace Hiking.Journey
         [InspectorName("镜头从倒数第几块开始"), Range(1, 12)] public int cameraTransitionStartFromEnd = 1;
         [InspectorName("默认模式站间移动时间（秒）"), Min(.1f)] public float stationTransitionSeconds = 8;
         [InspectorName("快速模式站间移动时间（秒）"), Min(.1f)] public float fastStationTransitionSeconds = 1.5f;
+        [Header("投放木牌")]
+        [InspectorName("默认预设水量"), Range(0, 3)] public int defaultPlacementWater = 1;
+        [InspectorName("默认预设种子量"), Range(0, 3)] public int defaultPlacementSeeds = 1;
+        [InspectorName("投放点停留时间（秒）"), Min(.1f)] public float placementStopSeconds = 2f;
+        [InspectorName("资源不足提示时间（秒）"), Min(.1f)] public float placementWarningSeconds = 3f;
         [Header("完成后长卷浏览")]
         [InspectorName("全景浏览滚动速度（站/秒）"), Min(.1f)] public float panoramaScrollStationsPerSecond = 1.2f;
         public float TransitionSeconds(JourneyMode mode) => Mathf.Max(.1f, mode == JourneyMode.Quick ? fastStationTransitionSeconds : stationTransitionSeconds);
