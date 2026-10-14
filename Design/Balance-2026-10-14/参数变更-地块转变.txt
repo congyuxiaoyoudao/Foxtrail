@@ -1,0 +1,95 @@
+2026-10-14 地块转变数值调整记录
+
+配套代码：逐块过渡（SceneTransitionPiece）+ 整站远景 60% ／ 中景 80% 切换（Station.RefreshThemeConversion）。
+配套说明见 AGENT.md「地块转变已接入」「逐块过渡表现」两条。
+
+
+一、为什么改
+
+地块转变接入后按 10-13 平衡稿的原值实测，正式玩法里基本看不到效果。
+
+测量方法：在 Unity 编辑器里用 RingMapAssembler 建一张随机地图（与开局同一条生成路径），
+连续调用 StepEnvironment（一步 = 一模拟秒），统计每站「已转变地块比例」、
+「地块温度进入 4～6 / 11～13 过渡带」的时刻，以及整站远景 60%、中景 80% 的首次触发时刻。
+
+改动前的实测结果：
+  平原站：地块温度被水拉到 8～10°C 后停住，900 步内一次都没进入过渡带。
+  雪地站：第一块进入过渡带在第 85 步，慢的站在第 299 / 433 步。
+  3000 步（约 50 分钟）内任何一站的转变比例最高只有 25%（3/12），而且是来回抖动的
+  （2→1→3→2→0→2：湿块被水改类后，水蒸发／流走又转回原类别），
+  因此整站 60%／80% 两个阈值在正式数值下实际不可达。
+
+原因：限速的不是升降温速率，而是「多余水量 → 水温影响系数」和「水在站内铺开的速度」——
+水要高出基准 8 单位才满影响、还有 1 单位死区、土壤水每步只搬 0.02，实际只有水源格左右 1～3 格被带动。
+
+
+二、字段对照（文件：Assets/Settings/RingMapSettings.asset）
+
+字段                                  10-13 原值   本次最终值   说明
+fullInfluenceWater                    8            1            水高出基准 1 单位即满影响
+extraWaterDeadband                    1            0.2          略高于基准水位就开始起作用
+soilWaterFlowPerStep（土壤水流动）     0.02         0.25         湿润在站内铺开快 12.5 倍，整站都能被带动
+basinWaterRange（水源格地表水）        26～32       32～35        水源格初始水量接近满，够铺满一站
+thermalApproachRate（升降温速率）      0.06         0.02         放慢：单个格子的过渡过程拉长到看得清
+thermalApproachCap（每步升降温上限）   0.15         0.05         放慢：±1°C 过渡带停留约 40 步
+
+被否掉的中间方案（记录备查）：
+  · rate 0.2 / cap 0.4（最初为加速测试临时设的）：cap 太大，一块地穿过 ±1°C 过渡带只要 5 步，
+    逐块过渡一闪而过，肉眼几乎看不到 → 弃用。
+  · rate 0.06 / cap 0.15（平衡稿原值）+ 仅加强水扩散：整站 60% 首次触发要到第 211 步（约 3.5 分钟），
+    偏晚；且逐块过渡带只停 13 步 → 最终把升降温也放慢。
+  · rate 0.02 / cap 0.05 + 水扩散加强：过渡带停留约 40 步，整站 60% 稳定落在 1.5～2.5 分钟 → 采用。
+
+未改动的相关字段（保持 10-13 平衡稿）：
+waterTargetTemperature 10、thermalRecoveryRate 0.002、thermalRecoveryCap 0.01、temperatureFlowPerStep 0.002、
+surfaceWaterFlowPerStep 1、waterUnitsPerHeight 35、infiltrationFactor 0.03、
+evaporationRateRange 0.01～0.03、evaporationSoilFactor 0.004、evaporationPlantFactor 0.3、
+minimumEvaporationRatio 0.15、drySoilMoistureScale 0.4、minimumDrySoilMultiplier 0.05、
+rainCheckInterval 40、rainVaporThreshold 30、rainReturnRatio 0.9、maxRainPerEvent 80、rainDuration 40、
+各主题初始泥土／湿度／温度区间、initialPlantProbability 0.3、heightRange 0～1。
+
+本次新增（地块转变功能自带，默认值）：
+farThemeSwitchRatio 0.6（远景切换比例）、middleThemeSwitchRatio 0.8（中景切换比例）、
+transitionBandWidth 1（过渡温度带宽度，即 4～6 / 11～13）。
+
+
+三、调整后实测（随机地图，3 局，每局 900 步）
+
+  逐块过渡第一次出现：第 6～29 步（开局十几秒就能看到）
+  整站远景 60% 首次触发：多数站在第 86～136 步（约 1.5～2.3 分钟），个别站第 616 步
+  整站中景 80% 首次触发：第 124～238 步（约 2～4 分钟），不是每局每站都能到
+  900 步后各站转变比例：42%～92%（平原站恒为 0%，见下）
+  单格过渡带停留时长：±1°C ÷ 0.05 每步 ≈ 40 步，逐块过渡看得清
+
+整站三档的画面（同一站 沙漠站，强制推到 67% / 83% 截图核对）：
+  67%：远景从 Desert_Far_Dune 换成 Plain_Far_Mountains（远山变绿），中景与地面仍是沙漠
+  83%：中景再从 Desert_Medium 换成 Plain_Medium，同时地面延展色跟着变绿，背景全换完
+  截图：2026-10-14 会话里的 station_before / station_far60 / station_middle80
+
+
+四、结构性注意（重要，本次没有动）
+
+1. 六站从开局同时演化，转变都集中在开局几分钟内；而正式旅途里一站只在屏幕上停留约 60～70 秒。
+   结果：变化"发生的那一刻"经常在镜头没对着它的时候过去；镜头到达某站时，那一站可能已经是新样子，
+   但玩家看不到它正在变。要让变化跟着镜头出现，需要在结构上选一条路（例如按站序错开初始水量、
+   只让当前站附近参与生态演化、或加一个调试用的"推进 N 步"），本次未做。
+2. 平原站恒为 0%：水温目标 10°C 正好落在平原区间（5～12）正中，水只能把雪地站、沙漠站推向平原，
+   平原格没有可变方向。若希望平原站也能变，需要另定规则（把目标温度移出平原区间／按干湿给平原格
+   单独目标／让平原按缺水方向变化），属策划决策。
+3. 80% 不是每局每站都能到：单站水源能铺到的格子约 8～11 格，想稳定过 80% 还需要降雨事件补足，
+   或增加每站水源格数量。
+
+
+五、回退方式
+
+把上表六个字段改回 10-13 原值即可：
+  fullInfluenceWater 1 → 8
+  extraWaterDeadband 0.2 → 1
+  soilWaterFlowPerStep 0.25 → 0.02
+  basinWaterRange 32～35 → 26～32
+  thermalApproachRate 0.02 → 0.06
+  thermalApproachCap 0.05 → 0.15
+
+原始数值的完整快照见 Design/Balance-2026-10-13/参数参考.json 的 thermal / water / initialization 段。
+该 JSON 是交接对照表，不是运行时加载文件；改 JSON 不会自动更新 Unity 配置，
+正式值以 Assets/Settings/RingMapSettings.asset 为准。
