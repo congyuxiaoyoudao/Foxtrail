@@ -6,9 +6,12 @@ namespace Hiking.Journey
     public sealed class PlacementSignVisual : MonoBehaviour
     {
         SpriteRenderer board;
-        SpriteRenderer bubble;
+        SpriteRenderer waterBubble;
+        SpriteRenderer seedBubble;
         SpriteRenderer warning;
-        TextMesh bubbleText;
+        TextMesh waterText;
+        TextMesh seedText;
+        GameObject warningMark;
         Camera worldCamera;
         bool hidden;
 
@@ -25,18 +28,26 @@ namespace Hiking.Journey
             MakeText("BoardMark", "•", font, new Vector3(0, .54f, -.03f), .21f,
                 new Color(.32f, .22f, .12f), 14);
 
-            bubble = MakePanel("PlanBubble", sprite, new Color(.97f, .94f, .80f),
-                new Vector3(0, 1.02f, -.04f), new Vector2(1.05f, .36f), 22);
-            MakePanel("PlanBubbleTail", sprite, new Color(.97f, .94f, .80f),
-                new Vector3(-.20f, .83f, -.04f), new Vector2(.13f, .13f), 21)
+            waterBubble = MakePanel("WaterBubble", sprite, new Color(.80f, .92f, .98f),
+                new Vector3(-.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
+            MakePanel("WaterBubbleTail", sprite, new Color(.80f, .92f, .98f),
+                new Vector3(-.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
                 .transform.localRotation = Quaternion.Euler(0, 0, 45);
-            bubbleText = MakeText("PlanValue", "", font, new Vector3(0, 1.01f, -.05f), .13f,
-                new Color(.24f, .28f, .18f), 23);
+            waterText = MakeText("WaterValue", "", font, new Vector3(-.39f, 1.01f, -.05f), .13f,
+                new Color(.16f, .34f, .48f), 23);
+            seedBubble = MakePanel("SeedBubble", sprite, new Color(.88f, .94f, .73f),
+                new Vector3(.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
+            MakePanel("SeedBubbleTail", sprite, new Color(.88f, .94f, .73f),
+                new Vector3(.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
+                .transform.localRotation = Quaternion.Euler(0, 0, 45);
+            seedText = MakeText("SeedValue", "", font, new Vector3(.39f, 1.01f, -.05f), .13f,
+                new Color(.28f, .39f, .19f), 23);
             warning = MakePanel("WarningBubble", sprite, new Color(1f, .86f, .47f),
-                new Vector3(.46f, .72f, -.06f), new Vector2(.29f, .31f), 25);
-            MakeText("WarningMark", "!", font, new Vector3(.46f, .70f, -.07f), .21f,
-                new Color(.60f, .21f, .12f), 26);
-            HideBubble();
+                new Vector3(0, 1.39f, -.06f), new Vector2(.29f, .31f), 25);
+            warningMark = MakeText("WarningMark", "!", font, new Vector3(0, 1.37f, -.07f), .21f,
+                new Color(.60f, .21f, .12f), 26).gameObject;
+            warning.gameObject.SetActive(false);
+            warningMark.SetActive(false);
         }
 
         SpriteRenderer MakePanel(string name, Sprite sprite, Color color, Vector3 position,
@@ -64,7 +75,8 @@ namespace Hiking.Journey
             var label = child.gameObject.AddComponent<TextMesh>();
             label.text = text;
             label.fontSize = 48;
-            label.characterSize = size / 48f;
+            // TextMesh 的 characterSize 已经是世界尺寸；再除以 fontSize 会让数字几乎不可见。
+            label.characterSize = size * .25f;
             label.anchor = TextAnchor.MiddleCenter;
             label.color = color;
             if (font != null)
@@ -76,20 +88,23 @@ namespace Hiking.Journey
             return label;
         }
 
-        public void Frame(Camera camera, PlacementSlot slot, bool showPlans, bool hovered)
+        public void SetPlan(PlacementSlot slot)
+        {
+            waterBubble.gameObject.SetActive(true);
+            seedBubble.gameObject.SetActive(true);
+            waterText.text = $"水 {slot.PlannedWater}";
+            seedText.text = $"种 {slot.PlannedSeeds}";
+        }
+
+        public void Frame(Camera camera, PlacementSlot slot, bool hovered)
         {
             if (hidden || camera == null) return;
             worldCamera = camera;
             transform.rotation = camera.transform.rotation;
             board.color = hovered ? new Color(.96f, .75f, .39f) : new Color(.73f, .53f, .29f);
-            bool showPlan = slot.HasCustomPlan && showPlans;
-            bubble.gameObject.SetActive(showPlan);
-            transform.Find("PlanBubbleTail").gameObject.SetActive(showPlan);
-            bubbleText.gameObject.SetActive(showPlan);
-            if (showPlan) bubbleText.text = $"水{slot.PlannedWater}  种{slot.PlannedSeeds}";
             bool showWarning = slot.WarningAtArrival;
             warning.gameObject.SetActive(showWarning);
-            transform.Find("WarningMark").gameObject.SetActive(showWarning);
+            warningMark.SetActive(showWarning);
         }
 
         public bool Contains(Vector2 pointer, bool warningOnly = false)
@@ -109,15 +124,6 @@ namespace Hiking.Journey
         public Vector2 ScreenPosition(Camera camera) =>
             camera == null ? Vector2.zero : camera.WorldToScreenPoint(transform.position +
                 camera.transform.up * 1.15f);
-
-        void HideBubble()
-        {
-            bubble.gameObject.SetActive(false);
-            transform.Find("PlanBubbleTail").gameObject.SetActive(false);
-            bubbleText.gameObject.SetActive(false);
-            warning.gameObject.SetActive(false);
-            transform.Find("WarningMark").gameObject.SetActive(false);
-        }
 
         public void Hide() { hidden = true; gameObject.SetActive(false); }
     }

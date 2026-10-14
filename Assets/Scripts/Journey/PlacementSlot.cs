@@ -21,6 +21,7 @@ namespace Hiking.Journey
             PlannedSeeds = Mathf.Clamp(config.defaultPlacementSeeds, 0, 3);
             Sign = gameObject.AddComponent<PlacementSignVisual>();
             Sign.Configure(settings);
+            Sign.SetPlan(this);
         }
 
         public void SetPlan(int water, int seeds)
@@ -29,6 +30,7 @@ namespace Hiking.Journey
             PlannedWater = Mathf.Clamp(water, 0, 3);
             PlannedSeeds = Mathf.Clamp(seeds, 0, 3);
             HasCustomPlan = true;
+            if (Sign != null) Sign.SetPlan(this);
         }
 
         public void SetWarningAtArrival(bool value) => WarningAtArrival = value;
@@ -48,6 +50,7 @@ namespace Hiking.Journey
             HasCustomPlan = custom;
             Committed = committed;
             WarningAtArrival = warningAtArrival && !committed;
+            if (Sign != null) Sign.SetPlan(this);
             if (Sign != null && committed) Sign.Hide();
         }
         public void ShowPlacement(MaterialDefinition material, int quantity, int currentStep)

@@ -120,9 +120,9 @@ namespace Hiking.Journey
                     foreach (var slot in station.slots)
                     {
                         if (slot.Committed || slot.Sign == null) continue;
-                        slot.Sign.Frame(flow.Camera.WorldCamera, slot, onScreen, false);
+                        slot.Sign.Frame(flow.Camera.WorldCamera, slot, false);
                         bool hovered = onScreen && slot.Sign.Contains(position);
-                        slot.Sign.Frame(flow.Camera.WorldCamera, slot, onScreen, hovered);
+                        slot.Sign.Frame(flow.Camera.WorldCamera, slot, hovered);
                         if (clicked && (hovered || slot.WarningAtArrival &&
                             slot.Sign.Contains(position, true))) clickedSlot = slot;
                     }
@@ -132,7 +132,7 @@ namespace Hiking.Journey
                 foreach (var station in flow.Map.stations)
                     foreach (var slot in station.slots)
                         if (!slot.Committed && slot.Sign != null)
-                            slot.Sign.Frame(flow.Camera.WorldCamera, slot, false, false);
+                            slot.Sign.Frame(flow.Camera.WorldCamera, slot, false);
 
             if (EditingSlot != null && Keyboard.current != null &&
                 Keyboard.current.escapeKey.wasPressedThisFrame) CancelEditor();
