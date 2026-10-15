@@ -11,8 +11,94 @@ namespace Hiking.Journey
         public string stationId;
         public StationTheme theme;
         public int tileCount;
-        public static bool IsTransitionTile(int tile) => tile % 4 == 3;
-        public TileState[] Tiles { get; private set; }
+        // 过渡格：每站最左与最右两块，落在站边界上，装配时用灰蓝色标出。
+        public static bool IsTransitionTile(int tile, int tileCount) =>
+            tile <= 0 || tile >= tileCount - 1;
+        // 地块转变：单块按自身温度改变类别（TileState.UpdateWaterTemperature），
+        // 单块变化只换该格的地面，不动整站远景与中景；整站再按已转变块数切换，
+        // 远景先变（farThemeSwitchTiles，默认 7 块），中景后变（middleThemeSwitchTiles，默认 10 块）。
+        readonly List<SceneLandscapeLayer> themeLayers = new List<SceneLandscapeLayer>();
+        readonly List<SceneThemeFill> themeFills = new List<SceneThemeFill>();
+        public StationTheme FarTheme { get; private set; }
+        public StationTheme MiddleTheme { get; private set; }
+        // 逐块过渡：温度进入分界附近的地块，地面提前换成预期类别的土地素材；
+        // 整站远景与中景不随单块变化。
+        bool[] transitionActive;
+        int[] transitionBand;
+        StationTheme[] transitionFrom;
+        StationTheme[] transitionTo;
+        public void RegisterThemeLayer(SceneLandscapeLayer layer)
+        {
+            if (layer != null && !themeLayers.Contains(layer)) themeLayers.Add(layer);
+        }
+        public void RegisterThemeFill(SceneThemeFill fill)
+        {
+            if (fill != null && !themeFills.Contains(fill)) themeFills.Add(fill);
+        }
+        // 每步结算后调用。块数没有跨过阈值时不会改动整站景素材引用。
+        public void RefreshThemeConversion()
+        {
+            if (Tiles == null || Tiles.Length == 0) return;
+            int snow = 0, grass = 0, desert = 0;
+            foreach (var tile in Tiles)
+            {
+                if (tile.Category == StationTheme.Snow) snow++;
+                else if (tile.Category == StationTheme.Grass) grass++;
+                else desert++;
+            }
+            // 转变后整站通常收敛到同一种类别，数量最多的新类别决定整站背景。
+            var dominant = theme;
+            int dominantCount = 0;
+            if (theme != StationTheme.Snow && snow > dominantCount) { dominant = StationTheme.Snow; dominantCount = snow; }
+            if (theme != StationTheme.Grass && grass > dominantCount) { dominant = StationTheme.Grass; dominantCount = grass; }
+            if (theme != StationTheme.Desert && desert > dominantCount) { dominant = StationTheme.Desert; dominantCount = desert; }
+            int farTiles = mapSettings != null ? Mathf.Clamp(mapSettings.farThemeSwitchTiles, 1, Tiles.Length) : 7;
+            int middleTiles = mapSettings != null ? Mathf.Clamp(mapSettings.middleThemeSwitchTiles, 1, Tiles.Length) : 10;
+            FarTheme = dominantCount >= farTiles ? dominant : theme;
+            MiddleTheme = dominantCount >= middleTiles ? dominant : theme;
+            foreach (var layer in themeLayers)
+                layer.SetArtTheme(layer.LayerIndex < 3 ? FarTheme : MiddleTheme);
+            foreach (var fill in themeFills)
+                fill.SetFillTheme(fill.IsGround ? MiddleTheme : FarTheme);
+            RefreshTileTransitions();
+        }
+        // 每步结算后逐块判断过渡温度带：from 在进入温度带时记录一次并保持不变，
+        // to 取温度正在靠拢的那一侧，所以升温与降温显示的方向不同。
+        void RefreshTileTransitions()
+        {
+            if (Tiles == null || transitionActive == null) return;
+            float band = mapSettings != null ? Mathf.Max(.1f, mapSettings.transitionBandWidth) : 1f;
+            for (int i = 0; i < tileCount; i++)
+            {
+                var tile = Tiles[i];
+                float temperature = tile.Temperature;
+                float boundary = Mathf.Abs(temperature - 5f) < band ? 5f :
+                    Mathf.Abs(temperature - 12f) < band ? 12f : 0f;
+                int segment = boundary <= 0f ? 0 : boundary < 10f ? 1 : 2;
+                if (segment == 0)
+                {
+                    if (!transitionActive[i]) continue;
+                    transitionActive[i] = false;
+                }
+                else
+                {
+                    if (!transitionActive[i] || transitionBand[i] != segment)
+                    {
+                        transitionBand[i] = segment;
+                        transitionFrom[i] = tile.Category;
+                    }
+                    var low = segment == 1 ? StationTheme.Snow : StationTheme.Grass;
+                    var high = segment == 1 ? StationTheme.Grass : StationTheme.Desert;
+                    bool warming = tile.LastChange.Temperature > 0f, cooling = tile.LastChange.Temperature < 0f;
+                    transitionTo[i] = warming ? high : cooling ? low :
+                        (transitionFrom[i] == low ? high : low);
+                    transitionActive[i] = true;
+                }
+                // 过渡期间地面要跟着预期类别重画，所以这一格的状态变化后立即刷新。
+                RefreshTile(i, false);
+            }
+        }
+public TileState[] Tiles { get; private set; }
         // 读档：整批换成存档里的地块。Tiles 是只读属性，只能在类内部赋值。
         public void RestoreTiles(TileState[] tiles) => Tiles = tiles;
         // 读档前必须清掉植物标记：plantMarkers 以植物对象为键，而读档会整批换成新对象，
@@ -43,7 +129,10 @@ namespace Hiking.Journey
         public void InitializeTiles(RingMapSettings settings)
         {
             mapSettings = settings;
-            Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
+                        FarTheme = theme; MiddleTheme = theme;
+            transitionActive = new bool[tileCount]; transitionBand = new int[tileCount];
+            transitionFrom = new StationTheme[tileCount]; transitionTo = new StationTheme[tileCount];
+Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
             patchMeshes = new Mesh[tileCount]; patchColors = new Color[tileCount];
             patchVisuals = new SpriteRenderer[tileCount];
             patchWaterOverlays = new SpriteRenderer[tileCount];
@@ -78,11 +167,12 @@ namespace Hiking.Journey
             var pond = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(theme)?.pond : null;
             float blend = pond != null && pond.HasWetSprites ? 0f :
                 Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
-            Color baseColor = Tiles[tile].Category == theme ? patchColors[tile] : mapSettings.ThemeColor(Tiles[tile].Category);
+            var groundTheme = GroundThemeAt(tile);
+            Color baseColor = groundTheme == theme ? patchColors[tile] : mapSettings.ThemeColor(groundTheme);
             ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(baseColor, new Color(.18f, .58f, .92f), blend));
             if (patchVisuals[tile] != null)
             {
-                var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(Tiles[tile].Category) : null;
+                var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(groundTheme) : null;
                 var sprite = layers != null && layers.nearGround != null ?
                     layers.nearGround : mapSettings.fallbackPlantSprite;
                 if (sprite != null)
@@ -97,8 +187,8 @@ namespace Hiking.Journey
                     ownerMap.UpdateRouteObject(visual.transform,new Vector3(TileCenter(tile),
                         mapSettings.ringThickness*.5f+(layout != null ? layout.groundY : 0f)-height*.5f,-.05f));
                     visual.color = layers?.nearGround != null ? Color.white :
-                        Tiles[tile].Category == theme ? patchColors[tile] :
-                        mapSettings.ThemeColor(Tiles[tile].Category);
+                        groundTheme == theme ? patchColors[tile] :
+                        mapSettings.ThemeColor(groundTheme);
                 }
             }
             if (patchWaterOverlays[tile] != null)
@@ -106,6 +196,9 @@ namespace Hiking.Journey
             else if (patchVisuals[tile] != null)
                 patchVisuals[tile].color = Color.Lerp(Color.white, new Color(.38f, .72f, 1f), blend);
         }
+        // 过渡期间地面先换成预期类别的土地素材，其余时候就是地块自己的类别。
+        StationTheme GroundThemeAt(int tile) => transitionActive != null && tile >= 0 &&
+            tile < transitionActive.Length && transitionActive[tile] ? transitionTo[tile] : Tiles[tile].Category;
         public void SyncPondVisuals(JourneyMap map, int stationIndex)
         {
             if (Tiles == null || pondMarkers == null || mapSettings == null) return;
@@ -251,6 +344,7 @@ namespace Hiking.Journey
                     mapSettings.minimumEvaporationRatio, mapSettings);
                 RefreshTile(i, false);
             }
+            RefreshThemeConversion();
             SyncPlantMarkers(map);
         }
         public void SyncPlantMarkers(JourneyMap map)
