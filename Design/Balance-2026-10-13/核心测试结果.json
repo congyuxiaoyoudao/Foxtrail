@@ -1,0 +1,178 @@
+[
+  {
+    "name": "eight species in generation",
+    "pass": true
+  },
+  {
+    "name": "generation pool counts 3/2/3",
+    "pass": true
+  },
+  {
+    "name": "poplar survives transformed plain",
+    "pass": true
+  },
+  {
+    "name": "bush growth water cost",
+    "pass": true
+  },
+  {
+    "name": "pine growth water cost",
+    "pass": true
+  },
+  {
+    "name": "grass growth water cost",
+    "pass": true
+  },
+  {
+    "name": "lotus growth water cost",
+    "pass": true
+  },
+  {
+    "name": "spruce growth water cost",
+    "pass": true
+  },
+  {
+    "name": "saxaul growth water cost",
+    "pass": true
+  },
+  {
+    "name": "cactus growth water cost",
+    "pass": true
+  },
+  {
+    "name": "poplar growth water cost",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 0 / 0",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 0 / 0",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 0 / 10",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 0 / 10",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 0 / 20",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 0 / 20",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 2 / 0",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 2 / 0",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 2 / 10",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 2 / 10",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 2 / 20",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 2 / 20",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 16 / 0",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 16 / 0",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 16 / 10",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 16 / 10",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 16 / 20",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 16 / 20",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 20 / 0",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 20 / 0",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 20 / 10",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 20 / 10",
+    "pass": true
+  },
+  {
+    "name": "water-temperature 20 / 20",
+    "pass": true
+  },
+  {
+    "name": "immutable baseline 20 / 20",
+    "pass": true
+  },
+  {
+    "name": "mature no consumption",
+    "pass": true
+  },
+  {
+    "name": "phase regresses to first",
+    "pass": true
+  },
+  {
+    "name": "seed capacity free 0",
+    "pass": true
+  },
+  {
+    "name": "seed capacity free 1",
+    "pass": true
+  },
+  {
+    "name": "seed capacity free 2",
+    "pass": true
+  },
+  {
+    "name": "seed capacity free 3",
+    "pass": true
+  },
+  {
+    "name": "combined capacity",
+    "pass": true
+  },
+  {
+    "name": "300 generated tiles",
+    "pass": true
+  },
+  {
+    "name": "rain conservation with collection",
+    "pass": true
+  }
+]

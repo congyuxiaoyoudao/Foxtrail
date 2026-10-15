@@ -1,0 +1,5 @@
+{
+  "name": "Hiking.Journey",
+  "rootNamespace": "Hiking.Journey",
+  "references": ["Unity.InputSystem", "Unity.ugui"]
+}

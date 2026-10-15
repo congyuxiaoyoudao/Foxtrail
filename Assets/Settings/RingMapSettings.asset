@@ -1,0 +1,88 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f54186924acc2ed4ab9112a62d5ecc0c, type: 3}
+  m_Name: RingMapSettings
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.RingMapSettings
+  blockCount: 6
+  stationLength: 12
+  patchesPerStation: 12
+  transitionTileColor: {r: 0.4, g: 0.47, b: 0.58, a: 1}
+  pathMaterial: {fileID: 2100000, guid: 1383ba9e2843ba34a8acdb9e19110c18, type: 2}
+  snowColor: {r: 1, g: 1, b: 1, a: 1}
+  grassColor: {r: 0.3, g: 0.72, b: 0.3, a: 1}
+  desertColor: {r: 1, g: 0.82, b: 0.25, a: 1}
+  plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
+  fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
+  placementSignSprite: {fileID: 21300000, guid: 165fa77924186d245a91959249871586, type: 3}
+  fallbackBackgroundPlantSprite: {fileID: 21300000, guid: 72bfa1a9e7b54e429d3805e6518d63f0, type: 3}
+  sceneLayout: {fileID: 11400000, guid: b743f48377ac4ebc8e99a43fb2abff21, type: 2}
+  plantHorizontalScatter: 0.1
+  plantVerticalScatter: 0.12
+  backgroundPlantHeight: 3.3
+  backgroundSaplingHeightRatio: 0.5
+  backgroundMediumHeightRatio: 0.87
+  plantStageFadeSeconds: 0.6
+  sceneThemes: {fileID: 11400000, guid: 58d3c068c46f44f2bfefeb66734e965c, type: 2}
+  snowLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
+  grassLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}
+  desertLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
+  landscapeMaterial: {fileID: 2100000, guid: d1fc56a5c2ba3994bb0cfa7554ff7811, type: 2}
+  landscapeDepth: 1.6
+  landscapeHeightScale: 1
+  soilContentRange: {x: 1, y: 100}
+  plantCountRange: {x: 0, y: 1}
+  soilHumidityRange: {x: 0, y: 1}
+  evaporationRateRange: {x: 0.01, y: 0.03}
+  heightRange: {x: 0, y: 1}
+  surfaceWaterRange: {x: 0, y: 3}
+  temperatureFlowPerStep: 0.002
+  soilWaterFlowPerStep: 0.02
+  surfaceWaterFlowPerStep: 1
+  waterUnitsPerHeight: 35
+  infiltrationFactor: 0.03
+  evaporationSoilFactor: 0.004
+  evaporationPlantFactor: 0.3
+  minimumEvaporationRatio: 0.15
+  rainCheckInterval: 40
+  rainVaporThreshold: 30
+  rainReturnRatio: 0.9
+  maxRainPerEvent: 80
+  rainDuration: 40
+  rainStreaksPerTile: 6
+  rainVisualHeight: 3.2
+  rainStreakSpeed: 3.6
+  rainStreakOpacity: 0.42
+  rainOvercastOpacity: 0.16
+  tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
+  snowSoilRange: {x: 30, y: 65}
+  grassSoilRange: {x: 40, y: 80}
+  desertSoilRange: {x: 20, y: 50}
+  snowHumidityRange: {x: 0.45, y: 0.75}
+  grassHumidityRange: {x: 0.45, y: 0.7}
+  desertHumidityRange: {x: 0.2, y: 0.4}
+  snowTemperatureRange: {x: 1, y: 4}
+  grassTemperatureRange: {x: 7, y: 10}
+  desertTemperatureRange: {x: 14, y: 18}
+  initialPlantProbability: 0.3
+  createStationBasin: 1
+  basinWaterRange: {x: 26, y: 32}
+  drySoilMoistureScale: 0.4
+  minimumDrySoilMultiplier: 0.05
+  extraWaterDeadband: 1
+  fullInfluenceWater: 8
+  waterTargetTemperature: 10
+  thermalApproachRate: 0.06
+  thermalRecoveryRate: 0.002
+  thermalApproachCap: 0.15
+  thermalRecoveryCap: 0.01
+  matureSeedInterval: 30
+  ringThickness: 0.247

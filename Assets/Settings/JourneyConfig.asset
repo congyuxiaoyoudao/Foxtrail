@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dcf19aa6164ad164186aa4456d6c163c, type: 3}
+  m_Name: JourneyConfig
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.JourneyConfig
+  tileMoveSeconds: 3
+  tileRestSeconds: 5
+  fastTileMoveSeconds: 0.5
+  fastTileRestSeconds: 0.5
+  cameraTransitionStartFromEnd: 1
+  stationTransitionSeconds: 5
+  fastStationTransitionSeconds: 1.5
+  defaultPlacementWater: 1
+  defaultPlacementSeeds: 1
+  placementStopSeconds: 2
+  placementWarningSeconds: 3
+  panoramaScrollStationsPerSecond: 1.2
+  normalWaitSeconds: 300
+  quickWaitSeconds: 30
+  demoWaitSeconds: 3
+  travelSeconds: 3
+  stationTravelSeconds: []
+  finishTravelSeconds: 1
+  visibleTileCount: 7
+  walkTilesPerSecond: 3
+  localCameraSize: 4.8
+  wheelDistance: 10
+  wheelSmoothTime: 0.2
+  returnToTravelerSmoothTime: 0.35
+  materials:
+  - id: water
+    displayName: "\u6C34"
+    color: {r: 0.28, g: 0.7, b: 0.95, a: 1}
+    startingCount: 10
+  - id: seed
+    displayName: "\u79CD\u5B50"
+    color: {r: 0.62, g: 0.82, b: 0.32, a: 1}
+    startingCount: 10
