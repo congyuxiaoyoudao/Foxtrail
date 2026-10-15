@@ -12,6 +12,13 @@ namespace Hiking.Journey
             returnToTitleButton, scrollLeftButton, scrollRightButton;
         public Text panoramaHint;
         public Image foxOutsideFrame;
+        [Header("全景画框与浏览进度（布局保存在 Canvas）")]
+        public GameObject panoramaBrowsingDecoration;
+        public Image panoramaProgressFill;
+        public RectTransform panoramaProgressFox;
+        public Text panoramaProgressPercent;
+        public GameObject panoramaCompletionControls;
+        public Button panoramaBrowseReturnButton;
         [Header("地块调试（布局及按钮事件保存在 Canvas）")]
         public GameObject debugPanel;
         public Text debugStatus;
@@ -209,7 +216,28 @@ namespace Hiking.Journey
             bool finished = flow.Activity == JourneyActivity.Complete;
             bool previewing = flow.IsPreviewing;
             bool appreciating = flow.IsAppreciating;
+            bool browsing = flow.IsBrowsingPanorama;
             panoramaPanel.SetActive((finished || previewing) && !flow.IsEnteringAppreciation);
+            if (panoramaBrowsingDecoration != null)
+                panoramaBrowsingDecoration.SetActive(browsing);
+            if (panoramaCompletionControls != null)
+                panoramaCompletionControls.SetActive(!browsing);
+            if (panoramaBrowseReturnButton != null)
+                panoramaBrowseReturnButton.gameObject.SetActive(previewing);
+            if (browsing)
+            {
+                float position = flow.Camera.ScrollProgress01;
+                if (panoramaProgressFill != null)
+                    panoramaProgressFill.rectTransform.anchorMax = new Vector2(position, 1f);
+                if (panoramaProgressFox != null)
+                {
+                    var anchor = new Vector2(position, .5f);
+                    panoramaProgressFox.anchorMin = anchor;
+                    panoramaProgressFox.anchorMax = anchor;
+                }
+                if (panoramaProgressPercent != null)
+                    panoramaProgressPercent.text = $"{position * 100f:0}%";
+            }
             if (panoramaTitle != null) panoramaTitle.text =
                 previewing ? $"第 {flow.LevelIndex} 段旅途 · 全景预览" :
                 appreciating ? $"第 {flow.LevelIndex} 段旅途 · 长卷欣赏" :
@@ -218,7 +246,7 @@ namespace Hiking.Journey
             var returnLabel = returnButton.GetComponentInChildren<Text>();
             if (returnLabel != null) returnLabel.text = previewing ? "返回旅途" : !flow.IsFinalized ? "重试保存" :
                 flow.HasAppreciated ? "再次欣赏" : "欣赏本次旅途";
-            returnButton.gameObject.SetActive(!appreciating);
+            returnButton.gameObject.SetActive(!appreciating && !previewing);
             if (continueButton != null)
             {
                 continueButton.gameObject.SetActive(finished && !appreciating);
