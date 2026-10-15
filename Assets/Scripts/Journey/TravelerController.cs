@@ -10,7 +10,11 @@ namespace Hiking.Journey
         public SpriteRenderer spriteRenderer;
         public Sprite[] walkFrames;
         [Min(1f)] public float walkFramesPerSecond = 18f;
+        [Header("Fox placement idle animation")]
+        public Sprite[] idleFrames;
+        [Min(1f)] public float idleFramesPerSecond = 18f;
         public bool IsMoving { get; private set; }
+        public bool IsWaitingAtPlacement { get; private set; }
         public bool Paused { get; set; }
         public float Progress01 { get; private set; }
         public float MoveFraction { get; private set; }
@@ -21,21 +25,40 @@ namespace Hiking.Journey
         float finalJumpHeight;
         void Update()
         {
-            if (Paused || walkFrames == null || walkFrames.Length == 0) return;
-            if (!IsMoving)
+            if (Paused) return;
+            if (IsMoving)
             {
-                animationSeconds = 0;
-                ShowFrame(0);
+                if (walkFrames == null || walkFrames.Length == 0) return;
+                animationSeconds += Time.unscaledDeltaTime;
+                ShowFrame(walkFrames, Mathf.FloorToInt(animationSeconds *
+                    Mathf.Max(1f, walkFramesPerSecond)) % walkFrames.Length);
                 return;
             }
-            animationSeconds += Time.unscaledDeltaTime;
-            ShowFrame(Mathf.FloorToInt(animationSeconds * Mathf.Max(1f, walkFramesPerSecond)) % walkFrames.Length);
+            if (IsWaitingAtPlacement && idleFrames != null && idleFrames.Length > 0)
+            {
+                animationSeconds += Time.unscaledDeltaTime;
+                ShowFrame(idleFrames, Mathf.FloorToInt(animationSeconds *
+                    Mathf.Max(1f, idleFramesPerSecond)) % idleFrames.Length);
+                return;
+            }
+            animationSeconds = 0;
+            if (walkFrames != null && walkFrames.Length > 0) ShowFrame(walkFrames, 0);
         }
-        void ShowFrame(int index)
+        void ShowFrame(Sprite[] frames, int index)
         {
             if (spriteRenderer == null && visual != null)
                 spriteRenderer = visual.GetComponentInChildren<SpriteRenderer>();
-            if (spriteRenderer != null) spriteRenderer.sprite = walkFrames[index];
+            if (spriteRenderer != null) spriteRenderer.sprite = frames[index];
+        }
+        public void SetPlacementIdle(bool waiting)
+        {
+            if (IsWaitingAtPlacement == waiting) return;
+            IsWaitingAtPlacement = waiting;
+            animationSeconds = 0;
+            if (waiting && idleFrames != null && idleFrames.Length > 0)
+                ShowFrame(idleFrames, 0);
+            else if (!IsMoving && walkFrames != null && walkFrames.Length > 0)
+                ShowFrame(walkFrames, 0);
         }
         public void PlaceOnRoute(JourneyMap route)
         {
@@ -74,6 +97,7 @@ namespace Hiking.Journey
         public void MoveToProgress(float target, float duration, Action arrived)
         {
             if (IsMoving || map == null) return;
+            SetPlacementIdle(false);
             movement = StartCoroutine(Walk(Mathf.Clamp01(target), duration, arrived));
         }
         IEnumerator Walk(float target, float duration, Action arrived)
@@ -104,10 +128,10 @@ namespace Hiking.Journey
         public void CancelMovement()
         {
             if (movement != null) StopCoroutine(movement);
-            movement = null; IsMoving = false; Paused = false;
+            movement = null; IsMoving = false; IsWaitingAtPlacement = false; Paused = false;
             finalJumpHeight = 0;
             animationSeconds = 0;
-            if (walkFrames != null && walkFrames.Length > 0) ShowFrame(0);
+            if (walkFrames != null && walkFrames.Length > 0) ShowFrame(walkFrames, 0);
             if (visual != null) visual.localPosition = Vector3.zero;
         }
         void OnDisable() => CancelMovement();

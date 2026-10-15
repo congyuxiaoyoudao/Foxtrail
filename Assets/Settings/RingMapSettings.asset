@@ -22,6 +22,7 @@ MonoBehaviour:
   desertColor: {r: 1, g: 0.82, b: 0.25, a: 1}
   plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
   fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
+  placementSignSprite: {fileID: 21300000, guid: 165fa77924186d245a91959249871586, type: 3}
   fallbackBackgroundPlantSprite: {fileID: 21300000, guid: 72bfa1a9e7b54e429d3805e6518d63f0, type: 3}
   sceneLayout: {fileID: 11400000, guid: b743f48377ac4ebc8e99a43fb2abff21, type: 2}
   plantHorizontalScatter: 0.1
@@ -29,6 +30,7 @@ MonoBehaviour:
   backgroundPlantHeight: 3.3
   backgroundSaplingHeightRatio: 0.5
   backgroundMediumHeightRatio: 0.87
+  plantStageFadeSeconds: 0.6
   sceneThemes: {fileID: 11400000, guid: 58d3c068c46f44f2bfefeb66734e965c, type: 2}
   snowLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
   grassLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}

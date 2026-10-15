@@ -10,21 +10,22 @@ namespace Hiking.Journey
         Station station;
         SpriteRenderer image;
         StationTheme fillTheme;
-bool ground;
+        SceneLandscapeLayer middleLayer;
+        bool ground;
         bool transitionActive;
         float transitionCenter;
         float transitionAlpha = 1f;
         int baseSortingOrder;
         public bool IsGround => ground;
-public StationTheme FillTheme => fillTheme;
-// 天空填充跟随远景、地面填充跟随中景，两者可以各自切换。
-public void SetFillTheme(StationTheme theme)
-{
-    if (fillTheme == theme) return;
-    fillTheme = theme;
-    RefreshPosition();
-}
-int sortingOffset;
+        public StationTheme FillTheme => fillTheme;
+        // 天空填充跟随远景、地面填充跟随中景，两者可以各自切换。
+        public void SetFillTheme(StationTheme theme)
+        {
+            if (fillTheme == theme) return;
+            fillTheme = theme;
+            RefreshPosition();
+        }
+        int sortingOffset;
 
         public void Configure(JourneyMap owner, RingMapSettings source, Station home,
             SpriteRenderer renderer, bool isGround)
@@ -34,7 +35,7 @@ int sortingOffset;
             station = home;
             image = renderer;
             fillTheme = home.theme;
-ground = isGround;
+            ground = isGround;
             baseSortingOrder = renderer.sortingOrder;
             RefreshPosition();
         }
@@ -62,16 +63,31 @@ ground = isGround;
             float top = settings.ringThickness * .5f +
                 (settings.sceneLayout != null ? settings.sceneLayout.landscapeBaseY : 0f) +
                 (layout != null ? (layers.HasLandscape ? layout.middleY : layout.fallbackY) : 0f);
-            // Start the solid ground just below the source art edge. The sprite's
-            // transparent top pixels otherwise expose a thin ground-colored stripe.
-            float centerY = ground ? top - 10.2f : 0f;
             map.UpdateRouteObject(transform, new Vector3(
                 transitionActive ? transitionCenter : station.startDistance + station.length * .5f,
-                centerY,
+                ground ? top : 0f,
                 Mathf.Max(0, settings.landscapeDepth) + .1f));
             transform.localScale = new Vector3(
                 station.length / Mathf.Max(.001f, image.sprite.bounds.size.x),
                 20f / Mathf.Max(.001f, image.sprite.bounds.size.y), 1);
+            if (ground)
+            {
+                // Follow the middle sprite's rendered bottom edge, including its transition offset.
+                if (middleLayer == null && layers.middle != null)
+                    middleLayer = station.transform.Find("Landscape_" + station.theme + "_3")?
+                        .GetComponent<SceneLandscapeLayer>();
+                Vector3 topEdge = transform.position;
+                if (middleLayer != null)
+                {
+                    middleLayer.RefreshPosition();
+                    var middle = middleLayer.GetComponent<SpriteRenderer>();
+                    if (middle != null && middle.sprite != null)
+                        topEdge = middle.transform.TransformPoint(
+                            new Vector3(0f, middle.sprite.bounds.min.y, 0f));
+                }
+                transform.position = topEdge - transform.TransformVector(
+                    new Vector3(0f, image.sprite.bounds.max.y, 0f)) - transform.up * .02f;
+            }
         }
 
         void LateUpdate() => RefreshPosition();

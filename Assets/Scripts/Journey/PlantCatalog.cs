@@ -70,8 +70,10 @@ namespace Hiking.Journey
         public PlantHabitat initialHabitats = PlantHabitat.Grass;
         [Min(0)] public float growthWaterPerLife = .03f;
         public bool isForeground = true;
-        [Tooltip("该植物成熟阶段的画面高度；所有阶段按生命阶段比例缩放")]
+        [Tooltip("该植物成熟阶段的画面高度；启用原画比例时，其他阶段按贴图本身尺寸缩放")]
         [Min(.05f)] public float visualHeight = .35f;
+        [Tooltip("按成熟贴图确定统一缩放，让幼苗与成株保留原画的尺寸比例")]
+        public bool preserveSpriteStageScale;
         [Tooltip("中等积水时仍可正常生长；深水会伤害所有陆地植物")]
         public bool floodTolerant;
         [Range(0, 100)] public int maxHumidityPercent = 100;

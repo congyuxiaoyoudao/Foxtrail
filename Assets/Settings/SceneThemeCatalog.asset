@@ -16,9 +16,9 @@ MonoBehaviour:
   - theme: 0
     farSky: {fileID: 21300000, guid: ebec8b7abb5ebf842b4a7ae2cf34b4ee, type: 3}
     farClouds: {fileID: 21300000, guid: 71f02ea203fc31b47ac350fe70fd0a74, type: 3}
-    farMountains: {fileID: 0}
-    middle: {fileID: 0}
-    nearGround: {fileID: 0}
+    farMountains: {fileID: 21300000, guid: 6a3c9bd1eeab04644a1f067a392713a2, type: 3}
+    middle: {fileID: 21300000, guid: f9ab77be1e7493443ae05c12789f56ef, type: 3}
+    nearGround: {fileID: 21300000, guid: 006479a9dde02c245841e968961da58b, type: 3}
     pond:
       wetSingle: {fileID: 21300000, guid: d850c8af0302c1b4c87720704cf6e61a, type: 3}
       wetLeft: {fileID: 21300000, guid: 58719ac550493ca45975f6f4af814129, type: 3}

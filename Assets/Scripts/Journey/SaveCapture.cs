@@ -47,6 +47,19 @@ namespace Hiking.Journey
                     quantity = request.Quantity
                 });
             s.placements = placements.ToArray();
+            var plans = new List<PlacementPlanEntry>();
+            foreach (var station in flow.Map.stations)
+                foreach (var slot in station.slots)
+                    plans.Add(new PlacementPlanEntry
+                    {
+                        slotId = slot.slotId,
+                        water = slot.PlannedWater,
+                        seeds = slot.PlannedSeeds,
+                        custom = slot.HasCustomPlan,
+                        committed = slot.Committed,
+                        warningAtArrival = slot.WarningAtArrival
+                    });
+            s.placementPlans = plans.ToArray();
 
             data.map.simulationStep = flow.Map.SimulationStep;
 
@@ -70,6 +83,7 @@ namespace Hiking.Journey
             p.isMoving = flow.Traveler.IsMoving;
             p.moveFraction = flow.Traveler.MoveFraction;
             p.moveDirection = flow.Traveler.MoveDirection;
+            p.placementStopRemaining = flow.Placement.RemainingSeconds;
             p.debugMode = flow.IsDebugMode;
             p.debugStepCount = flow.DebugStepCount;
 

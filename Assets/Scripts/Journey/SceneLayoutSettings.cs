@@ -25,6 +25,8 @@ namespace Hiking.Journey
         public float foregroundPlantY = -.83f;
         [Tooltip("背景植物落地点相对道路顶面的 Y 偏移；叠加随机偏移后也不会高于狐狸行走位置")]
         public float backgroundPlantY = -.32f;
+        [Tooltip("木牌相对近景共享位置的额外 Y 偏移；播放时修改立即生效")]
+        public float placementSignY;
 
         public float LandscapeY(int index) => index == 0 ? skyY :
             index == 1 ? cloudsY : index == 2 ? mountainsY : middleY;

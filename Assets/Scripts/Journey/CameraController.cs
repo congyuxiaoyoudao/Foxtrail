@@ -20,6 +20,8 @@ namespace Hiking.Journey
         float ScrollViewWidth => flow.Map.stations[0].length;
         float ScrollMinimum => ScrollViewWidth * .5f - flow.Map.TileWidth * .5f;
         float ScrollMaximum => flow.Map.RouteLength - ScrollViewWidth * .5f + flow.Map.TileWidth * .5f;
+        public float ScrollProgress01 => flow == null || flow.Map == null ? 0f :
+            Mathf.InverseLerp(ScrollMinimum, ScrollMaximum, scrollCenter);
         public bool CanScrollLeft => flow != null && flow.Map != null && scrollCenter > ScrollMinimum + .001f;
         public bool CanScrollRight => flow != null && flow.Map != null && scrollCenter < ScrollMaximum - .001f;
         public void ShowScrollAtStart()

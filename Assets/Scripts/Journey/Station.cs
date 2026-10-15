@@ -105,17 +105,32 @@ public TileState[] Tiles { get; private set; }
         // 旧键不会被 SyncPlantMarkers 判成死亡，结果屏幕上会留下"幽灵植物"。
         public void ClearPlantMarkers(JourneyMap map)
         {
+            foreach (var visual in plantVisuals.Values) ClearPlantFade(map, visual);
+            plantVisuals.Clear();
             foreach (var pair in plantMarkers)
             {
                 if (pair.Value == null) continue;
-                if (map != null) map.UnregisterRouteObject(pair.Value.transform);
-                if (Application.isPlaying) Destroy(pair.Value.gameObject);
-                else DestroyImmediate(pair.Value.gameObject);
+                DestroyPlantRenderer(map, pair.Value);
             }
             plantMarkers.Clear();
         }
         TextMesh[] moistureLabels;
         readonly Dictionary<PlantInstance, SpriteRenderer> plantMarkers = new Dictionary<PlantInstance, SpriteRenderer>();
+        sealed class FadingPlantSprite
+        {
+            public SpriteRenderer renderer;
+            public float startAlpha;
+            public float startedAt;
+        }
+        sealed class PlantVisualState
+        {
+            public int stageIndex;
+            public Color targetColor;
+            public float fadeStartedAt = -1f;
+            public readonly List<FadingPlantSprite> outgoing = new List<FadingPlantSprite>();
+        }
+        readonly Dictionary<PlantInstance, PlantVisualState> plantVisuals = new Dictionary<PlantInstance, PlantVisualState>();
+        readonly Dictionary<Sprite, Vector2> plantVisibleY = new Dictionary<Sprite, Vector2>();
         Mesh[] patchMeshes;
         SpriteRenderer[] patchVisuals;
         SpriteRenderer[] patchWaterOverlays;
@@ -345,29 +360,31 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
                 RefreshTile(i, false);
             }
             RefreshThemeConversion();
-            SyncPlantMarkers(map);
+            SyncPlantMarkers(map, true);
         }
-        public void SyncPlantMarkers(JourneyMap map)
+        public void SyncPlantMarkers(JourneyMap map, bool fadeNewPlants)
         {
             if (mapSettings.plantCatalog == null) return;
             var dead = new List<PlantInstance>();
             foreach (var entry in plantMarkers)
                 if (entry.Key.life <= 0 || entry.Value == null)
                 {
-                    if (entry.Value != null)
-                    {
-                        map.UnregisterRouteObject(entry.Value.transform);
-                        entry.Value.gameObject.SetActive(false);
-                        Destroy(entry.Value.gameObject);
-                    }
+                    if (entry.Value != null) DestroyPlantRenderer(map, entry.Value);
                     dead.Add(entry.Key);
                 }
-            foreach (var plant in dead) plantMarkers.Remove(plant);
+            foreach (var plant in dead)
+            {
+                plantMarkers.Remove(plant);
+                if (!plantVisuals.TryGetValue(plant, out var visual)) continue;
+                ClearPlantFade(map, visual);
+                plantVisuals.Remove(plant);
+            }
             for (int tile = 0; tile < tileCount; tile++)
                 foreach (var plant in Tiles[tile].NaturalPlants)
                 {
                     var definition = mapSettings.plantCatalog.Find(plant.plantId);
                     if (definition == null || definition.StageCount == 0) continue;
+                    bool created = false;
                     if (!plantMarkers.TryGetValue(plant, out var marker))
                     {
                         var obj = new GameObject("NaturalPlant_" + tile + "_" + plant.plantId);
@@ -377,15 +394,57 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
                         plantMarkers.Add(plant, marker);
                         map.RegisterRouteObject(obj.transform, Vector3.zero);
                         map.MarkNearRouteObject(obj.transform);
+                        created = true;
                     }
-                    var stage = definition.stages[Mathf.Clamp(plant.stageIndex, 0, definition.StageCount - 1)];
+                    int stageIndex = Mathf.Clamp(plant.stageIndex, 0, definition.StageCount - 1);
+                    var stage = definition.stages[stageIndex];
                     var sprite = stage.sprite != null ? stage.sprite :
                         definition.isForeground ? mapSettings.fallbackPlantSprite : mapSettings.fallbackBackgroundPlantSprite;
-                    marker.enabled = sprite != null;
-                    if (sprite == null) continue;
-                    marker.sprite = sprite;
-                    marker.color = stage.sprite == null ? stage.fallbackColor : Color.white;
-                    int stageIndex = Mathf.Clamp(plant.stageIndex, 0, definition.StageCount - 1);
+                    Color targetColor = stage.sprite == null ? stage.fallbackColor : Color.white;
+                    if (!plantVisuals.TryGetValue(plant, out var visual))
+                    {
+                        visual = new PlantVisualState { stageIndex = stageIndex, targetColor = targetColor };
+                        plantVisuals.Add(plant, visual);
+                        created = true;
+                    }
+                    if (sprite == null)
+                    {
+                        marker.enabled = false;
+                        marker.sprite = null;
+                        ClearPlantFade(map, visual);
+                        visual.stageIndex = stageIndex;
+                        continue;
+                    }
+                    float now = Time.realtimeSinceStartup;
+                    if (created || marker.sprite == null)
+                    {
+                        marker.sprite = sprite;
+                        bool fadeIn = fadeNewPlants && mapSettings.plantStageFadeSeconds > 0f;
+                        marker.color = fadeIn ? WithAlpha(targetColor, 0f) : targetColor;
+                        visual.stageIndex = stageIndex;
+                        visual.targetColor = targetColor;
+                        visual.fadeStartedAt = fadeIn ? now : -1f;
+                    }
+                    else if (visual.stageIndex != stageIndex || marker.sprite != sprite)
+                    {
+                        AdvancePlantFade(map, visual, marker, now);
+                        if (mapSettings.plantStageFadeSeconds > 0f)
+                            StartPlantFade(map, tile, plant, definition, visual, marker, now);
+                        else ClearPlantFade(map, visual);
+                        marker.sprite = sprite;
+                        marker.color = targetColor;
+                        if (mapSettings.plantStageFadeSeconds > 0f)
+                            marker.color = WithAlpha(targetColor, 0f);
+                        visual.stageIndex = stageIndex;
+                        visual.targetColor = targetColor;
+                        visual.fadeStartedAt = mapSettings.plantStageFadeSeconds > 0f ? now : -1f;
+                    }
+                    else
+                    {
+                        visual.targetColor = targetColor;
+                        if (visual.fadeStartedAt < 0f) marker.color = targetColor;
+                    }
+                    marker.enabled = true;
                     float stageHeightRatio = !definition.isForeground && definition.StageCount == 3 ?
                         stageIndex == 0 ? Mathf.Clamp(mapSettings.backgroundSaplingHeightRatio, .1f, 1f) :
                         stageIndex == 1 ? Mathf.Clamp(mapSettings.backgroundMediumHeightRatio, .1f, 1f) : 1f :
@@ -394,13 +453,130 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
                         (definition.isForeground ? Mathf.Min(TileWidth * .16f, .16f) :
                             Mathf.Max(.1f, mapSettings.backgroundPlantHeight) * stageHeightRatio) :
                         Mathf.Max(.05f, definition.visualHeight) * stageHeightRatio;
+                    Vector2 visibleY = PlantVisibleY(sprite);
+                    if (stage.sprite != null && definition.preserveSpriteStageScale)
+                    {
+                        // All stages share the mature sprite's scale. The art then controls
+                        // the small/large ratio, including sprites with transparent padding.
+                        var mature = definition.stages[definition.StageCount - 1].sprite;
+                        if (mature != null)
+                        {
+                            Vector2 matureY = PlantVisibleY(mature);
+                            height = Mathf.Max(.05f, definition.visualHeight) *
+                                (visibleY.y - visibleY.x) / Mathf.Max(.001f, matureY.y - matureY.x);
+                        }
+                    }
                     marker.transform.localScale = Vector3.one *
-                        (height / Mathf.Max(.001f, sprite.bounds.size.y));
-                    UpdatePlantPosition(map, tile, plant, definition, marker, height);
+                        (height / Mathf.Max(.001f, visibleY.y - visibleY.x));
+                    UpdatePlantPosition(map, tile, plant, definition, marker);
                 }
         }
+        static Color WithAlpha(Color color, float alpha)
+        {
+            color.a = alpha;
+            return color;
+        }
+        void DestroyPlantRenderer(JourneyMap map, SpriteRenderer renderer)
+        {
+            if (renderer == null) return;
+            if (map != null) map.UnregisterRouteObject(renderer.transform);
+            renderer.gameObject.SetActive(false);
+            if (Application.isPlaying) Destroy(renderer.gameObject);
+            else DestroyImmediate(renderer.gameObject);
+        }
+        void ClearPlantFade(JourneyMap map, PlantVisualState visual)
+        {
+            foreach (var layer in visual.outgoing) DestroyPlantRenderer(map, layer.renderer);
+            visual.outgoing.Clear();
+            visual.fadeStartedAt = -1f;
+        }
+        public void CompletePlantFades(JourneyMap map)
+        {
+            foreach (var entry in plantVisuals)
+            {
+                if (plantMarkers.TryGetValue(entry.Key, out var marker) && marker != null)
+                    marker.color = entry.Value.targetColor;
+                ClearPlantFade(map, entry.Value);
+            }
+        }
+        void StartPlantFade(JourneyMap map, int tile, PlantInstance plant,
+            PlantDefinition definition, PlantVisualState visual, SpriteRenderer marker, float now)
+        {
+            foreach (var layer in visual.outgoing)
+            {
+                layer.startAlpha = layer.renderer.color.a;
+                layer.startedAt = now;
+            }
+            if (!marker.enabled || marker.sprite == null || marker.color.a <= .001f) return;
+            var obj = new GameObject(marker.name + "_FadeOut");
+            obj.transform.SetParent(transform, false);
+            var previous = obj.AddComponent<SpriteRenderer>();
+            previous.sprite = marker.sprite;
+            previous.color = marker.color;
+            previous.sharedMaterial = marker.sharedMaterial;
+            previous.sortingLayerID = marker.sortingLayerID;
+            previous.sortingOrder = marker.sortingOrder - 1;
+            previous.flipX = marker.flipX;
+            previous.flipY = marker.flipY;
+            previous.transform.localScale = marker.transform.localScale;
+            previous.transform.rotation = marker.transform.rotation;
+            map.RegisterRouteObject(previous.transform, Vector3.zero);
+            map.MarkNearRouteObject(previous.transform);
+            UpdatePlantPosition(map, tile, plant, definition, previous);
+            visual.outgoing.Add(new FadingPlantSprite
+            {
+                renderer = previous, startAlpha = previous.color.a, startedAt = now
+            });
+        }
+        void AdvancePlantFade(JourneyMap map, PlantVisualState visual,
+            SpriteRenderer marker, float now)
+        {
+            float duration = Mathf.Max(0f, mapSettings.plantStageFadeSeconds);
+            if (visual.fadeStartedAt >= 0f)
+            {
+                float progress = duration <= 0f ? 1f :
+                    Mathf.Clamp01((now - visual.fadeStartedAt) / duration);
+                marker.color = WithAlpha(visual.targetColor, visual.targetColor.a * progress);
+                if (progress >= 1f) visual.fadeStartedAt = -1f;
+            }
+            for (int i = visual.outgoing.Count - 1; i >= 0; i--)
+            {
+                var layer = visual.outgoing[i];
+                if (layer.renderer == null)
+                {
+                    visual.outgoing.RemoveAt(i);
+                    continue;
+                }
+                float progress = duration <= 0f ? 1f :
+                    Mathf.Clamp01((now - layer.startedAt) / duration);
+                if (progress >= 1f)
+                {
+                    DestroyPlantRenderer(map, layer.renderer);
+                    visual.outgoing.RemoveAt(i);
+                }
+                else layer.renderer.color = WithAlpha(layer.renderer.color,
+                    layer.startAlpha * (1f - progress));
+            }
+        }
+        Vector2 PlantVisibleY(Sprite sprite)
+        {
+            if (plantVisibleY.TryGetValue(sprite, out var bounds)) return bounds;
+            // Sprite.bounds includes transparent canvas; tight mesh vertices follow the painted plant.
+            var vertices = sprite.vertices;
+            if (vertices == null || vertices.Length == 0)
+                return new Vector2(sprite.bounds.min.y, sprite.bounds.max.y);
+            float minY = float.MaxValue, maxY = float.MinValue;
+            foreach (Vector2 vertex in vertices)
+            {
+                minY = Mathf.Min(minY, vertex.y);
+                maxY = Mathf.Max(maxY, vertex.y);
+            }
+            bounds = new Vector2(minY, maxY);
+            plantVisibleY.Add(sprite, bounds);
+            return bounds;
+        }
         void UpdatePlantPosition(JourneyMap map, int tile, PlantInstance plant,
-            PlantDefinition definition, SpriteRenderer marker, float height)
+            PlantDefinition definition, SpriteRenderer marker)
         {
             var layout = mapSettings.sceneLayout;
             Vector2 scatter = PlantScatter(tile, plant);
@@ -417,7 +593,7 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
             map.UpdateRouteObject(marker.transform,
                 new Vector3(TileCenter(tile) + plant.positionOffset * TileWidth +
                     scatter.x * Mathf.Max(0, mapSettings.plantHorizontalScatter) * TileWidth,
-                    plantFootY + height * .5f,
+                    plantFootY - PlantVisibleY(marker.sprite).x * marker.transform.localScale.y,
                     definition.isForeground ? -.18f : .35f));
         }
         Vector2 PlantScatter(int tile, PlantInstance plant)
@@ -455,8 +631,13 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
                         continue;
                     var definition = mapSettings.plantCatalog?.Find(plant.plantId);
                     if (definition == null) continue;
-                    float height = marker.sprite.bounds.size.y * marker.transform.localScale.y;
-                    UpdatePlantPosition(ownerMap, tile, plant, definition, marker, height);
+                    if (plantVisuals.TryGetValue(plant, out var visual))
+                        AdvancePlantFade(ownerMap, visual, marker, Time.realtimeSinceStartup);
+                    UpdatePlantPosition(ownerMap, tile, plant, definition, marker);
+                    if (visual == null) continue;
+                    foreach (var layer in visual.outgoing)
+                        if (layer.renderer != null)
+                            UpdatePlantPosition(ownerMap, tile, plant, definition, layer.renderer);
                 }
             }
         }
@@ -469,6 +650,9 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
             Quaternion facing = camera.transform.rotation;
             foreach (var marker in plantMarkers.Values)
                 if (marker != null) marker.transform.rotation = facing;
+            foreach (var visual in plantVisuals.Values)
+                foreach (var layer in visual.outgoing)
+                    if (layer.renderer != null) layer.renderer.transform.rotation = facing;
         }
         void RefreshNearGroundPositions()
         {

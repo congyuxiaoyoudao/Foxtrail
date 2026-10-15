@@ -64,6 +64,7 @@ namespace Hiking.Journey
                 var station = landscapeStations[index];
                 bool isIncoming = blending && station == incoming;
                 bool participates = blending && (station == outgoing || isIncoming);
+                if (visible) landscape.transform.rotation = camera.transform.rotation;
                 var layer = landscape.GetComponent<SceneLandscapeLayer>();
                 if (layer != null) layer.SetTransition(participates, blendCenter,
                     isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
@@ -71,7 +72,6 @@ namespace Hiking.Journey
                 if (fill != null) fill.SetTransition(participates, blendCenter,
                     isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
                 landscape.enabled = visible && (!blending || participates);
-                if (visible) landscape.transform.rotation = camera.transform.rotation;
             }
             if (visible && stations != null)
                 foreach (var station in stations)
@@ -151,6 +151,8 @@ namespace Hiking.Journey
             if (nearRouteObjects.Contains(routeObjects[index]))
             {
                 route.y += NearOffsetAtDistance(route.x);
+                if (routeObjects[index].GetComponent<PlacementSignVisual>() != null)
+                    route.y += sourceSettings?.sceneLayout?.placementSignY ?? 0f;
             }
             return route;
         }
@@ -236,7 +238,13 @@ namespace Hiking.Journey
             }
             SyncPondVisuals();
             if (Weather.RainAppliedThisStep)
-                for (int station = 0; station < stations.Length; station++) stations[station].SyncPlantMarkers(this);
+                for (int station = 0; station < stations.Length; station++) stations[station].SyncPlantMarkers(this, true);
+        }
+        public void CompletePlantFades()
+        {
+            if (stations == null) return;
+            foreach (var station in stations)
+                if (station != null) station.CompletePlantFades(this);
         }
         TileState TileAt(int index) => stations[index / RingMapSettings.TilesPerStation].Tiles[index % RingMapSettings.TilesPerStation];
         public float TileWidth => stations[0].TileWidth;
