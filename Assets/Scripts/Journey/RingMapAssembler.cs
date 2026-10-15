@@ -134,15 +134,16 @@ namespace Hiking.Journey
             var sprites = new[] { layers.farSky, layers.farClouds, layers.farMountains, layers.middle };
             for (int index = 0; index < sprites.Length; index++)
             {
+                // 素材可能缺项：图层照建，等整站转变到别的类别时再把贴图补上。
                 var sprite = sprites[index];
-                if (sprite == null) continue;
                 var anchor = Anchor(map, station.transform, "Landscape_" + station.theme + "_" + index,
                     new Vector3(station.startDistance + station.length * .5f, 0, 0));
                 var renderer = anchor.gameObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
                 renderer.sortingOrder = -1200 + index * 10;
-                anchor.gameObject.AddComponent<SceneLandscapeLayer>().Configure(
-                    map, settings, station, renderer, index);
+                var layer = anchor.gameObject.AddComponent<SceneLandscapeLayer>();
+                layer.Configure(map, settings, station, renderer, index);
+                station.RegisterThemeLayer(layer);
                 map.RegisterLandscape(renderer);
             }
         }
@@ -157,8 +158,9 @@ namespace Hiking.Journey
                 var renderer = anchor.gameObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = settings.fallbackPlantSprite;
                 renderer.sortingOrder = ground ? -1290 : -1300;
-                anchor.gameObject.AddComponent<SceneThemeFill>().Configure(
-                    map, settings, station, renderer, ground);
+                var fill = anchor.gameObject.AddComponent<SceneThemeFill>();
+                fill.Configure(map, settings, station, renderer, ground);
+                station.RegisterThemeFill(fill);
                 map.RegisterLandscape(renderer);
             }
         }
@@ -176,7 +178,7 @@ namespace Hiking.Journey
             {
                 var obj = new GameObject("Patch_" + (p + 1).ToString("00"));
                 obj.transform.SetParent(station.transform, false);
-                var baseColor = Station.IsTransitionTile(p) ? settings.transitionTileColor : color;
+                var baseColor = Station.IsTransitionTile(p, count) ? settings.transitionTileColor : color;
                 var mesh = CreateStrip(start + p * length / count + length / count * .015f, length / count * .97f,
                     settings.ringThickness, baseColor, obj.name);
                 obj.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -186,7 +188,8 @@ namespace Hiking.Journey
                 var layers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
                 var sprite = layers != null && layers.nearGround != null ?
                     layers.nearGround : settings.fallbackPlantSprite;
-                if (sprite == null) continue;
+                // 素材可能缺项：图层照建，等整站转变到别的类别时再把贴图补上。
+if (sprite == null) continue;
                 float xScale = station.TileWidth / Mathf.Max(.001f, sprite.bounds.size.x);
                 float height = layers?.nearGround != null ? sprite.bounds.size.y * xScale :
                     settings.GroundPlaceholderHeight(station.TileWidth);

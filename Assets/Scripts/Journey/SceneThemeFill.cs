@@ -9,12 +9,22 @@ namespace Hiking.Journey
         RingMapSettings settings;
         Station station;
         SpriteRenderer image;
+        StationTheme fillTheme;
         SceneLandscapeLayer middleLayer;
         bool ground;
         bool transitionActive;
         float transitionCenter;
         float transitionAlpha = 1f;
         int baseSortingOrder;
+        public bool IsGround => ground;
+        public StationTheme FillTheme => fillTheme;
+        // 天空填充跟随远景、地面填充跟随中景，两者可以各自切换。
+        public void SetFillTheme(StationTheme theme)
+        {
+            if (fillTheme == theme) return;
+            fillTheme = theme;
+            RefreshPosition();
+        }
         int sortingOffset;
 
         public void Configure(JourneyMap owner, RingMapSettings source, Station home,
@@ -24,6 +34,7 @@ namespace Hiking.Journey
             settings = source;
             station = home;
             image = renderer;
+            fillTheme = home.theme;
             ground = isGround;
             baseSortingOrder = renderer.sortingOrder;
             RefreshPosition();
@@ -42,7 +53,7 @@ namespace Hiking.Journey
         {
             if (map == null || settings == null || station == null || image == null || image.sprite == null)
                 return;
-            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
+            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(fillTheme) : null;
             if (layers == null) return;
             var color = ground ? layers.groundFillColor : layers.skyFillColor;
             color.a *= transitionAlpha;

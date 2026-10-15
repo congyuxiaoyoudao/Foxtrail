@@ -42,7 +42,13 @@ namespace Hiking.Journey
         [Tooltip("新生植物淡入及阶段贴图交替淡入淡出的时长；0 表示立即显示")]
         [InspectorName("植物淡入与阶段切换时间（秒）"), Min(0)] public float plantStageFadeSeconds = .6f;
         [Header("场景主题图层（新地图生效）")]
-        public SceneThemeCatalog sceneThemes;
+                [Tooltip("站内已转变地块（类别不再等于本站主题）达到该块数时，整站远景切到新类别；低于时回退到本站主题")]
+        [InspectorName("远景切换块数"), Range(1, 12)] public int farThemeSwitchTiles = 7;
+        [Tooltip("站内已转变地块达到该块数时，整站中景切到新类别；中景只换地面，装饰物不跟随")]
+        [InspectorName("中景切换块数"), Range(1, 12)] public int middleThemeSwitchTiles = 10;
+        [Tooltip("地块温度距 5°C、12°C 分界不超过该值时进入过渡表现：这一格的地面换成预期类别的土地素材。策划案为 1（即 4～6、11～13）")]
+        [InspectorName("过渡温度带宽度"), Min(.1f)] public float transitionBandWidth = 1f;
+public SceneThemeCatalog sceneThemes;
         public float GroundPlaceholderHeight(float tileWidth)
         {
             if (sceneThemes?.themes != null)
@@ -74,7 +80,8 @@ namespace Hiking.Journey
         public Vector2 surfaceWaterRange = new Vector2(0, 3);
         [Header("相邻地块流动（每步，先于渗水和蒸发）")]
         [InspectorName("温度流动（°C）"), Min(0)] public float temperatureFlowPerStep = .002f;
-        [InspectorName("土壤水流动（水量）"), Min(0)] public float soilWaterFlowPerStep = .02f;
+        [Tooltip("相邻地块每秒交换的土壤水量上限。原值 0.02；2026-10-15 调为 0.25：0.02 时水源格的水送不到 10 块地，整站到不了中景阈值。会加快土壤湿度趋同，牵动植物生长条件，需数值确认")]
+        [InspectorName("土壤水流动（水量）"), Min(0)] public float soilWaterFlowPerStep = .25f;
         [InspectorName("地表水流动上限（单位/秒）"), Min(0)] public float surfaceWaterFlowPerStep = 1f;
         [Tooltip("每增加多少地表水，水面高度增加 1")]
         [Min(.01f)] public float waterUnitsPerHeight = 35f;
@@ -114,15 +121,20 @@ namespace Hiking.Journey
         public Vector2 snowTemperatureRange = new Vector2(1,4), grassTemperatureRange = new Vector2(7,10), desertTemperatureRange = new Vector2(14,18);
         [Range(0,1)] public float initialPlantProbability = .3f;
         public bool createStationBasin = true;
-        public Vector2 basinWaterRange = new Vector2(26,32);
+        [Tooltip("水源格初始地表水。原值 26～32；2026-10-15 调为 32～35，原值与理由见 Design/Balance-2026-10-15")]
+        public Vector2 basinWaterRange = new Vector2(32,35);
         [Header("水温影响与干土蒸发（每秒）")]
         [Min(.001f)] public float drySoilMoistureScale = .4f;
         [Range(0,1)] public float minimumDrySoilMultiplier = .05f;
-        [Min(0)] public float extraWaterDeadband = 1;
-        [Min(.001f)] public float fullInfluenceWater = 8;
+        [Tooltip("超出基准水量多少才算「多余水」。原值 1；2026-10-15 调为 0.2")]
+        [Min(0)] public float extraWaterDeadband = .2f;
+        [Tooltip("多余水达到该值即视为完全朝向目标温度。原值 8；2026-10-15 调为 1")]
+        [Min(.001f)] public float fullInfluenceWater = 1;
         [Range(5,11.99f)] public float waterTargetTemperature = 10;
-        [Range(0,1)] public float thermalApproachRate = .06f, thermalRecoveryRate = .002f;
-        [Min(0)] public float thermalApproachCap = .15f, thermalRecoveryCap = .01f;
+        [Tooltip("朝向目标温度的速率／缺水后回温速率。原值 0.06 / 0.002；2026-10-15 升速率调为 0.02")]
+        [Range(0,1)] public float thermalApproachRate = .02f, thermalRecoveryRate = .002f;
+        [Tooltip("单步升温上限／回温上限（°C）。原值 0.15 / 0.01；2026-10-15 升温上限调为 0.05")]
+        [Min(0)] public float thermalApproachCap = .05f, thermalRecoveryCap = .01f;
         [Min(1)] public int matureSeedInterval = 30;
         public TileState CreateTile(StationTheme theme, bool basin = false, bool basinEdge = false)
         {

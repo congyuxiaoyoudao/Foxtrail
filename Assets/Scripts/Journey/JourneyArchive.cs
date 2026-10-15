@@ -15,6 +15,12 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class SavedTile
     {
+        // 地块转变之后，类别不再等于本站主题（雪地站可能已经变成平原），所以必须单独存。
+        // 不存的话，作品档里的「已转变地块」会按原主题重建成原来的地形，
+        // 将来做作品回看／导出长卷时看到的就是没转变过的样子。
+        // hasCategory 给旧档兜底：老作品没有这个字段，读到 false 就退回该站主题。
+        public bool hasCategory;
+        public int category;
         public float soilContent, soilWater, surfaceWater, temperature, baseEvaporation;
         public float pendingVapor, drainageLoss;
         public int height;
@@ -119,6 +125,8 @@ namespace Hiking.Journey
                     var tile = station.Tiles[t];
                     saved.tiles[t] = new SavedTile
                     {
+                        hasCategory = true,
+                        category = (int)tile.Category,
                         soilContent = tile.SoilContent, soilWater = tile.SoilWater,
                         surfaceWater = tile.SurfaceWater, temperature = tile.Temperature,
                         baseEvaporation = tile.BaseEvaporationRate,

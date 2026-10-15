@@ -68,6 +68,11 @@ namespace Hiking.Journey
             for (int i = 0; i < stations.Length; i++)
             {
                 for (int t = 0; t < stations[i].tileCount; t++) stations[i].RefreshTile(t, false);
+                // 整站远景／中景是按「本站已转变多少块」算出来的派生结果，原本只在环境结算里更新。
+                // 读档不结算，这里必须补算一次：否则地面已经换成新类别、整站背景还停在原主题，
+                // 要等下一次结算才对上；狐狸停在投放点等待时（结算暂停）会一直挂着这个混搭画面。
+                // 按「派生值不进档」的约定，这里重算而不是把 FarTheme／MiddleTheme 存进存档。
+                stations[i].RefreshThemeConversion();
                 stations[i].RestorePondVisuals(flow.Map, i, data.stations[i], elapsedSeconds);
                 stations[i].SyncPlantMarkers(flow.Map, false);
             }
