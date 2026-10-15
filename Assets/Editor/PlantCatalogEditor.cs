@@ -36,6 +36,7 @@ public sealed class PlantCatalogEditor : Editor
             plant.FindPropertyRelative("growthWaterPerLife").floatValue = .03f;
             plant.FindPropertyRelative("isForeground").boolValue = true;
             plant.FindPropertyRelative("visualHeight").floatValue = .35f;
+            plant.FindPropertyRelative("preserveSpriteStageScale").boolValue = false;
             plant.FindPropertyRelative("floodTolerant").boolValue = false;
             plant.FindPropertyRelative("maxHumidityPercent").intValue = 100;
             plant.FindPropertyRelative("maxSoilPercent").intValue = 100;
@@ -91,6 +92,7 @@ public sealed class PlantCatalogEditor : Editor
             EditorGUILayout.PropertyField(plant.FindPropertyRelative("growthWaterPerLife"), new GUIContent("每增长1生命耗水"));
             EditorGUILayout.PropertyField(foreground, new GUIContent("前景植物"));
             EditorGUILayout.PropertyField(plant.FindPropertyRelative("visualHeight"), new GUIContent("成熟画面高度"));
+            EditorGUILayout.PropertyField(plant.FindPropertyRelative("preserveSpriteStageScale"), new GUIContent("保留原画阶段比例"));
             EditorGUILayout.PropertyField(floodTolerant, new GUIContent("耐中等积水"));
             if (habitats.intValue == 0) EditorGUILayout.HelpBox("请至少选择一种适宜地块。", MessageType.Warning);
             EditorGUILayout.BeginHorizontal();

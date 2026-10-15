@@ -266,9 +266,9 @@ namespace Hiking.Journey
                     mapSettings.minimumEvaporationRatio, mapSettings);
                 RefreshTile(i, false);
             }
-            SyncPlantMarkers(map);
+            SyncPlantMarkers(map, true);
         }
-        public void SyncPlantMarkers(JourneyMap map)
+        public void SyncPlantMarkers(JourneyMap map, bool fadeNewPlants)
         {
             if (mapSettings.plantCatalog == null) return;
             var dead = new List<PlantInstance>();
@@ -325,9 +325,11 @@ namespace Hiking.Journey
                     if (created || marker.sprite == null)
                     {
                         marker.sprite = sprite;
-                        marker.color = targetColor;
+                        bool fadeIn = fadeNewPlants && mapSettings.plantStageFadeSeconds > 0f;
+                        marker.color = fadeIn ? WithAlpha(targetColor, 0f) : targetColor;
                         visual.stageIndex = stageIndex;
                         visual.targetColor = targetColor;
+                        visual.fadeStartedAt = fadeIn ? now : -1f;
                     }
                     else if (visual.stageIndex != stageIndex || marker.sprite != sprite)
                     {
@@ -358,6 +360,18 @@ namespace Hiking.Journey
                             Mathf.Max(.1f, mapSettings.backgroundPlantHeight) * stageHeightRatio) :
                         Mathf.Max(.05f, definition.visualHeight) * stageHeightRatio;
                     Vector2 visibleY = PlantVisibleY(sprite);
+                    if (stage.sprite != null && definition.preserveSpriteStageScale)
+                    {
+                        // All stages share the mature sprite's scale. The art then controls
+                        // the small/large ratio, including sprites with transparent padding.
+                        var mature = definition.stages[definition.StageCount - 1].sprite;
+                        if (mature != null)
+                        {
+                            Vector2 matureY = PlantVisibleY(mature);
+                            height = Mathf.Max(.05f, definition.visualHeight) *
+                                (visibleY.y - visibleY.x) / Mathf.Max(.001f, matureY.y - matureY.x);
+                        }
+                    }
                     marker.transform.localScale = Vector3.one *
                         (height / Mathf.Max(.001f, visibleY.y - visibleY.x));
                     UpdatePlantPosition(map, tile, plant, definition, marker);
@@ -381,6 +395,15 @@ namespace Hiking.Journey
             foreach (var layer in visual.outgoing) DestroyPlantRenderer(map, layer.renderer);
             visual.outgoing.Clear();
             visual.fadeStartedAt = -1f;
+        }
+        public void CompletePlantFades(JourneyMap map)
+        {
+            foreach (var entry in plantVisuals)
+            {
+                if (plantMarkers.TryGetValue(entry.Key, out var marker) && marker != null)
+                    marker.color = entry.Value.targetColor;
+                ClearPlantFade(map, entry.Value);
+            }
         }
         void StartPlantFade(JourneyMap map, int tile, PlantInstance plant,
             PlantDefinition definition, PlantVisualState visual, SpriteRenderer marker, float now)

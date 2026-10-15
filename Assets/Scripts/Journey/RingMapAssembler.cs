@@ -117,7 +117,7 @@ namespace Hiking.Journey
                     }
                     AddPatches(map, station, i * section, section,
                         patches, settings, settings.ThemeColor(station.theme));
-                    station.SyncPlantMarkers(map);
+                    station.SyncPlantMarkers(map, false);
                 }
                 map.SyncPondVisuals();
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",

@@ -240,6 +240,7 @@ namespace Hiking.Journey
             environmentSeconds = 0;
             OfflineProgress01 = 1f;
             IsSettlingOffline = false;
+            Map?.CompletePlantFades();
             UI.Notify(offlineSummary);
             ResumeInteraction();
         }
@@ -442,6 +443,7 @@ namespace Hiking.Journey
         public void EnterAppreciation()
         {
             if (!IsFinalized || IsAppreciating || IsEnteringAppreciation || Map == null) return;
+            Map.CompletePlantFades();
             appreciationEntrance = StartCoroutine(EnterAppreciationRoutine());
         }
         public void PreviewPanorama()
@@ -449,6 +451,7 @@ namespace Hiking.Journey
             if (Map == null || IsDebugMode || IsBrowsingPanorama || IsEnteringAppreciation ||
                 Activity == JourneyActivity.Complete || UI.IsModalOpen) return;
             if (Placement.EditingSlot != null) Placement.CancelEditor();
+            Map.CompletePlantFades();
             IsPreviewing = true;
             Traveler.Paused = true;
             if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = false;

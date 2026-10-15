@@ -5,6 +5,8 @@ namespace Hiking.Journey
     // World decoration attached to a route slot. The actual plan and settlement live in PlacementSlot.
     public sealed class PlacementSignVisual : MonoBehaviour
     {
+        // Background plants are 0 and the fox is 10: the sign sits between them.
+        const int BoardSortingOrder = 5;
         SpriteRenderer board;
         SpriteRenderer waterBubble;
         SpriteRenderer seedBubble;
@@ -14,19 +16,32 @@ namespace Hiking.Journey
         GameObject warningMark;
         Camera worldCamera;
         bool hidden;
+        bool themedBoard;
 
         public void Configure(RingMapSettings settings)
         {
             var sprite = settings.fallbackPlantSprite;
             var font = settings.tileLabelFont;
-            MakePanel("Post", sprite, new Color(.42f, .27f, .14f),
-                new Vector3(0, .22f, 0), new Vector2(.10f, .50f), 11);
-            MakePanel("BoardBorder", sprite, new Color(.38f, .25f, .14f),
-                new Vector3(0, .56f, -.01f), new Vector2(.64f, .39f), 12);
-            board = MakePanel("WoodenBoard", sprite, new Color(.73f, .53f, .29f),
-                new Vector3(0, .56f, -.02f), new Vector2(.57f, .32f), 13);
-            MakeText("BoardMark", "•", font, new Vector3(0, .54f, -.03f), .21f,
-                new Color(.32f, .22f, .12f), 14);
+            themedBoard = settings.placementSignSprite != null;
+            if (themedBoard)
+            {
+                var sign = settings.placementSignSprite;
+                float height = .88f;
+                board = MakePanel("WoodenBoard", sign, Color.white,
+                    new Vector3(0, height * .5f, 0),
+                    new Vector2(height * sign.bounds.size.x / Mathf.Max(.001f, sign.bounds.size.y), height), BoardSortingOrder);
+            }
+            else
+            {
+                MakePanel("Post", sprite, new Color(.42f, .27f, .14f),
+                    new Vector3(0, .22f, 0), new Vector2(.10f, .50f), BoardSortingOrder - 2);
+                MakePanel("BoardBorder", sprite, new Color(.38f, .25f, .14f),
+                    new Vector3(0, .56f, -.01f), new Vector2(.64f, .39f), BoardSortingOrder - 1);
+                board = MakePanel("WoodenBoard", sprite, new Color(.73f, .53f, .29f),
+                    new Vector3(0, .56f, -.02f), new Vector2(.57f, .32f), BoardSortingOrder);
+                MakeText("BoardMark", "•", font, new Vector3(0, .54f, -.03f), .21f,
+                    new Color(.32f, .22f, .12f), BoardSortingOrder + 1);
+            }
 
             waterBubble = MakePanel("WaterBubble", sprite, new Color(.80f, .92f, .98f),
                 new Vector3(-.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
@@ -101,7 +116,9 @@ namespace Hiking.Journey
             if (hidden || camera == null) return;
             worldCamera = camera;
             transform.rotation = camera.transform.rotation;
-            board.color = hovered ? new Color(.96f, .75f, .39f) : new Color(.73f, .53f, .29f);
+            board.color = themedBoard
+                ? (hovered ? new Color(1f, .9f, .68f) : Color.white)
+                : (hovered ? new Color(.96f, .75f, .39f) : new Color(.73f, .53f, .29f));
             bool showWarning = slot.WarningAtArrival;
             warning.gameObject.SetActive(showWarning);
             warningMark.SetActive(showWarning);
@@ -116,7 +133,7 @@ namespace Hiking.Journey
             Vector3 edge = worldCamera.WorldToScreenPoint(center + worldCamera.transform.right *
                 (warningOnly ? .26f : .42f));
             Vector3 top = worldCamera.WorldToScreenPoint(center + worldCamera.transform.up *
-                (warningOnly ? .25f : .34f));
+                (warningOnly ? .25f : (themedBoard ? .46f : .34f)));
             return Mathf.Abs(pointer.x - screen.x) <= Mathf.Abs(edge.x - screen.x) &&
                 Mathf.Abs(pointer.y - screen.y) <= Mathf.Abs(top.y - screen.y);
         }

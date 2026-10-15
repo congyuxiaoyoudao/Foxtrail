@@ -104,7 +104,8 @@ MonoBehaviour:
     initialHabitats: 1
     growthWaterPerLife: 0.015
     isForeground: 1
-    visualHeight: 0.75
+    visualHeight: 1.65
+    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -132,7 +133,8 @@ MonoBehaviour:
     initialHabitats: 1
     growthWaterPerLife: 0.035
     isForeground: 0
-    visualHeight: 3.3
+    visualHeight: 2.6
+    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -160,7 +162,8 @@ MonoBehaviour:
     initialHabitats: 4
     growthWaterPerLife: 0.008
     isForeground: 0
-    visualHeight: 1
+    visualHeight: 0.82
+    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -188,7 +191,8 @@ MonoBehaviour:
     initialHabitats: 4
     growthWaterPerLife: 0.006
     isForeground: 1
-    visualHeight: 1
+    visualHeight: 2.1
+    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -217,6 +221,7 @@ MonoBehaviour:
     growthWaterPerLife: 0.03
     isForeground: 0
     visualHeight: 3.3
+    preserveSpriteStageScale: 1
     floodTolerant: 1
     maxHumidityPercent: 100
     maxSoilPercent: 100

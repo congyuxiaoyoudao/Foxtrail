@@ -22,6 +22,7 @@ MonoBehaviour:
   desertColor: {r: 1, g: 0.82, b: 0.25, a: 1}
   plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
   fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
+  placementSignSprite: {fileID: 21300000, guid: 165fa77924186d245a91959249871586, type: 3}
   fallbackBackgroundPlantSprite: {fileID: 21300000, guid: 72bfa1a9e7b54e429d3805e6518d63f0, type: 3}
   sceneLayout: {fileID: 11400000, guid: b743f48377ac4ebc8e99a43fb2abff21, type: 2}
   plantHorizontalScatter: 0.1
