@@ -37,6 +37,8 @@ namespace Hiking.Journey
         [InspectorName("背景植物幼苗高度比例"), Range(.1f, 1f)] public float backgroundSaplingHeightRatio = .5f;
         [Tooltip("有阶段贴图的背景植物，中期相对于成熟高度的比例")]
         [InspectorName("背景植物中期高度比例"), Range(.1f, 1f)] public float backgroundMediumHeightRatio = .87f;
+        [Tooltip("植物生长或退化到另一阶段时，两张阶段贴图交替淡入淡出的时长；0 表示立即切换")]
+        [InspectorName("植物阶段贴图淡入淡出时间（秒）"), Min(0)] public float plantStageFadeSeconds = .6f;
         [Header("场景主题图层（新地图生效）")]
         public SceneThemeCatalog sceneThemes;
         public float GroundPlaceholderHeight(float tileWidth)

@@ -38,6 +38,7 @@ namespace Hiking.Journey
         {
             if (flow.Activity != JourneyActivity.AwaitingPlacement || CurrentSlot == null) return;
             PendingSlot = CurrentSlot;
+            flow.Traveler.SetPlacementIdle(true);
             bool shortage = PendingSlot.WarningAtArrival ||
                 flow.Session.Stock("water") < PendingSlot.PlannedWater ||
                 flow.Session.Stock("seed") < PendingSlot.PlannedSeeds;
@@ -100,6 +101,7 @@ namespace Hiking.Journey
             PendingSlot = null;
             remainingSeconds = -1f;
             EditingSlot = null;
+            if (flow != null && flow.Traveler != null) flow.Traveler.SetPlacementIdle(false);
             if (flow != null && flow.UI != null) flow.UI.HideSignEditor();
         }
 
@@ -152,6 +154,7 @@ namespace Hiking.Journey
             slot.MarkCommitted();
             PendingSlot = null;
             remainingSeconds = -1f;
+            flow.Traveler.SetPlacementIdle(false);
             flow.CompletePlacementVisit();
         }
 

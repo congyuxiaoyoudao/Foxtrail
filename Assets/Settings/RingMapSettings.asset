@@ -29,6 +29,7 @@ MonoBehaviour:
   backgroundPlantHeight: 3.3
   backgroundSaplingHeightRatio: 0.5
   backgroundMediumHeightRatio: 0.87
+  plantStageFadeSeconds: 0.6
   sceneThemes: {fileID: 11400000, guid: 58d3c068c46f44f2bfefeb66734e965c, type: 2}
   snowLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
   grassLandscape: {fileID: 21300000, guid: f39c679814ce46abb5529894656c41d3, type: 3}

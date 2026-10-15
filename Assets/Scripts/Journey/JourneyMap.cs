@@ -64,6 +64,7 @@ namespace Hiking.Journey
                 var station = landscapeStations[index];
                 bool isIncoming = blending && station == incoming;
                 bool participates = blending && (station == outgoing || isIncoming);
+                if (visible) landscape.transform.rotation = camera.transform.rotation;
                 var layer = landscape.GetComponent<SceneLandscapeLayer>();
                 if (layer != null) layer.SetTransition(participates, blendCenter,
                     isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
@@ -71,7 +72,6 @@ namespace Hiking.Journey
                 if (fill != null) fill.SetTransition(participates, blendCenter,
                     isIncoming ? blendProgress : 1f, isIncoming ? 200 : 0);
                 landscape.enabled = visible && (!blending || participates);
-                if (visible) landscape.transform.rotation = camera.transform.rotation;
             }
             if (visible && stations != null)
                 foreach (var station in stations)

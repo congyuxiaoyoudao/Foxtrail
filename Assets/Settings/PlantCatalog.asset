@@ -113,17 +113,17 @@ MonoBehaviour:
     - minHumidityPercent: 15
       minSoilPercent: 1
       minLife: 0
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 405d7f6d2fec97c4f8537b0243bd4a28, type: 3}
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 35
       minSoilPercent: 25
       minLife: 30
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 405d7f6d2fec97c4f8537b0243bd4a28, type: 3}
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 55
       minSoilPercent: 40
       minLife: 60
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 9af9cf7a5ec7ce74b9d36d257231331c, type: 3}
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: spruce
     displayName: "\u4E91\u6749\u6811"
@@ -141,17 +141,17 @@ MonoBehaviour:
     - minHumidityPercent: 12
       minSoilPercent: 1
       minLife: 0
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: cffb8a2d45713634394f58051cf18ab0, type: 3}
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 30
       minSoilPercent: 40
       minLife: 30
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: cffb8a2d45713634394f58051cf18ab0, type: 3}
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 45
       minSoilPercent: 55
       minLife: 60
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 645f1546dd683804c9fd409330e6289a, type: 3}
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: saxaul
     displayName: "\u68AD\u68AD\u6811"
@@ -160,7 +160,7 @@ MonoBehaviour:
     initialHabitats: 4
     growthWaterPerLife: 0.008
     isForeground: 0
-    visualHeight: 3.3
+    visualHeight: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -169,17 +169,17 @@ MonoBehaviour:
     - minHumidityPercent: 3
       minSoilPercent: 1
       minLife: 0
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: e2af4eaf20b7cd048aa7f1db10270dde, type: 3}
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 8
       minSoilPercent: 10
       minLife: 30
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: e2af4eaf20b7cd048aa7f1db10270dde, type: 3}
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 15
       minSoilPercent: 20
       minLife: 60
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: f209c2a4ec6791443b2d0527f83a1260, type: 3}
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: cactus
     displayName: "\u4ED9\u4EBA\u638C"
@@ -188,7 +188,7 @@ MonoBehaviour:
     initialHabitats: 4
     growthWaterPerLife: 0.006
     isForeground: 1
-    visualHeight: 0.75
+    visualHeight: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -197,17 +197,17 @@ MonoBehaviour:
     - minHumidityPercent: 3
       minSoilPercent: 1
       minLife: 0
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 4ab00866755dcba498eb8a3d90a3d1fa, type: 3}
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 12
       minSoilPercent: 15
       minLife: 30
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 4ab00866755dcba498eb8a3d90a3d1fa, type: 3}
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 22
       minSoilPercent: 30
       minLife: 60
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 193f871df94c58d48aaebf322c8339bc, type: 3}
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: poplar
     displayName: "\u80E1\u6768\u6811"
@@ -225,15 +225,15 @@ MonoBehaviour:
     - minHumidityPercent: 8
       minSoilPercent: 1
       minLife: 0
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: d28cd6666cd16244c8d2ee97db973a16, type: 3}
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 25
       minSoilPercent: 25
       minLife: 30
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: d28cd6666cd16244c8d2ee97db973a16, type: 3}
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 45
       minSoilPercent: 40
       minLife: 60
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: e095aa674f916474d9d34032fdacfe64, type: 3}
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}

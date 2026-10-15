@@ -44,8 +44,6 @@ namespace Hiking.Journey
                     map.stations[i] = station;
                     station.InitializeTiles(settings);
                     var themeLayers = settings.sceneThemes != null ? settings.sceneThemes.For(station.theme) : null;
-                    if (themeLayers != null && settings.fallbackPlantSprite != null)
-                        AddThemeFills(map, station, settings);
                     if (themeLayers != null && themeLayers.HasLandscape)
                         AddThemeLayers(map, station, settings, themeLayers);
                     else
@@ -84,6 +82,8 @@ namespace Hiking.Journey
                             map.RegisterLandscape(renderer, material, mesh);
                         }
                     }
+                    if (themeLayers != null && settings.fallbackPlantSprite != null)
+                        AddThemeFills(map, station, settings);
                     for (int tile = 0; tile < patches; tile++)
                     {
                         var anchor = Anchor(map, station.transform, "Moisture_" + tile,
