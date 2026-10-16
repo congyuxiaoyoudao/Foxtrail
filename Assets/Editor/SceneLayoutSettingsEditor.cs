@@ -12,6 +12,13 @@ public sealed class SceneLayoutSettingsEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("landscapeBaseY"), new GUIContent("远中景基线 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("cameraFrameHeightRatio"), new GUIContent("镜头画面下移比例"));
         EditorGUILayout.Space();
+        EditorGUILayout.LabelField("画框内取景", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("旅途取景宽度设为 1 时恰好显示一站；调大可看到相邻站。左右、上下内缩比例控制画面在画框内的边界。", MessageType.None);
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewportHorizontalInset"), new GUIContent("画面左右内缩比例"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewportVerticalInset"), new GUIContent("画面上下内缩比例"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("journeyViewWidthInStations"), new GUIContent("旅途取景宽度（站数）"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewWidthMultiplier"), new GUIContent("全景取景宽度（站数）"));
+        EditorGUILayout.Space();
         EditorGUILayout.LabelField("远景与中景", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("skyY"), new GUIContent("天空偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("cloudsY"), new GUIContent("云偏移 Y"));

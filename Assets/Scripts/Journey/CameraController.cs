@@ -17,9 +17,11 @@ namespace Hiking.Journey
         float landscapeBlend;
         float debugCenter;
         float scrollCenter;
-        float ScrollViewWidth => flow.Map.stations[0].length;
-        float ScrollMinimum => ScrollViewWidth * .5f - flow.Map.TileWidth * .5f;
-        float ScrollMaximum => flow.Map.RouteLength - ScrollViewWidth * .5f + flow.Map.TileWidth * .5f;
+        float PanoramaViewWidthMultiplier => Mathf.Max(1f,
+            flow.Map.sourceSettings.sceneLayout?.framedViewWidthMultiplier ?? 1.12f);
+        float ScrollViewWidth => flow.Map.stations[0].length * PanoramaViewWidthMultiplier;
+        float ScrollMinimum => flow.Map.stations[0].length * .5f;
+        float ScrollMaximum => flow.Map.RouteLength - flow.Map.stations[0].length * .5f;
         public float ScrollProgress01 => flow == null || flow.Map == null ? 0f :
             Mathf.InverseLerp(ScrollMinimum, ScrollMaximum, scrollCenter);
         public bool CanScrollLeft => flow != null && flow.Map != null && scrollCenter > ScrollMinimum + .001f;
@@ -37,11 +39,19 @@ namespace Hiking.Journey
             scrollCenter = Mathf.Clamp(scrollCenter + distance, ScrollMinimum, ScrollMaximum);
             FrameScroll();
         }
-        public void PanScrollBySection(int direction) => PanScroll(direction * ScrollViewWidth);
+        public void PanScrollBySection(int direction) => PanScroll(direction * flow.Map.stations[0].length);
+        void ApplyFramedViewport()
+        {
+            var layout = flow.Map.sourceSettings.sceneLayout;
+            float x = Mathf.Clamp(layout?.framedViewportHorizontalInset ?? .065f, 0f, .2f);
+            float y = Mathf.Clamp(layout?.framedViewportVerticalInset ?? .085f, 0f, .2f);
+            WorldCamera.rect = new Rect(x, y, 1f - 2f * x, 1f - 2f * y);
+        }
         void FrameScroll()
         {
             var map = flow.Map;
             float width = ScrollViewWidth;
+            ApplyFramedViewport();
             WorldCamera.ResetProjectionMatrix(); WorldCamera.orthographic = true;
             WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
@@ -72,6 +82,7 @@ namespace Hiking.Journey
         {
             var map = flow.Map;
             float width = DebugViewWidth;
+            WorldCamera.rect = new Rect(0f, 0f, 1f, 1f);
             debugCenter = Mathf.Clamp(debugCenter, width * .5f - map.TileWidth * .5f,
                 map.RouteLength - width * .5f + map.TileWidth * .5f);
             WorldCamera.ResetProjectionMatrix(); WorldCamera.orthographic = true;
@@ -109,7 +120,8 @@ namespace Hiking.Journey
             }
             FrameDebugMap();
         }
-        public float JourneyViewWidth => flow.CurrentStation.length;
+        public float JourneyViewWidth => flow.CurrentStation.length * Mathf.Max(.85f,
+            flow.Map.sourceSettings.sceneLayout?.journeyViewWidthInStations ?? 1f);
         public void Initialize(GameFlowController owner)
         {
             flow = owner; WorldCamera.orthographic = true;
@@ -122,7 +134,7 @@ namespace Hiking.Journey
         public void ShowStation(Station station)
         {
             if (flow.Map == null) return;
-            journeyCenter = station.startDistance + JourneyViewWidth * .5f;
+            journeyCenter = station.startDistance + station.length * .5f;
             FrameJourney();
         }
         void LateUpdate()
@@ -147,7 +159,7 @@ namespace Hiking.Journey
             WorldCamera.ResetProjectionMatrix();
             float width = JourneyViewWidth;
             var station = flow.CurrentStation;
-            journeyCenter = station.startDistance + width * .5f;
+            journeyCenter = station.startDistance + station.length * .5f;
             if (flow.Session.StationIndex < map.stations.Length - 1)
             {
                 var nextStation = map.stations[flow.Session.StationIndex + 1];
@@ -167,10 +179,12 @@ namespace Hiking.Journey
                 float duration = remainingSteps * flow.MoveSeconds + flow.StationTransitionSeconds;
                 float elapsed = Mathf.Min(walkedTiles, remainingSteps) * flow.MoveSeconds
                     + Mathf.Clamp01(walkedTiles - remainingSteps) * flow.StationTransitionSeconds;
-                float destination = map.stations[flow.Session.StationIndex + 1].startDistance + width * .5f;
+                var destinationStation = map.stations[flow.Session.StationIndex + 1];
+                float destination = destinationStation.startDistance + destinationStation.length * .5f;
                 journeyCenter = Mathf.Lerp(journeyCenter, destination, elapsed / duration);
             }
             float cameraX = map.transform.position.x - map.RouteLength * .5f + journeyCenter;
+            ApplyFramedViewport();
             WorldCamera.orthographic = true;
             WorldCamera.orthographicSize = width / (2 * Mathf.Max(.1f, WorldCamera.aspect));
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);

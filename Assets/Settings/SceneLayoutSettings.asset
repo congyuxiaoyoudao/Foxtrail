@@ -14,12 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.SceneLayoutSettings
   landscapeBaseY: -1.83
   cameraFrameHeightRatio: 0.023
+  framedViewportHorizontalInset: 0.065
+  framedViewportVerticalInset: 0.085
+  journeyViewWidthInStations: 1
+  framedViewWidthMultiplier: 1.12
   skyY: 1.6
   cloudsY: 1.24
   mountainsY: -1.69
   middleY: -2.23
   fallbackY: 0
-  nearSharedY: -1.1
+  nearSharedY: -2.12
   groundY: -0.26
   foxY: -0.5
   foregroundPlantY: -0.83

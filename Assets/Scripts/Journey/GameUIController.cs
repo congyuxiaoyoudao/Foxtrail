@@ -274,9 +274,9 @@ namespace Hiking.Journey
                 "未完成保存：" + flow.SaveError;
             string activity = flow.Activity == JourneyActivity.AwaitingPlacement ? "投放点停留" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
                 flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
-            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1} / {session.StationCount} 站 · {flow.CurrentStation.ThemeName} · 第 {flow.CurrentTileIndex + 1} / 12 块 · {activity}" +
+            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1}/{session.StationCount} 站 · {flow.CurrentStation.ThemeName}\n第 {flow.CurrentTileIndex + 1}/12 块 · {activity}" +
                 (flow.Map.Weather.IsRaining || flow.Map.Weather.RainAppliedThisStep ?
-                    $" · 降雨中（{flow.Map.Weather.RainStartTile + 1}～{flow.Map.Weather.RainEndTile + 1} 格）" : "");
+                    $"\n降雨中（{flow.Map.Weather.RainStartTile + 1}～{flow.Map.Weather.RainEndTile + 1} 格）" : "");
             progress.rectTransform.anchorMax = new Vector2(flow.Traveler.Progress01, 1);
             UpdateMaterials(materialButtons, false);
             var editingSlot = flow.Placement.EditingSlot;
@@ -290,7 +290,7 @@ namespace Hiking.Journey
                 signSeedMinus.interactable = flow.Placement.EditedSeeds > 0;
                 signSeedPlus.interactable = flow.Placement.EditedSeeds < 3;
             }
-            if (hint != null) hint.text = "点击木牌调整水与种子的预设投放量；狐狸到点停留后自动投放";
+            if (hint != null) hint.text = "点击木牌设置投放；狐狸停留后自动投放";
             if (toast != null && Time.unscaledTime > toastUntil) toast.text = "";
         }
         void UpdateMaterials(MaterialButton[] views, bool available)
