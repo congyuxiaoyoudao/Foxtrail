@@ -24,4 +24,4 @@ MonoBehaviour:
   foxY: -0.5
   foregroundPlantY: -0.83
   backgroundPlantY: -0.32
-  placementSignY: 0
+  placementSignY: -0.78

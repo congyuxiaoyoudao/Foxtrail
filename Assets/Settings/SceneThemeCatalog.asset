@@ -56,7 +56,7 @@ MonoBehaviour:
     farClouds: {fileID: 21300000, guid: 71f02ea203fc31b47ac350fe70fd0a74, type: 3}
     farMountains: {fileID: 21300000, guid: bfe04c1952ceb9045923eb61db179d70, type: 3}
     middle: {fileID: 21300000, guid: 9564851e02bb8cb4b943250214bc09a6, type: 3}
-    nearGround: {fileID: 0}
+    nearGround: {fileID: 21300000, guid: 16a1739a19a39d642b394375a5fda0c4, type: 3}
     pond:
       wetSingle: {fileID: 21300000, guid: d850c8af0302c1b4c87720704cf6e61a, type: 3}
       wetLeft: {fileID: 21300000, guid: 58719ac550493ca45975f6f4af814129, type: 3}
