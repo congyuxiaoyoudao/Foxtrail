@@ -17,7 +17,7 @@ MonoBehaviour:
   framedViewportHorizontalInset: 0.065
   framedViewportVerticalInset: 0.085
   journeyViewWidthInStations: 1
-  framedViewWidthMultiplier: 1.12
+  framedViewWidthMultiplier: 1.3
   skyY: 1.6
   cloudsY: 1.24
   mountainsY: -1.69

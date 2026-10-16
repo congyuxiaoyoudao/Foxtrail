@@ -18,8 +18,9 @@ namespace Hiking.Journey
         float debugCenter;
         float scrollCenter;
         float PanoramaViewWidthMultiplier => Mathf.Max(1f,
-            flow.Map.sourceSettings.sceneLayout?.framedViewWidthMultiplier ?? 1.12f);
-        float ScrollViewWidth => flow.Map.stations[0].length * PanoramaViewWidthMultiplier;
+            flow.Map.sourceSettings.sceneLayout?.framedViewWidthMultiplier ?? 1.3f);
+        // Keep the journey composition and zoom it out uniformly inside the same framed viewport.
+        float ScrollViewWidth => JourneyViewWidth * PanoramaViewWidthMultiplier;
         float ScrollMinimum => flow.Map.stations[0].length * .5f;
         float ScrollMaximum => flow.Map.RouteLength - flow.Map.stations[0].length * .5f;
         public float ScrollProgress01 => flow == null || flow.Map == null ? 0f :

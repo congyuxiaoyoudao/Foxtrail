@@ -19,9 +19,9 @@ namespace Hiking.Journey
         [Tooltip("旅途镜头可见宽度，以站为单位。1 表示一站；增大可见相邻地块，减小会裁切本站两端。播放时可直接调整。")]
         [InspectorName("旅途取景宽度（站数）")]
         [Range(.85f, 1.5f)] public float journeyViewWidthInStations = 1f;
-        [Tooltip("全景浏览镜头可见宽度，以站为单位；与旅途取景独立")]
-        [InspectorName("全景取景宽度（站数）")]
-        [Range(1f, 1.5f)] public float framedViewWidthMultiplier = 1.12f;
+        [Tooltip("全景相对旅途画面的缩小倍率。1 保持原尺寸，1.3 表示画面内的物体约缩小到 77%；画框不变")]
+        [InspectorName("全景画面缩小倍率")]
+        [Range(1f, 2f)] public float framedViewWidthMultiplier = 1.3f;
         [Header("三个主题共用的远中景 Y 偏移")]
         public float skyY = 1.6f;
         public float cloudsY = 1.24f;

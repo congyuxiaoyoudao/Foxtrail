@@ -30,7 +30,7 @@ MonoBehaviour:
       tileHeightRatio: 0.55
       dryFadeSeconds: 4
     fallbackLandscape: {fileID: 21300000, guid: 7db704867abf45f2914304719e2f9bc1, type: 3}
-    skyFillColor: {r: 0.537, g: 0.718, b: 0.82, a: 1}
+    skyFillColor: {r: 0.6627451, g: 0.89411765, b: 0.94509804, a: 1}
     groundFillColor: {r: 0.961, g: 0.98, b: 0.957, a: 1}
   - theme: 1
     farSky: {fileID: 21300000, guid: ebec8b7abb5ebf842b4a7ae2cf34b4ee, type: 3}
@@ -68,5 +68,5 @@ MonoBehaviour:
       tileHeightRatio: 0.55
       dryFadeSeconds: 4
     fallbackLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
-    skyFillColor: {r: 0.898, g: 0.718, b: 0.475, a: 1}
+    skyFillColor: {r: 0.6627451, g: 0.89411765, b: 0.94509804, a: 1}
     groundFillColor: {r: 0.945, g: 0.831, b: 0.549, a: 1}
