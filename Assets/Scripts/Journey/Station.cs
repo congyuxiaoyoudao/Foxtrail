@@ -36,7 +36,7 @@ namespace Hiking.Journey
             if (fill != null && !themeFills.Contains(fill)) themeFills.Add(fill);
         }
         // 每步结算后调用。块数没有跨过阈值时不会改动整站景素材引用。
-        public void RefreshThemeConversion()
+        public void RefreshThemeConversion(bool refreshTileTransitions = true)
         {
             if (Tiles == null || Tiles.Length == 0) return;
             int snow = 0, grass = 0, desert = 0;
@@ -60,7 +60,7 @@ namespace Hiking.Journey
                 layer.SetArtTheme(layer.LayerIndex < 3 ? FarTheme : MiddleTheme);
             foreach (var fill in themeFills)
                 fill.SetFillTheme(fill.IsGround ? MiddleTheme : FarTheme);
-            RefreshTileTransitions();
+            if (refreshTileTransitions) RefreshTileTransitions();
         }
         // 每步结算后逐块判断过渡温度带：from 在进入温度带时记录一次并保持不变，
         // to 取温度正在靠拢的那一侧，所以升温与降温显示的方向不同。
@@ -82,7 +82,8 @@ namespace Hiking.Journey
                 }
                 else
                 {
-                    if (!transitionActive[i] || transitionBand[i] != segment)
+                    bool enteringBand = !transitionActive[i] || transitionBand[i] != segment;
+                    if (enteringBand)
                     {
                         transitionBand[i] = segment;
                         transitionFrom[i] = tile.Category;
@@ -90,8 +91,9 @@ namespace Hiking.Journey
                     var low = segment == 1 ? StationTheme.Snow : StationTheme.Grass;
                     var high = segment == 1 ? StationTheme.Grass : StationTheme.Desert;
                     bool warming = tile.LastChange.Temperature > 0f, cooling = tile.LastChange.Temperature < 0f;
+                    // 没有本步温差时维持原表现；旧存档缺少方向时按当前类别显示。
                     transitionTo[i] = warming ? high : cooling ? low :
-                        (transitionFrom[i] == low ? high : low);
+                        enteringBand ? tile.Category : transitionTo[i];
                     transitionActive[i] = true;
                 }
                 // 过渡期间地面要跟着预期类别重画，所以这一格的状态变化后立即刷新。
@@ -101,6 +103,36 @@ namespace Hiking.Journey
 public TileState[] Tiles { get; private set; }
         // 读档：整批换成存档里的地块。Tiles 是只读属性，只能在类内部赋值。
         public void RestoreTiles(TileState[] tiles) => Tiles = tiles;
+        public void CaptureTileTransition(int index, TileData data)
+        {
+            if (data == null || transitionActive == null || index < 0 || index >= transitionActive.Length)
+                return;
+            data.transitionActive = transitionActive[index];
+            data.transitionBand = transitionBand[index];
+            data.transitionFrom = (int)transitionFrom[index];
+            data.transitionTo = (int)transitionTo[index];
+        }
+        // 过渡方向会影响当前地面贴图，必须在刷新画面前恢复。
+        // 老档没有这组字段，调用方会按当前类别和温度重新计算。
+        public bool RestoreTileTransitions(TileData[] saved)
+        {
+            if (saved == null || transitionActive == null || saved.Length != transitionActive.Length)
+                return false;
+            foreach (var tile in saved)
+                if (tile == null || !tile.hasVisualState || tile.transitionBand < 0 || tile.transitionBand > 2 ||
+                    tile.transitionFrom < 0 || tile.transitionFrom > 2 ||
+                    tile.transitionTo < 0 || tile.transitionTo > 2 ||
+                    tile.transitionActive && tile.transitionBand == 0)
+                    return false;
+            for (int i = 0; i < saved.Length; i++)
+            {
+                transitionActive[i] = saved[i].transitionActive;
+                transitionBand[i] = saved[i].transitionBand;
+                transitionFrom[i] = (StationTheme)saved[i].transitionFrom;
+                transitionTo[i] = (StationTheme)saved[i].transitionTo;
+            }
+            return true;
+        }
         // 读档前必须清掉植物标记：plantMarkers 以植物对象为键，而读档会整批换成新对象，
         // 旧键不会被 SyncPlantMarkers 判成死亡，结果屏幕上会留下"幽灵植物"。
         public void ClearPlantMarkers(JourneyMap map)

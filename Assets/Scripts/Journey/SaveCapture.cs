@@ -109,6 +109,7 @@ namespace Hiking.Journey
             for (int i = 0; i < station.Tiles.Length; i++)
             {
                 var tile = CaptureTile(station.Tiles[i]);
+                station.CaptureTileTransition(i, tile);
                 tile.pondFadeRemainingSeconds = station.PondFadeRemaining(i);
                 tiles.Add(tile);
             }
@@ -125,6 +126,11 @@ namespace Hiking.Journey
             data.soilContent = tile.SoilContent;
             data.soilWater = tile.SoilWater;
             data.baseEvaporationRate = tile.BaseEvaporationRate;
+            data.evaporationRate = tile.EvaporationRate;
+            data.evaporatedThisStep = tile.EvaporatedThisStep;
+            data.rainfallThisStep = tile.RainfallThisStep;
+            data.lastChange = tile.LastChange;
+            data.hasVisualState = true;
             data.surfaceWater = tile.SurfaceWater;
             data.temperature = tile.Temperature;
             data.hasExtendedEcologyState = true;

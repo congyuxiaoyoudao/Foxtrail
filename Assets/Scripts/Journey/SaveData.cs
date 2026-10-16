@@ -17,7 +17,7 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 4;
+        public const int CurrentVersion = 5;
 
         public int schemaVersion = CurrentVersion;
         public long savedAtUtcTicks;
@@ -130,10 +130,16 @@ namespace Hiking.Journey
     public sealed class TileData
     {
         public bool hasExtendedEcologyState;
+        // 版本 5：保留上一步的可见状态与温度带方向，读档第一帧无需猜测过渡方向。
+        public bool hasVisualState;
         public int category;
         public float soilContent;
         public float soilWater;
         public float baseEvaporationRate;
+        public float evaporationRate;
+        public float evaporatedThisStep;
+        public float rainfallThisStep;
+        public TileSnapshot lastChange;
         public float surfaceWater;
         public float pondFadeRemainingSeconds;
         public float temperature;
@@ -142,6 +148,10 @@ namespace Hiking.Journey
         public float pendingVapor;
         public float drainageLoss;
         public int height;
+        public bool transitionActive;
+        public int transitionBand;
+        public int transitionFrom;
+        public int transitionTo;
         public PlantData[] plants = Array.Empty<PlantData>();
         public SeedData[] seeds = Array.Empty<SeedData>();
     }

@@ -104,6 +104,13 @@ namespace Hiking.Journey
                     });
 
             tile.RefreshEvaporation();
+            if (data.hasVisualState)
+            {
+                tile.EvaporationRate = Mathf.Max(0, data.evaporationRate);
+                tile.EvaporatedThisStep = Mathf.Max(0, data.evaporatedThisStep);
+                tile.RainfallThisStep = Mathf.Max(0, data.rainfallThisStep);
+                tile.LastChange = data.lastChange;
+            }
             return tile;
         }
 
@@ -354,6 +361,7 @@ namespace Hiking.Journey
         }
     }
 
+    [Serializable]
     public struct TileSnapshot
     {
         public float SoilContent, MaxWater, SoilWater, SoilHumidity, EvaporationRate, SurfaceWater, Temperature, DrainageLoss, PendingVapor;
