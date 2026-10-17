@@ -104,6 +104,8 @@ namespace Hiking.Journey
                         patches, settings, settings.ThemeColor(station.theme));
                     station.SyncPlantMarkers(map, false);
                 }
+                for (int i = 0; i < map.stations.Length - 1; i++)
+                    map.stations[i].SetNextStation(map.stations[i + 1]);
                 map.SyncPondVisuals();
                 map.finishPoint = Anchor(map, root.transform, "FinishPoint_100Percent",
                     new Vector3(map.RouteLength - map.TileWidth * .5f, settings.ringThickness * .5f + .5f, 0));

@@ -70,3 +70,24 @@ MonoBehaviour:
     fallbackLandscape: {fileID: 21300000, guid: c64b72120d3b45e3a2f4879d811c56ca, type: 3}
     skyFillColor: {r: 0.6627451, g: 0.89411765, b: 0.94509804, a: 1}
     groundFillColor: {r: 0.945, g: 0.831, b: 0.549, a: 1}
+  transitions:
+  - fromTheme: 0
+    toTheme: 1
+    far: {fileID: 21300000, guid: bf96bffac358f2143aff06978d625c7b, type: 3}
+    middle: {fileID: 21300000, guid: 444cd18bce2e19943bba2d45e58cc0e9, type: 3}
+    nearGround: {fileID: 21300000, guid: 5171ff615b5d0514e8adcbf65cf892d9, type: 3}
+  - fromTheme: 1
+    toTheme: 0
+    far: {fileID: 21300000, guid: 9eec9fa17bd70b248b4c441a3e61201c, type: 3}
+    middle: {fileID: 21300000, guid: 567f9601029c5254c9becf8f9f78faef, type: 3}
+    nearGround: {fileID: 21300000, guid: 443c2cad2069ddf43aa3b3ebcdba96a7, type: 3}
+  - fromTheme: 1
+    toTheme: 2
+    far: {fileID: 21300000, guid: df736d6225a30d941b153373ced0379a, type: 3}
+    middle: {fileID: 21300000, guid: 82fc21d1b2cbd1d468fa387517ca9cbf, type: 3}
+    nearGround: {fileID: 21300000, guid: 36670a46c8c160b4a821ea790358e233, type: 3}
+  - fromTheme: 2
+    toTheme: 1
+    far: {fileID: 21300000, guid: 9cc8aa3f40c9e2e4685a2c64bd86bca8, type: 3}
+    middle: {fileID: 21300000, guid: 2d7c30c3fc2ba374985ae41c09d9f7f0, type: 3}
+    nearGround: {fileID: 21300000, guid: 4d44f407958dac941b422b65b231fc03, type: 3}

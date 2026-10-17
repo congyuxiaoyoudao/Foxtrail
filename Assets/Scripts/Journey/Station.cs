@@ -21,6 +21,8 @@ namespace Hiking.Journey
         readonly List<SceneThemeFill> themeFills = new List<SceneThemeFill>();
         public StationTheme FarTheme { get; private set; }
         public StationTheme MiddleTheme { get; private set; }
+        public Station NextStation { get; private set; }
+        Station previousStation;
         // 逐块过渡：温度进入分界附近的地块，地面提前换成预期类别的土地素材；
         // 整站远景与中景不随单块变化。
         bool[] transitionActive;
@@ -34,6 +36,13 @@ namespace Hiking.Journey
         public void RegisterThemeFill(SceneThemeFill fill)
         {
             if (fill != null && !themeFills.Contains(fill)) themeFills.Add(fill);
+        }
+        public void SetNextStation(Station next)
+        {
+            NextStation = next;
+            if (next != null) next.previousStation = this;
+            foreach (var layer in themeLayers) layer.RefreshPosition();
+            if (tileCount > 0) RefreshTile(tileCount - 1, false);
         }
         // 每步结算后调用。块数没有跨过阈值时不会改动整站景素材引用。
         public void RefreshThemeConversion(bool refreshTileTransitions = true)
@@ -191,6 +200,8 @@ Tiles = new TileState[tileCount];
         public void RefreshTile(int tile, bool syncPond = true)
         {
             RefreshWaterVisual(tile);
+            if (tile == 0 && previousStation != null)
+                previousStation.RefreshTile(previousStation.tileCount - 1, false);
             if (syncPond && ownerMap != null) ownerMap.SyncPondVisuals();
         }
         public void SetPatchMesh(int tile, Mesh mesh, Color baseColor, JourneyMap map)
@@ -216,20 +227,26 @@ Tiles = new TileState[tileCount];
             if (patchVisuals[tile] != null)
             {
                 var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(groundTheme) : null;
-                var sprite = layers != null && layers.nearGround != null ?
+                var transition = tile == tileCount - 1 && NextStation != null ?
+                    mapSettings.sceneThemes?.TransitionFor(groundTheme,
+                        NextStation.GroundThemeAt(0)) : null;
+                var transitionSprite = transition?.nearGround;
+                var sprite = transitionSprite != null ? transitionSprite :
+                    layers != null && layers.nearGround != null ?
                     layers.nearGround : mapSettings.fallbackPlantSprite;
                 if (sprite != null)
                 {
                     var visual = patchVisuals[tile]; visual.sprite = sprite;
                     float sx = TileWidth / Mathf.Max(.001f, sprite.bounds.size.x);
-                    float height = layers?.nearGround != null ? sprite.bounds.size.y * sx :
+                    bool hasGroundArt = transitionSprite != null || layers?.nearGround != null;
+                    float height = hasGroundArt ? sprite.bounds.size.y * sx :
                         mapSettings.GroundPlaceholderHeight(TileWidth);
                     float sy = height / Mathf.Max(.001f, sprite.bounds.size.y);
                     visual.transform.localScale = new Vector3(sx,sy,1);
                     var layout = mapSettings.sceneLayout;
                     ownerMap.UpdateRouteObject(visual.transform,new Vector3(TileCenter(tile),
                         mapSettings.ringThickness*.5f+(layout != null ? layout.groundY : 0f)-height*.5f,-.05f));
-                    visual.color = layers?.nearGround != null ? Color.white :
+                    visual.color = hasGroundArt ? Color.white :
                         groundTheme == theme ? patchColors[tile] :
                         mapSettings.ThemeColor(groundTheme);
                 }
