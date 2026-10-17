@@ -84,21 +84,6 @@ namespace Hiking.Journey
                     }
                     if (themeLayers != null && settings.fallbackPlantSprite != null)
                         AddThemeFills(map, station, settings);
-                    for (int tile = 0; tile < patches; tile++)
-                    {
-                        var anchor = Anchor(map, station.transform, "Moisture_" + tile,
-                            new Vector3(station.TileCenter(tile), -.15f, -.65f));
-                        map.MarkNearRouteObject(anchor);
-                        var label = anchor.gameObject.AddComponent<TextMesh>();
-                        label.fontSize = 48; label.characterSize = .028f * Mathf.Min(1, station.TileWidth);
-                        label.anchor = TextAnchor.MiddleCenter; label.color = new Color(.65f,.87f,1);
-                        if (settings.tileLabelFont != null)
-                        {
-                            label.font = settings.tileLabelFont;
-                            label.GetComponent<MeshRenderer>().sharedMaterial = settings.tileLabelFont.material;
-                        }
-                        station.SetMoistureLabel(tile, label);
-                    }
                     float stopDistance = station.TileCenter(0);
                     station.stopProgress = map.ProgressAtDistance(stopDistance);
                     station.stopPoint = Anchor(map, station.transform, "StopPoint",

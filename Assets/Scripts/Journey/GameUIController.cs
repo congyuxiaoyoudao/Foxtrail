@@ -19,9 +19,6 @@ namespace Hiking.Journey
         public Text panoramaProgressPercent;
         public GameObject panoramaCompletionControls;
         public Button panoramaBrowseReturnButton;
-        [Header("地块调试（布局及按钮事件保存在 Canvas）")]
-        public GameObject debugPanel;
-        public Text debugStatus;
         // Retain old serialized references while the scene migrates to automatic travel.
         [HideInInspector] public GameObject exitPrompt;
         [HideInInspector] public Text exitPromptText;
@@ -77,7 +74,8 @@ namespace Hiking.Journey
         void PositionSignEditor(PlacementSlot slot)
         {
             if (slot?.Sign == null || signEditorRect == null) return;
-            var canvasRect = GetComponent<RectTransform>();
+            var canvasRect = signEditorRect.parent as RectTransform;
+            if (canvasRect == null) return;
             Vector2 screen = slot.Sign.ScreenPosition(flow.Camera.WorldCamera);
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null,
                 out Vector2 local);
@@ -141,10 +139,14 @@ namespace Hiking.Journey
             RefreshModeLabel();
         }
         public void StartJourney() => flow.StartJourney(mode);
-        public void StartDebugMode() => flow.StartDebugMode();
-        public void StepDebugMap() => flow.StepDebugMap();
-        public void DebugPanLeft() { if (flow.IsDebugMode) flow.Camera.PanDebug(-4 * flow.Map.TileWidth); }
-        public void DebugPanRight() { if (flow.IsDebugMode) flow.Camera.PanDebug(4 * flow.Map.TileWidth); }
+        public void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
         public void Depart() { }
         public void CycleMode()
         {
@@ -188,7 +190,7 @@ namespace Hiking.Journey
             if (flow == null) return;
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
-            journeyPanel.SetActive(!flow.IsSettlingOffline && !flow.IsDebugMode && !flow.IsPreviewing &&
+            journeyPanel.SetActive(!flow.IsSettlingOffline && !flow.IsPreviewing &&
                 flow.Activity != JourneyActivity.Complete && session.Phase != JourneyPhase.Start);
             if (previewPanoramaButton != null) previewPanoramaButton.interactable = !IsModalOpen;
             // 没有存档时不显示「继续游戏」，免得点了没反应
@@ -198,20 +200,6 @@ namespace Hiking.Journey
                 bool settling = flow.IsSettlingOffline;
                 if (loadingText.gameObject.activeSelf != settling) loadingText.gameObject.SetActive(settling);
                 if (settling) loadingText.text = "正在结算离线时间… " + (flow.OfflineProgress01 * 100f).ToString("0") + "%";
-            }
-            if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
-            if (flow.IsDebugMode)
-            {
-                if (debugStatus != null)
-                {
-                    var weather = flow.Map.Weather;
-                    int interval = Mathf.Max(1, flow.Map.sourceSettings.rainCheckInterval);
-                    string rain = weather.IsRaining || weather.RainAppliedThisStep ?
-                        $"降雨 {weather.RainStartTile + 1}～{weather.RainEndTile + 1} 格 · 剩余 {weather.RemainingSeconds} 秒 · 本场 {weather.EventRain:0.00}" :
-                        $"下次天气检查 {interval - flow.Map.SimulationStep % interval} 秒后";
-                    debugStatus.text = $"地块调试 · 第 {flow.DebugStepCount} 步 · 共 {flow.Map.stations.Length * RingMapSettings.TilesPerStation} 块\n" +
-                        rain + " · 拖动 / 滚轮 / ← → 浏览全图";
-                }
             }
             bool finished = flow.Activity == JourneyActivity.Complete;
             bool previewing = flow.IsPreviewing;

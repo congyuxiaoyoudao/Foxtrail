@@ -25,7 +25,7 @@ namespace Hiking.Journey
                     slot.InitializePlan(flow.Config, flow.Map.sourceSettings);
         }
 
-        public bool IsAtSlot(PlacementSlot slot) => flow.Map != null && !flow.IsDebugMode &&
+        public bool IsAtSlot(PlacementSlot slot) => flow.Map != null &&
             flow.Session.Phase == JourneyPhase.AtStation && !flow.Traveler.IsMoving && slot != null &&
             slot.station == flow.CurrentStation && Array.IndexOf(flow.CurrentStation.slots, slot) >= 0 &&
             Mathf.Abs(flow.Map.RouteDistanceAtProgress(flow.Traveler.Progress01) -
@@ -107,7 +107,7 @@ namespace Hiking.Journey
 
         void Update()
         {
-            if (flow == null || flow.Map == null || flow.IsDebugMode || flow.IsPreviewing ||
+            if (flow == null || flow.Map == null || flow.IsPreviewing ||
                 flow.IsSettlingOffline || flow.Activity == JourneyActivity.Complete) return;
             var mouse = Mouse.current;
             if (mouse != null && Application.isFocused)

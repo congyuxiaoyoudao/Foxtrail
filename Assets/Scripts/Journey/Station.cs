@@ -146,7 +146,6 @@ public TileState[] Tiles { get; private set; }
             }
             plantMarkers.Clear();
         }
-        TextMesh[] moistureLabels;
         readonly Dictionary<PlantInstance, SpriteRenderer> plantMarkers = new Dictionary<PlantInstance, SpriteRenderer>();
         sealed class FadingPlantSprite
         {
@@ -172,14 +171,13 @@ public TileState[] Tiles { get; private set; }
         float[] pondDryStart;
         RingMapSettings mapSettings;
         JourneyMap ownerMap;
-        bool debugLabels;
         public void InitializeTiles(RingMapSettings settings)
         {
             mapSettings = settings;
                         FarTheme = theme; MiddleTheme = theme;
             transitionActive = new bool[tileCount]; transitionBand = new int[tileCount];
             transitionFrom = new StationTheme[tileCount]; transitionTo = new StationTheme[tileCount];
-Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
+Tiles = new TileState[tileCount];
             patchMeshes = new Mesh[tileCount]; patchColors = new Color[tileCount];
             patchVisuals = new SpriteRenderer[tileCount];
             patchWaterOverlays = new SpriteRenderer[tileCount];
@@ -190,10 +188,8 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
             int basin = settings.createStationBasin ? UnityEngine.Random.Range(0,3)*4+2 : -10;
             for (int i = 0; i < tileCount; i++) Tiles[i] = settings.CreateTile(theme, i == basin, Mathf.Abs(i-basin) == 1);
         }
-        public float MoistureAt(int tile) => Tiles[tile].SurfaceWater;
         public void RefreshTile(int tile, bool syncPond = true)
         {
-            RefreshMoisture(tile);
             RefreshWaterVisual(tile);
             if (syncPond && ownerMap != null) ownerMap.SyncPondVisuals();
         }
@@ -343,12 +339,6 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
                 marker.enabled = alpha > 0f;
             }
         }
-        public void SetMoistureLabel(int tile, TextMesh label)
-        {
-            moistureLabels[tile] = label;
-            label.gameObject.SetActive(debugLabels);
-            RefreshMoisture(tile);
-        }
         public void AddWater(int tile, int quantity)
         {
             if (quantity <= 0) return;
@@ -363,23 +353,6 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
             var eligible = mapSettings.plantCatalog.SuitableFor(Tiles[tile].Category);
             for (int i = 0; i < quantity; i++)
                 Tiles[tile].TryAddSeed(eligible[UnityEngine.Random.Range(0, eligible.Length)].id, currentStep);
-            RefreshMoisture(tile);
-        }
-        public void SetDebugLabels(bool visible)
-        {
-            debugLabels = visible;
-            for (int i = 0; i < tileCount; i++)
-            {
-                var label = moistureLabels[i];
-                if (label != null)
-                {
-                    label.gameObject.SetActive(visible);
-                    label.anchor = visible ? TextAnchor.UpperCenter : TextAnchor.MiddleCenter;
-                    label.characterSize = (visible ? .016f : .028f) * Mathf.Min(1, TileWidth);
-                    label.lineSpacing = 1.1f;
-                }
-                RefreshMoisture(i);
-            }
         }
         public void StepTiles(int currentStep, JourneyMap map,
             TileSnapshot[] beforeFlow, int firstTileIndex)
@@ -707,31 +680,6 @@ Tiles = new TileState[tileCount]; moistureLabels = new TextMesh[tileCount];
                     new Vector3(TileCenter(tile), top - waterHeight * .5f, -.055f));
             }
         }
-        static string Delta(float value, string suffix = "") => $"({value:+0.0;-0.0;0}{suffix})";
-        static string SmallDelta(float value) => $"({value:+0.0000;-0.0000;0.0000})";
-        void RefreshMoisture(int tile)
-        {
-            if (moistureLabels[tile] == null) return;
-            var t = Tiles[tile]; var d = t.LastChange;
-            moistureLabels[tile].text = debugLabels ?
-                $"{stationId.Replace("station-", "")}-{tile + 1} {t.CategoryName}\n" +
-                $"泥土 {t.SoilContent:0.0} {Delta(d.SoilContent)}\n" +
-                $"容量 {t.MaxWater:0.0} {Delta(d.MaxWater)}\n" +
-                $"土壤水 {t.SoilWater:0.0} {Delta(d.SoilWater)}\n" +
-                $"自然植物 {t.PlantCount} {Delta(d.PlantCount)}\n" +
-                $"待萌发 {t.SeedCount} {Delta(d.SeedCount)}\n" +
-                $"植 {PlantDetails(t)}\n" +
-                $"湿度 {t.SoilHumidity * 100:0.0}% {Delta(d.SoilHumidity * 100)}\n" +
-                $"蒸发 {t.EvaporationRate:0.000}/步 {Delta(d.EvaporationRate)}\n" +
-                $"高度 {t.Height}+{t.EffectiveHeight - t.Height}={t.EffectiveHeight} {Delta(d.EffectiveHeight)}\n" +
-                $"地表水 {t.SurfaceWater:0.000} {SmallDelta(d.SurfaceWater)}\n" +
-                $"水汽 {t.PendingVapor:0.000} {SmallDelta(d.PendingVapor)} · 雨 +{t.RainfallThisStep:0.0000}\n" +
-                $"排水 {t.DrainageLoss:0.0} {Delta(d.DrainageLoss)}\n" +
-                $"温度 {t.Temperature:0.0000}°C ({d.Temperature:+0.0000;-0.0000;0.0000})" : string.Empty;
-        }
-        static string PlantDetails(TileState tile) => tile.PlantCount == 0 ? "无" :
-            string.Join(" ", Array.ConvertAll(tile.NaturalPlants, plant =>
-                $"{plant.life}/{plant.stageIndex + 1}{(plant.lastLifeChange > 0 ? "+" : plant.lastLifeChange < 0 ? "-" : "=")}"));
         public float startDistance, length;
         public float TileWidth => length / tileCount;
         public float TileCenter(int index) => startDistance + (Mathf.Clamp(index, 0, tileCount - 1) + .5f) * TileWidth;

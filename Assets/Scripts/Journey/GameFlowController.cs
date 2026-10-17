@@ -36,9 +36,8 @@ namespace Hiking.Journey
         public string SaveError { get; private set; }
         public int LevelIndex { get; private set; } = 1;
         public string RunId => runId;
-        public bool IsDebugMode { get; private set; }
-        public int DebugStepCount { get; private set; }
         public Station CurrentStation => Map != null ? Map.stations[Session.StationIndex] : null;
+        public void ResetRealtimeClock() => lastTime = Time.realtimeSinceStartupAsDouble;
 
         [Header("存档")]
         [Tooltip("自动保存间隔（秒）。对应策划的『定期保存，间隔作为可配置参数』。")]
@@ -71,7 +70,7 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             // 离线结算期间不推进旅途、不结算行动点：这一段时间属于"读档"，不属于游戏
             if (IsSettlingOffline) return;
-            if (IsPreviewing || IsDebugMode || Activity == JourneyActivity.Complete) return;
+            if (IsPreviewing || Activity == JourneyActivity.Complete) return;
             Session.Tick(delta);
             TickAutosave(delta);
             if (Map == null) return;
@@ -99,7 +98,7 @@ namespace Hiking.Journey
 
         public bool SaveNow()
         {
-            if (Map == null || IsDebugMode || IsSettlingOffline || IsFinalized ||
+            if (Map == null || IsSettlingOffline || IsFinalized ||
                 Activity == JourneyActivity.Complete || Session.Phase == JourneyPhase.Start) return false;
             var data = SaveCapture.Capture(this);
             return data != null && SaveSystem.Write(data);
@@ -136,7 +135,7 @@ namespace Hiking.Journey
         // 期间先把 generation 推到新值，让上一局遗留的移动回调失效（和 StartJourney 一样）。
         public bool RestoreFrom(SaveData data)
         {
-            if (data == null || Map != null || IsDebugMode || archive == null ||
+            if (data == null || Map != null || archive == null ||
                 data.levelIndex != archive.nextLevelIndex || string.IsNullOrEmpty(data.runId) ||
                 !IsPlayableSave(data) || data.map == null || data.weather == null ||
                 data.stations == null || data.stations.Length == 0 ||
@@ -339,34 +338,9 @@ namespace Hiking.Journey
                 UI.Notify("无法开始旅途：" + error.Message); Debug.LogException(error);
             }
         }
-        public void StartDebugMode()
-        {
-            if (Session.Phase != JourneyPhase.Start || Map != null) return;
-            try
-            {
-                Map = MapProvider.CreateMap(WorldRoot);
-                if (!Map.Validate(out string error)) throw new InvalidOperationException(error);
-                Session.Begin(Map.stations.Length, .1, Config.materials);
-                generation++; IsDebugMode = true; DebugStepCount = 0; CurrentTileIndex = 0; environmentSeconds = 0;
-                Activity = JourneyActivity.None;
-                Traveler.CancelMovement(); Traveler.gameObject.SetActive(false);
-                foreach (var station in Map.stations) station.SetDebugLabels(true);
-                Camera.ShowDebugMap();
-            }
-            catch (Exception error)
-            {
-                ReturnToStart(); UI.Notify("无法打开调试地图：" + error.Message); Debug.LogException(error);
-            }
-        }
-        public void StepDebugMap()
-        {
-            if (!IsDebugMode || Map == null) return;
-            Map.StepEnvironment();
-            DebugStepCount++;
-        }
         void Advance()
         {
-            if (Map == null || IsDebugMode || IsPreviewing || Traveler.IsMoving || UI.IsModalOpen) return;
+            if (Map == null || IsPreviewing || Traveler.IsMoving || UI.IsModalOpen) return;
             if (CurrentTileIndex == CurrentStation.tileCount - 1) { Depart(); return; }
             Activity = JourneyActivity.Walking;
             int nextTile = CurrentTileIndex + 1, currentGeneration = generation;
@@ -448,7 +422,7 @@ namespace Hiking.Journey
         }
         public void PreviewPanorama()
         {
-            if (Map == null || IsDebugMode || IsBrowsingPanorama || IsEnteringAppreciation ||
+            if (Map == null || IsBrowsingPanorama || IsEnteringAppreciation ||
                 Activity == JourneyActivity.Complete || UI.IsModalOpen) return;
             if (Placement.EditingSlot != null) Placement.CancelEditor();
             Map.CompletePlantFades();
@@ -506,7 +480,7 @@ namespace Hiking.Journey
         }
         void CollectOnTileEntry()
         {
-            if (Map == null || IsDebugMode) return;
+            if (Map == null) return;
             var tile = CurrentStation.Tiles[CurrentTileIndex];
             int seeds = Session.CollectSeedsOnFirstEntry(CurrentGlobalTile, tile.PlantCount);
             float water = tile.IsPuddle ? Session.CollectPuddleWater(tile.SurfaceWater) : 0;
@@ -527,7 +501,7 @@ namespace Hiking.Journey
             if (appreciationEntrance != null) StopCoroutine(appreciationEntrance);
             appreciationEntrance = null; IsAppreciating = false; IsEnteringAppreciation = false; IsPreviewing = false;
             IsFinalized = false; HasAppreciated = false; runId = null;
-            IsDebugMode = false; DebugStepCount = 0; environmentSeconds = 0;
+            environmentSeconds = 0;
             Activity = JourneyActivity.None; CurrentTileIndex = 0;
             Traveler.CancelMovement(); Camera.ResetCamera(); Placement.ClearSelection();
             if (Traveler.spriteRenderer != null) Traveler.spriteRenderer.enabled = true;

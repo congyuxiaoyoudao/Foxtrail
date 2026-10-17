@@ -84,8 +84,6 @@ namespace Hiking.Journey
             p.moveFraction = flow.Traveler.MoveFraction;
             p.moveDirection = flow.Traveler.MoveDirection;
             p.placementStopRemaining = flow.Placement.RemainingSeconds;
-            p.debugMode = flow.IsDebugMode;
-            p.debugStepCount = flow.DebugStepCount;
 
             var stations = new List<StationData>();
             foreach (var station in flow.Map.stations)

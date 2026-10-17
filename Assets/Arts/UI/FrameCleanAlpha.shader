@@ -28,7 +28,8 @@ Shader "Hiking/UI/FrameCleanAlpha"
         Lighting Off
         ZWrite Off
         ZTest [unity_GUIZTestMode]
-        Blend SrcAlpha OneMinusSrcAlpha
+        // Preserve coverage alpha for DWM while blending straight-alpha sprite colors.
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
         ColorMask [_ColorMask]
 
         Pass

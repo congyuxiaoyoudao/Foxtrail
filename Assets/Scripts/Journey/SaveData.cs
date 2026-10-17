@@ -91,8 +91,6 @@ namespace Hiking.Journey
         public float moveFraction;
         public float moveDirection;
         public float placementStopRemaining = -1f;
-        public bool debugMode;
-        public int debugStepCount;
     }
 
     [Serializable]
