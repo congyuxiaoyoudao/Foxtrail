@@ -1,0 +1,7 @@
+{
+  "name": "Hiking.UIUX.Tests",
+  "rootNamespace": "Hiking.UIUX.Tests",
+  "references": ["Hiking.UIUX"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": ["Editor"]
+}
