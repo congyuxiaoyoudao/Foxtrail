@@ -58,6 +58,8 @@ namespace Hiking.Journey
             settings.ViewportScaleRequested += OnViewportScaleRequested;
             AudioListener.volume = settings.MasterVolume;
             settings.MasterVolumeChanged += OnMasterVolumeChanged;
+            flow.UI.SetBgmVolume(settings.BgmVolume);
+            settings.BgmVolumeChanged += flow.UI.SetBgmVolume;
         }
 
         void RegisterDrag(FixedWidgetDrag drag)
@@ -190,6 +192,7 @@ namespace Hiking.Journey
             {
                 settings.ViewportScaleRequested -= OnViewportScaleRequested;
                 settings.MasterVolumeChanged -= OnMasterVolumeChanged;
+                settings.BgmVolumeChanged -= flow.UI.SetBgmVolume;
             }
             if (hudDrag != null) UnregisterDrag(hudDrag);
             if (notebookDrag != null) UnregisterDrag(notebookDrag);

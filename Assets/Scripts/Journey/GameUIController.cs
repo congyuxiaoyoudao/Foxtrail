@@ -19,6 +19,9 @@ namespace Hiking.Journey
         public Text panoramaProgressPercent;
         public GameObject panoramaCompletionControls;
         public Button panoramaBrowseReturnButton;
+        [Header("背景音乐")]
+        public AudioClip titleBgm, plainBgm, snowMountainBgm, desertBgm;
+        [Min(.1f)] public float bgmCrossfadeSeconds = 1.5f;
         // Retain old serialized references while the scene migrates to automatic travel.
         [HideInInspector] public GameObject exitPrompt;
         [HideInInspector] public Text exitPromptText;
@@ -107,11 +110,13 @@ namespace Hiking.Journey
             public Color selectedColor = new Color(.28f, .49f, .43f);
         }
         TravelUIBridge travelUI;
+        JourneyBgmPlayer bgmPlayer;
         Text panoramaTitle;
         public void Initialize(GameFlowController owner)
         {
             flow = owner;
             ClosePlacementPrompt(false); CloseExitPrompt(); HideSignEditor();
+            bgmPlayer = new JourneyBgmPlayer(gameObject);
             travelUI = gameObject.AddComponent<TravelUIBridge>();
             travelUI.Initialize(owner);
             if (signWaterMinus != null) signWaterMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", -1));
@@ -182,10 +187,13 @@ namespace Hiking.Journey
         }
         public void ApplyTravelPreset() => travelUI?.ApplyPresetToMap();
         public void SyncTravelPreset() => travelUI?.SyncPresetFromMap();
+        public void SetBgmVolume(float volume) => bgmPlayer?.SetVolume(volume);
         public void ExitAppreciation() => flow.ExitAppreciation();
         void LateUpdate()
         {
             if (flow == null) return;
+            bgmPlayer.SetTarget(CurrentBgm(), bgmCrossfadeSeconds);
+            bgmPlayer.Tick(Time.unscaledDeltaTime);
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
             // 没有存档时不显示「继续游戏」，免得点了没反应
@@ -266,6 +274,94 @@ namespace Hiking.Journey
         public void Notify(string message)
         {
             if (!string.IsNullOrEmpty(message)) Debug.Log(message, this);
+        }
+        AudioClip CurrentBgm()
+        {
+            if (flow.Map == null || flow.Activity == JourneyActivity.Complete) return titleBgm;
+            var station = flow.CurrentStation;
+            if (station == null) return titleBgm;
+            // Match the ground/near landscape when weather changes a station's visible theme.
+            switch (station.MiddleTheme)
+            {
+                case StationTheme.Snow: return snowMountainBgm;
+                case StationTheme.Desert: return desertBgm;
+                default: return plainBgm;
+            }
+        }
+    }
+
+    // Two looping sources overlap so scene and station changes never cut the old track abruptly.
+    internal sealed class JourneyBgmPlayer
+    {
+        readonly AudioSource[] sources = new AudioSource[2];
+        readonly float[] gains = new float[2];
+        readonly float[] startGains = new float[2];
+        AudioClip target;
+        float volume = 1f;
+        float elapsed;
+        float fadeSeconds = 1f;
+        int incoming = -1;
+
+        public JourneyBgmPlayer(GameObject host)
+        {
+            for (int i = 0; i < sources.Length; i++)
+            {
+                var source = host.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.loop = true;
+                source.spatialBlend = 0f;
+                source.volume = 0f;
+                sources[i] = source;
+            }
+        }
+
+        public void SetVolume(float value)
+        {
+            volume = Mathf.Clamp01(value);
+            ApplyVolumes();
+        }
+
+        public void SetTarget(AudioClip clip, float seconds)
+        {
+            if (clip == target) return;
+            target = clip;
+            incoming = -1;
+            if (clip != null)
+            {
+                for (int i = 0; i < sources.Length; i++)
+                    if (sources[i].clip == clip && sources[i].isPlaying) incoming = i;
+                if (incoming < 0)
+                {
+                    incoming = gains[0] <= gains[1] ? 0 : 1;
+                    sources[incoming].Stop();
+                    sources[incoming].clip = clip;
+                    gains[incoming] = 0f;
+                    sources[incoming].volume = 0f;
+                    sources[incoming].Play();
+                }
+            }
+            for (int i = 0; i < sources.Length; i++) startGains[i] = gains[i];
+            elapsed = 0f;
+            fadeSeconds = Mathf.Max(.1f, seconds);
+        }
+
+        public void Tick(float deltaTime)
+        {
+            elapsed = Mathf.Min(fadeSeconds, elapsed + Mathf.Max(0f, deltaTime));
+            float t = elapsed / fadeSeconds;
+            t = t * t * (3f - 2f * t);
+            for (int i = 0; i < sources.Length; i++)
+            {
+                gains[i] = Mathf.Lerp(startGains[i], i == incoming ? 1f : 0f, t);
+                if (elapsed >= fadeSeconds && i != incoming && sources[i].isPlaying)
+                    sources[i].Stop();
+            }
+            ApplyVolumes();
+        }
+
+        void ApplyVolumes()
+        {
+            for (int i = 0; i < sources.Length; i++) sources[i].volume = gains[i] * volume;
         }
     }
 }

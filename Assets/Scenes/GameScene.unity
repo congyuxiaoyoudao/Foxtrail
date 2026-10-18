@@ -3084,6 +3084,11 @@ MonoBehaviour:
   panoramaProgressPercent: {fileID: 204131644}
   panoramaCompletionControls: {fileID: 1049992868}
   panoramaBrowseReturnButton: {fileID: 676518535}
+  titleBgm: {fileID: 8300000, guid: c22a18159311601449735895605d55da, type: 3}
+  plainBgm: {fileID: 8300000, guid: 64ad939f4f3e47e4e91d3375c92766b8, type: 3}
+  snowMountainBgm: {fileID: 8300000, guid: e246424a071fde845b62d260cb997887, type: 3}
+  desertBgm: {fileID: 8300000, guid: 8755f9cc9efd88d469ede25bf4fb81bc, type: 3}
+  bgmCrossfadeSeconds: 1.5
   exitPrompt: {fileID: 0}
   exitPromptText: {fileID: 0}
   confirmExit: {fileID: 0}
@@ -4004,6 +4009,7 @@ GameObject:
   - component: {fileID: 1806386075}
   - component: {fileID: 1806386074}
   - component: {fileID: 1806386076}
+  - component: {fileID: 1806386077}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -4011,6 +4017,14 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!81 &1806386077
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806386073}
+  m_Enabled: 1
 --- !u!20 &1806386074
 Camera:
   m_ObjectHideFlags: 0
