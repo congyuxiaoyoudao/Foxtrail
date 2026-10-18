@@ -136,10 +136,13 @@ namespace Hiking.Journey
         RectTransform frameRoot;
         Camera clearCamera;
         bool draggingFrame;
+        bool draggingFloatingWidget;
         Vector2 lastPointer;
         bool windowConfigured;
         bool regionErrorLogged;
         bool expandedRegionWhileDragging;
+        float viewportScale = 1f;
+        float lastFittedViewportScale;
         int lastRegionHash;
         IntPtr frameRegionTemplate;
         int frameRegionWidth;
@@ -151,6 +154,8 @@ namespace Hiking.Journey
         SceneLayoutSettings sceneLayout;
         RectTransform titleBackgroundClip;
         RectTransform titleBackground;
+        RectTransform titleStartPanel;
+        Vector3 titleBackgroundSceneLocalPosition;
         int lastFittedScreenWidth;
         int lastFittedScreenHeight;
         float lastFittedImageWidth;
@@ -198,9 +203,12 @@ namespace Hiking.Journey
             ActiveFrameRoot = null;
             frameRoot = null;
             draggingFrame = false;
+            draggingFloatingWidget = false;
             expandedRegionWhileDragging = false;
+            lastFittedViewportScale = 0f;
             titleBackgroundClip = null;
             titleBackground = null;
+            titleStartPanel = null;
             lastFittedScreenWidth = lastFittedScreenHeight = 0;
             lastFittedImageWidth = lastFittedImageHeight = 0f;
             sceneLayout = FindFirstObjectByType<MapProvider>()?.ringSettings?.sceneLayout;
@@ -231,8 +239,8 @@ namespace Hiking.Journey
                 var rootObject = new GameObject("FrameRoot", typeof(RectTransform));
                 frameRoot = (RectTransform)rootObject.transform;
                 frameRoot.SetParent(canvas.transform, false);
-                string[] framedElements = { "StartPanel", "GameFrame", "JourneyPanel",
-                    "PanoramaPanel", "LoadingText", "ToastText", "SignPlacementEditor" };
+                string[] framedElements = { "StartPanel", "GameFrame", "PanoramaPanel",
+                    "LoadingText", "SignPlacementEditor" };
                 foreach (string name in framedElements)
                 {
                     var element = canvas.transform.Find(name);
@@ -255,6 +263,8 @@ namespace Hiking.Journey
             var startPanel = frameRoot.Find("StartPanel") as RectTransform;
             var background = startPanel != null ? startPanel.Find("Background") as RectTransform : null;
             if (background == null) return;
+            titleStartPanel = startPanel;
+            titleBackgroundSceneLocalPosition = background.localPosition;
 
             var clipObject = new GameObject("Title Background Clip", typeof(RectTransform), typeof(RectMask2D));
             var clip = (RectTransform)clipObject.transform;
@@ -263,11 +273,13 @@ namespace Hiking.Journey
             Rect viewport = FramedViewport;
             clip.anchorMin = viewport.min;
             clip.anchorMax = viewport.max;
-            clip.offsetMin = Vector2.zero;
+            // Extend the title art beneath the lower frame rail so rounded
+            // mask coordinates cannot expose the transparent window between them.
+            clip.offsetMin = new Vector2(0f, -8f);
             clip.offsetMax = Vector2.zero;
             background.SetParent(clip, false);
             titleBackground = background;
-            FitTitleBackground();
+            PositionTitleBackground();
             clip.SetAsFirstSibling();
             if (windowConfigured) UpdateWindowRegion(true);
         }
@@ -381,6 +393,7 @@ namespace Hiking.Journey
                 Mouse.current == null)
             {
                 if (draggingFrame) FinishDragging();
+                if (draggingFloatingWidget) EndFloatingWidgetDrag();
                 return;
             }
 
@@ -398,6 +411,11 @@ namespace Hiking.Journey
                 next = new Vector2(Mathf.Round(next.x), Mathf.Round(next.y));
                 frameRoot.anchoredPosition = ClampFrameToScreen(next);
                 lastPointer = pointer;
+                return;
+            }
+            if (draggingFloatingWidget)
+            {
+                if (!mouse.leftButton.isPressed) EndFloatingWidgetDrag();
                 return;
             }
             if (!mouse.leftButton.wasPressedThisFrame || !IsOnVisibleFrame(pointer) ||
@@ -418,7 +436,7 @@ namespace Hiking.Journey
                 {
                     titleBackgroundClip.anchorMin = viewport.min;
                     titleBackgroundClip.anchorMax = viewport.max;
-                    FitTitleBackground();
+                    PositionTitleBackground();
                 }
             }
             if (windowConfigured && !expandedRegionWhileDragging) UpdateWindowRegion(false);
@@ -427,20 +445,20 @@ namespace Hiking.Journey
         Rect FramedViewport => sceneLayout != null ? sceneLayout.FramedViewport :
             SceneLayoutSettings.DefaultFramedViewport;
 
-        void FitTitleBackground()
+        public void SetViewportScale(float scale)
         {
-            if (titleBackgroundClip == null || titleBackground == null) return;
-            var image = titleBackground.GetComponent<Image>();
-            Sprite sprite = image != null ? image.sprite : null;
-            if (sprite == null) return;
-            Rect opening = titleBackgroundClip.rect;
-            float aspect = sprite.rect.width / sprite.rect.height;
-            float width = Mathf.Max(opening.width, opening.height * aspect);
-            titleBackground.anchorMin = titleBackground.anchorMax = titleBackground.pivot =
-                new Vector2(.5f, .5f);
-            titleBackground.anchoredPosition = Vector2.zero;
-            titleBackground.localScale = Vector3.one;
-            titleBackground.sizeDelta = new Vector2(width, width / aspect);
+            viewportScale = Mathf.Clamp(scale, .7f, 1f);
+            FitFrameToScreen();
+        }
+
+        void PositionTitleBackground()
+        {
+            if (titleBackgroundClip == null || titleBackground == null ||
+                titleStartPanel == null) return;
+            // The clipping rectangle may be offset from the scene's center.
+            // Keep the artwork at its original StartPanel position after reparenting.
+            titleBackground.position =
+                titleStartPanel.TransformPoint(titleBackgroundSceneLocalPosition);
         }
 
         void FitFrameToScreen()
@@ -453,23 +471,26 @@ namespace Hiking.Journey
             float imageHeight = image.rect.height * Mathf.Abs(image.localScale.y);
             if (Screen.width == lastFittedScreenWidth && Screen.height == lastFittedScreenHeight &&
                 Mathf.Approximately(imageWidth, lastFittedImageWidth) &&
-                Mathf.Approximately(imageHeight, lastFittedImageHeight)) return;
+                Mathf.Approximately(imageHeight, lastFittedImageHeight) &&
+                Mathf.Approximately(viewportScale, lastFittedViewportScale)) return;
             float outerWidth = Mathf.Max(FrameWidth, imageWidth);
             float outerHeight = Mathf.Max(FrameHeight, imageHeight);
             float scale = Mathf.Min(1f,
                 (Screen.width - ScreenEdgeMargin * 2f) / outerWidth,
                 (Screen.height - ScreenEdgeMargin * 2f) / outerHeight);
             scale = Mathf.Max(.1f, scale);
-            frameRoot.localScale = Vector3.one * scale;
+            frameRoot.localScale = Vector3.one * (scale * viewportScale);
             frameRoot.anchoredPosition = ClampFrameToScreen(frameRoot.anchoredPosition);
             lastFittedScreenWidth = Screen.width;
             lastFittedScreenHeight = Screen.height;
             lastFittedImageWidth = imageWidth;
             lastFittedImageHeight = imageHeight;
+            lastFittedViewportScale = viewportScale;
         }
 
         void ExpandRegionForDragging()
         {
+            if (expandedRegionWhileDragging) return;
             if (!windowConfigured || windowHandle == IntPtr.Zero ||
                 !GetWindowRect(windowHandle, out var bounds)) return;
             IntPtr region = CreateRectRgn(0, 0, bounds.right - bounds.left,
@@ -488,6 +509,23 @@ namespace Hiking.Journey
         void FinishDragging()
         {
             draggingFrame = false;
+            if (!draggingFloatingWidget) RestoreRegionAfterDrag();
+        }
+
+        public void BeginFloatingWidgetDrag()
+        {
+            draggingFloatingWidget = true;
+            ExpandRegionForDragging();
+        }
+
+        public void EndFloatingWidgetDrag()
+        {
+            draggingFloatingWidget = false;
+            if (!draggingFrame) RestoreRegionAfterDrag();
+        }
+
+        void RestoreRegionAfterDrag()
+        {
             if (!expandedRegionWhileDragging) return;
             expandedRegionWhileDragging = false;
             UpdateWindowRegion(true);
@@ -527,6 +565,17 @@ namespace Hiking.Journey
                 // on the Windows desktop.
                 widgetScratch.Clear();
                 widget.GetComponentsInChildren(false, widgetScratch);
+                foreach (var graphic in widgetScratch)
+                    if (VisibleRegionGraphic(graphic)) widgetGraphics.Add(graphic);
+            }
+            // TravelUI owns a separate overlay Canvas so its fixed-size HUD and
+            // settings notebook do not inherit the movable game frame's scale.
+            foreach (var overlay in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                if (overlay == null || !overlay.isRootCanvas || overlay.transform == canvas ||
+                    !overlay.gameObject.activeInHierarchy) continue;
+                widgetScratch.Clear();
+                overlay.GetComponentsInChildren(false, widgetScratch);
                 foreach (var graphic in widgetScratch)
                     if (VisibleRegionGraphic(graphic)) widgetGraphics.Add(graphic);
             }

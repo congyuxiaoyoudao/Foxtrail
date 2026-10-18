@@ -25,9 +25,9 @@ MonoBehaviour:
   mountainsY: -1.69
   middleY: -2.23
   fallbackY: 0
-  nearSharedY: -2.12
+  nearSharedY: -2.84
   groundY: -0.26
   foxY: -0.5
-  foregroundPlantY: -0.83
-  backgroundPlantY: -0.32
+  foregroundPlantY: -0.65
+  backgroundPlantY: -0.58
   placementSignY: -0.78

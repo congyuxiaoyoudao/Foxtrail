@@ -7,7 +7,10 @@ namespace Hiking.Journey
     {
         public const float GameplayAspect = 16f / 10f;
         const float FrameRootAspect = 1152f / 720f;
-        public static Rect DefaultFramedViewport => new Rect(.126f, .126f, .756f, .756f);
+        // Let the camera render beneath the lower wooden rail to cover rounding gaps.
+        const float LowerRailOverlap = 8f / 720f;
+        public static Rect DefaultFramedViewport =>
+            new Rect(.126f, .126f - LowerRailOverlap, .756f, .756f + LowerRailOverlap);
 
         [Tooltip("远景素材下边缘相对道路顶面的 Y 位置；各主题图层在此基础上叠加偏移")]
         public float landscapeBaseY = -1.83f;
@@ -62,16 +65,17 @@ namespace Hiking.Journey
                 float y = Mathf.Clamp(framedViewportVerticalInset, 0f, .2f);
                 float width = 1f - 2f * x;
                 float height = 1f - 2f * y;
-                // Fit a 16:10 camera opening inside the configured safe area.
-                // The 1152x720 root and camera opening both remain 16:10.
+                // Fit the base 16:10 opening inside the configured safe area.
+                // Its lower edge then extends beneath the wooden rail.
                 if (width * FrameRootAspect > height * GameplayAspect)
                     width = height * GameplayAspect / FrameRootAspect;
                 else
                     height = width * FrameRootAspect / GameplayAspect;
                 float centerX = .5f + Mathf.Clamp(framedViewportHorizontalOffset, -.05f, .05f);
                 float centerY = .5f + Mathf.Clamp(framedViewportVerticalOffset, -.05f, .05f);
-                return new Rect(centerX - width * .5f, centerY - height * .5f,
-                    width, height);
+                return new Rect(centerX - width * .5f,
+                    centerY - height * .5f - LowerRailOverlap,
+                    width, height + LowerRailOverlap);
             }
         }
     }

@@ -25,6 +25,10 @@ namespace Hiking.Journey
         public Sprite fallbackPlantSprite;
         [Tooltip("投放点使用的完整木牌贴图；未配置时使用占位木牌")]
         public Sprite placementSignSprite;
+        [Header("投放点木牌提示")]
+        public Sprite placementWaterSignSprite;
+        public Sprite placementSeedSignSprite;
+        public Sprite placementExclamationSprite;
         [Tooltip("背景植物未配置 Sprite 时使用的树形占位图，按阶段占位色着色")]
         public Sprite fallbackBackgroundPlantSprite;
         [Header("景色布局（运行时生效）")]

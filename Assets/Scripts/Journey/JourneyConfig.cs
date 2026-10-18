@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Hiking.Journey
 {
-    public enum JourneyMode { Demo, Normal, Quick }
+    public enum JourneyMode { Demo, Normal }
     public enum JourneyPhase { Start, AtStation, Moving, Finalizing, Completed, AtSpawn }
 
     [Serializable]
@@ -21,14 +21,10 @@ namespace Hiking.Journey
         [Header("自动旅途节奏")]
         [InspectorName("每块移动时间（秒）"), Min(.1f)] public float tileMoveSeconds = 3;
         [HideInInspector] public float tileRestSeconds = 5;
-        [Header("开发快速模式")]
-        [InspectorName("快速移动时间（秒）"), Min(.1f)] public float fastTileMoveSeconds = .5f;
-        [HideInInspector] public float fastTileRestSeconds = .5f;
         [Header("站间镜头过渡")]
         [Tooltip("狐狸抵达本站倒数第几块后开始推进镜头。2 为倒数第二块，1 为最后一块；到下一站首块时镜头恰好前进一整站。最后一站不向前推进。") ]
         [InspectorName("镜头从倒数第几块开始"), Range(1, 12)] public int cameraTransitionStartFromEnd = 1;
         [InspectorName("默认模式站间移动时间（秒）"), Min(.1f)] public float stationTransitionSeconds = 8;
-        [InspectorName("快速模式站间移动时间（秒）"), Min(.1f)] public float fastStationTransitionSeconds = 1.5f;
         [Header("投放木牌")]
         [InspectorName("默认预设水量"), Range(0, 3)] public int defaultPlacementWater = 1;
         [InspectorName("默认预设种子量"), Range(0, 3)] public int defaultPlacementSeeds = 1;
@@ -36,12 +32,10 @@ namespace Hiking.Journey
         [InspectorName("资源不足提示时间（秒）"), Min(.1f)] public float placementWarningSeconds = 3f;
         [Header("完成后长卷浏览")]
         [InspectorName("全景浏览滚动速度（站/秒）"), Min(.1f)] public float panoramaScrollStationsPerSecond = 1.2f;
-        public float TransitionSeconds(JourneyMode mode) => Mathf.Max(.1f, mode == JourneyMode.Quick ? fastStationTransitionSeconds : stationTransitionSeconds);
-        public float MoveSeconds(JourneyMode mode) => Mathf.Max(.1f, mode == JourneyMode.Quick ? fastTileMoveSeconds : tileMoveSeconds);
-        public float RestSeconds(JourneyMode mode) => Mathf.Max(0, mode == JourneyMode.Quick ? fastTileRestSeconds : tileRestSeconds);
+        public float TransitionSeconds => Mathf.Max(.1f, stationTransitionSeconds);
+        public float MoveSeconds => Mathf.Max(.1f, tileMoveSeconds);
         [Header("每站等待时间（真实秒数，仅新旅途生效）")]
         [HideInInspector] [Min(0.1f)] public float normalWaitSeconds = 300;
-        [HideInInspector] [Min(0.1f)] public float quickWaitSeconds = 30;
         [HideInInspector] [Min(0.1f)] public float demoWaitSeconds = 3;
         [Header("行走时间（每次出发，独立于行动点恢复）")]
         [HideInInspector] [InspectorName("默认行走时长（秒）"), Min(.1f)] public float travelSeconds = 10;
@@ -65,7 +59,5 @@ namespace Hiking.Journey
             new MaterialDefinition { id = "seed", displayName = "种子", color = new Color(.62f, .82f, .32f) }
         };
 
-        public float WaitSeconds(JourneyMode mode) => Mathf.Max(.1f,
-            mode == JourneyMode.Normal ? normalWaitSeconds : mode == JourneyMode.Quick ? quickWaitSeconds : demoWaitSeconds);
     }
 }

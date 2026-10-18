@@ -11,6 +11,19 @@ namespace Hiking.Journey
         TextMesh[] labels;
         readonly Vector3[] frameCorners = new Vector3[4];
 
+        // UI_Fullview_Background is drawn aspect-fit inside the 1152x720 FrameRoot.
+        // Its transparent landscape opening spans x=14.36%-85.62%, y=18.87%-89.37%.
+        static Rect FullviewViewport
+        {
+            get
+            {
+                const float artHeight = 1152f * 5984f / 10668f;
+                float bottomMargin = (720f - artHeight) * .5f;
+                return new Rect(.1436f, (bottomMargin + artHeight * .1887f) / 720f,
+                    .7126f, artHeight * .705f / 720f);
+            }
+        }
+
         float journeyCenter;
         float framedAspect = SceneLayoutSettings.GameplayAspect;
         bool blendingStationLandscapes;
@@ -43,8 +56,9 @@ namespace Hiking.Journey
         void ApplyFramedViewport()
         {
             var layout = flow.Map.sourceSettings.sceneLayout;
-            Rect viewport = layout != null ? layout.FramedViewport :
-                SceneLayoutSettings.DefaultFramedViewport;
+            bool fullviewVisible = flow.IsPreviewing || flow.Activity == JourneyActivity.Complete;
+            Rect viewport = fullviewVisible ? FullviewViewport : layout != null ?
+                layout.FramedViewport : SceneLayoutSettings.DefaultFramedViewport;
             var frameRoot = WindowsTransparentWindow.ActiveFrameRoot != null
                 ? WindowsTransparentWindow.ActiveFrameRoot : authoredFrameRoot;
             if (frameRoot == null)

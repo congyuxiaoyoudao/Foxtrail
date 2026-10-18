@@ -33,6 +33,14 @@ namespace Hiking.Journey
             if (Sign != null) Sign.SetPlan(this);
         }
 
+        public void ApplyPreset(int water, int seeds)
+        {
+            if (Committed || HasCustomPlan) return;
+            PlannedWater = Mathf.Clamp(water, 0, 3);
+            PlannedSeeds = Mathf.Clamp(seeds, 0, 3);
+            if (Sign != null) Sign.SetPlan(this);
+        }
+
         public void SetWarningAtArrival(bool value) => WarningAtArrival = value;
 
         public void MarkCommitted()

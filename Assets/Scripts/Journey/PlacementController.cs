@@ -64,6 +64,12 @@ namespace Hiking.Journey
                 slot.station.Tiles[slot.tileIndex].FreePlantCapacity));
         }
 
+        public void GetPlanLimits(PlacementSlot slot, out int seeds, out int water)
+        {
+            seeds = Mathf.Min(3, AllowedSeeds(slot));
+            water = Mathf.Min(3, AllowedWater(slot));
+        }
+
         public void AdjustPlan(string materialId, int delta)
         {
             if (EditingSlot == null) return;

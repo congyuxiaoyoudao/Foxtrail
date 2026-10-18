@@ -6,9 +6,9 @@ namespace Hiking.Journey
     public class GameUIController : MonoBehaviour
     {
         GameFlowController flow;
-        public GameObject startPanel, journeyPanel, panoramaPanel;
+        public GameObject startPanel, panoramaPanel;
         [Header("终局与长卷浏览（布局及按钮事件保存在 Canvas）")]
-        public Button previewPanoramaButton, continueButton, exitAppreciationButton,
+        public Button continueButton, exitAppreciationButton,
             returnToTitleButton, scrollLeftButton, scrollRightButton;
         public Text panoramaHint;
         public Image foxOutsideFrame;
@@ -41,7 +41,8 @@ namespace Hiking.Journey
         public Text signWaterValue, signSeedValue;
         public Button signWaterMinus, signWaterPlus, signSeedMinus, signSeedPlus,
             signConfirm, signCancel;
-        public bool SignEditorOpen => signEditorPanel != null && signEditorPanel.activeSelf;
+        public bool SignEditorOpen => travelUI != null && travelUI.IsPointOpen ||
+            signEditorPanel != null && signEditorPanel.activeSelf;
         public bool PlacementPromptOpen => placementPrompt != null && placementPrompt.activeSelf;
         public bool PlacementDecisionOpen => placementDecision != null && placementDecision.activeSelf;
         public bool IsModalOpen => PlacementDecisionOpen || PlacementPromptOpen;
@@ -63,12 +64,18 @@ namespace Hiking.Journey
         }
         public void ShowSignEditor(PlacementSlot slot)
         {
+            if (travelUI != null)
+            {
+                travelUI.OpenPoint(slot);
+                return;
+            }
             if (signEditorPanel == null) return;
             signEditorPanel.SetActive(true);
             PositionSignEditor(slot);
         }
         public void HideSignEditor()
         {
+            if (travelUI != null) travelUI.ClosePoint();
             if (signEditorPanel != null) signEditorPanel.SetActive(false);
         }
         void PositionSignEditor(PlacementSlot slot)
@@ -84,14 +91,10 @@ namespace Hiking.Journey
                 Mathf.Clamp(local.x, canvasRect.rect.xMin + half.x + 8, canvasRect.rect.xMax - half.x - 8),
                 Mathf.Clamp(local.y, canvasRect.rect.yMin + half.y + 8, canvasRect.rect.yMax - half.y - 8));
         }
-        public Text status, hint, toast, departText, modeText;
-        public Button startButton, modeButton, depart, returnButton;
-        public Image progress;
+        public Button startButton, returnButton;
         [HideInInspector] public Button returnToTravelerButton;
         [Tooltip("开始界面的「继续游戏」，仅在存在存档时显示")]
         public Button loadGameButton;
-        [Tooltip("旅途中的「保存并退出」")]
-        public Button saveQuitButton;
         [Tooltip("离线结算进度提示，结算期间才显示")]
         public Text loadingText;
         [Serializable]
@@ -103,42 +106,32 @@ namespace Hiking.Journey
             public Color normalColor = new Color(.17f, .29f, .31f);
             public Color selectedColor = new Color(.28f, .49f, .43f);
         }
-        public MaterialButton[] materialButtons;
-        float toastUntil;
+        TravelUIBridge travelUI;
         Text panoramaTitle;
-        public JourneyMode mode = JourneyMode.Normal;
         public void Initialize(GameFlowController owner)
         {
             flow = owner;
             ClosePlacementPrompt(false); CloseExitPrompt(); HideSignEditor();
+            travelUI = gameObject.AddComponent<TravelUIBridge>();
+            travelUI.Initialize(owner);
             if (signWaterMinus != null) signWaterMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", -1));
             if (signWaterPlus != null) signWaterPlus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", 1));
             if (signSeedMinus != null) signSeedMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("seed", -1));
             if (signSeedPlus != null) signSeedPlus.onClick.AddListener(() => flow.Placement.AdjustPlan("seed", 1));
             if (signConfirm != null) signConfirm.onClick.AddListener(flow.Placement.ConfirmPlan);
             if (signCancel != null) signCancel.onClick.AddListener(flow.Placement.CancelEditor);
-            if (depart != null) depart.gameObject.SetActive(false);
-            if (modeButton != null)
-            {
-                modeButton.gameObject.SetActive(true);
-                modeButton.onClick.AddListener(CycleMode);
-            }
-            if (mode != JourneyMode.Quick) mode = JourneyMode.Normal;
             if (returnToTravelerButton != null) returnToTravelerButton.gameObject.SetActive(false);
             if (loadGameButton != null) loadGameButton.onClick.AddListener(ContinueGame);
-            if (saveQuitButton != null) saveQuitButton.onClick.AddListener(SaveAndQuit);
             foreach (var label in panoramaPanel.GetComponentsInChildren<Text>(true))
                 if (label.text.Contains("旅途完成")) { panoramaTitle = label; break; }
             if (scrollLeftButton != null)
                 scrollLeftButton.GetComponent<ScrollHoldButton>()?.Configure(flow, -1);
             if (scrollRightButton != null)
                 scrollRightButton.GetComponent<ScrollHoldButton>()?.Configure(flow, 1);
-            if (foxOutsideFrame != null && flow.Traveler.walkFrames != null &&
-                flow.Traveler.walkFrames.Length > 0)
-                foxOutsideFrame.sprite = flow.Traveler.walkFrames[0];
-            RefreshModeLabel();
+            if (signEditorPanel != null) signEditorPanel.SetActive(false);
         }
-        public void StartJourney() => flow.StartJourney(mode);
+        public void StartJourney() => flow.StartJourney();
+        public void OpenSettings() => travelUI?.OpenSettings();
         public void QuitGame()
         {
 #if UNITY_EDITOR
@@ -147,23 +140,14 @@ namespace Hiking.Journey
             Application.Quit();
 #endif
         }
-        public void Depart() { }
-        public void CycleMode()
-        {
-            if (flow == null || flow.Session.Phase != JourneyPhase.Start) return;
-            mode = mode == JourneyMode.Quick ? JourneyMode.Normal : JourneyMode.Quick;
-            RefreshModeLabel();
-        }
-        void RefreshModeLabel()
-        {
-            if (modeText == null) return;
-            string name = mode == JourneyMode.Quick ? "开发快速" : "默认模式";
-            modeText.text = $"{name}（点击切换）\n移动 {flow.Config.MoveSeconds(mode):0.##} 秒 · 站间 {flow.Config.TransitionSeconds(mode):0.##} 秒";
-            if (modeButton != null && modeButton.targetGraphic != null)
-                modeButton.targetGraphic.color = mode == JourneyMode.Quick ? new Color(.28f,.49f,.43f) : new Color(.17f,.29f,.31f);
-        }
         public void ReturnToStart() => flow.ReturnToStart();
-        public void ReturnToTitle() => SaveAndQuit();
+        public void ReturnToTitle()
+        {
+            if (flow == null) return;
+            // Completed journeys already live in the archive; SaveNow rejects this phase.
+            if (flow.IsFinalized) flow.ReturnToStart();
+            else SaveAndQuit();
+        }
         // ---- 存档入口：策划要求提供「继续游戏」和「保存并退出」----
         // 直接关闭窗口也保存，那条在 GameFlowController 里（OnApplicationQuit / OnApplicationPause）。
         public void ContinueGame() { if (flow != null) flow.LoadGame(); }
@@ -180,21 +164,32 @@ namespace Hiking.Journey
         {
             if (flow.IsPreviewing) { flow.ExitPreview(); return; }
             if (!flow.IsFinalized) flow.TryFinalize();
-            else flow.EnterAppreciation();
         }
-        public void ContinueJourney() => flow.ContinueJourney();
+        public void ContinueJourney()
+        {
+            if (flow.IsAppreciating) flow.ExitAppreciation();
+            flow.ContinueJourney();
+        }
+        public void StartNewJourneyFromPanorama()
+        {
+            if (flow == null || !flow.IsFinalized) return;
+            ContinueJourney();
+        }
+        public void ReturnToMenuFromPanorama()
+        {
+            if (flow == null || !flow.IsFinalized) return;
+            flow.ReturnToStart();
+        }
+        public void ApplyTravelPreset() => travelUI?.ApplyPresetToMap();
+        public void SyncTravelPreset() => travelUI?.SyncPresetFromMap();
         public void ExitAppreciation() => flow.ExitAppreciation();
-        public void SelectMaterial(string id) { }
         void LateUpdate()
         {
             if (flow == null) return;
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
-            journeyPanel.SetActive(!flow.IsSettlingOffline && !flow.IsPreviewing &&
-                flow.Activity != JourneyActivity.Complete && session.Phase != JourneyPhase.Start);
-            if (previewPanoramaButton != null) previewPanoramaButton.interactable = !IsModalOpen;
             // 没有存档时不显示「继续游戏」，免得点了没反应
-            if (loadGameButton != null) loadGameButton.gameObject.SetActive(flow.HasSave());
+            if (loadGameButton != null) loadGameButton.interactable = flow.HasSave();
             if (loadingText != null)
             {
                 bool settling = flow.IsSettlingOffline;
@@ -205,11 +200,11 @@ namespace Hiking.Journey
             bool previewing = flow.IsPreviewing;
             bool appreciating = flow.IsAppreciating;
             bool browsing = flow.IsBrowsingPanorama;
-            panoramaPanel.SetActive((finished || previewing) && !flow.IsEnteringAppreciation);
+            panoramaPanel.SetActive(finished || previewing);
             if (panoramaBrowsingDecoration != null)
                 panoramaBrowsingDecoration.SetActive(browsing);
             if (panoramaCompletionControls != null)
-                panoramaCompletionControls.SetActive(!browsing);
+                panoramaCompletionControls.SetActive(finished && !flow.IsFinalized);
             if (panoramaBrowseReturnButton != null)
                 panoramaBrowseReturnButton.gameObject.SetActive(previewing);
             if (browsing)
@@ -229,21 +224,18 @@ namespace Hiking.Journey
             if (panoramaTitle != null) panoramaTitle.text =
                 previewing ? $"第 {flow.LevelIndex} 段旅途 · 全景预览" :
                 appreciating ? $"第 {flow.LevelIndex} 段旅途 · 长卷欣赏" :
-                flow.IsFinalized ? $"第 {flow.LevelIndex} 段旅途已定稿保存" :
                 "保存失败 · 请重试";
             var returnLabel = returnButton.GetComponentInChildren<Text>();
-            if (returnLabel != null) returnLabel.text = previewing ? "返回旅途" : !flow.IsFinalized ? "重试保存" :
-                flow.HasAppreciated ? "再次欣赏" : "欣赏本次旅途";
-            returnButton.gameObject.SetActive(!appreciating && !previewing);
+            if (returnLabel != null) returnLabel.text = "重试保存";
+            returnButton.gameObject.SetActive(finished && !flow.IsFinalized);
             if (continueButton != null)
             {
-                continueButton.gameObject.SetActive(finished && !appreciating);
+                continueButton.gameObject.SetActive(finished && flow.IsFinalized);
                 continueButton.interactable = flow.IsFinalized;
-                var label = continueButton.GetComponentInChildren<Text>();
-                if (label != null) label.text = flow.HasAppreciated ? "继续旅途" : "开启下一段旅途";
             }
-            if (returnToTitleButton != null) returnToTitleButton.gameObject.SetActive(previewing);
-            if (exitAppreciationButton != null) exitAppreciationButton.gameObject.SetActive(appreciating);
+            if (returnToTitleButton != null)
+                returnToTitleButton.gameObject.SetActive(finished && flow.IsFinalized);
+            if (exitAppreciationButton != null) exitAppreciationButton.gameObject.SetActive(false);
             if (scrollLeftButton != null)
             {
                 scrollLeftButton.gameObject.SetActive(flow.IsBrowsingPanorama);
@@ -258,17 +250,9 @@ namespace Hiking.Journey
             if (panoramaHint != null) panoramaHint.text = previewing ?
                 "点击箭头前进一站 · 按住连续浏览 · 返回旅途继续行走" : appreciating ?
                 "点击箭头前进一站 · 按住连续浏览 · 松开停止" :
-                flow.IsFinalized ? "本段地图与资源已保存 · 可欣赏长卷或直接继续" :
                 "未完成保存：" + flow.SaveError;
-            string activity = flow.Activity == JourneyActivity.AwaitingPlacement ? "投放点停留" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
-                flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
-            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1}/{session.StationCount} 站 · {flow.CurrentStation.ThemeName}\n第 {flow.CurrentTileIndex + 1}/12 块 · {activity}" +
-                (flow.Map.Weather.IsRaining || flow.Map.Weather.RainAppliedThisStep ?
-                    $"\n降雨中（{flow.Map.Weather.RainStartTile + 1}～{flow.Map.Weather.RainEndTile + 1} 格）" : "");
-            progress.rectTransform.anchorMax = new Vector2(flow.Traveler.Progress01, 1);
-            UpdateMaterials(materialButtons, false);
             var editingSlot = flow.Placement.EditingSlot;
-            if (editingSlot != null && SignEditorOpen)
+            if (editingSlot != null && signEditorPanel != null && signEditorPanel.activeSelf)
             {
                 PositionSignEditor(editingSlot);
                 signWaterValue.text = flow.Placement.EditedWater.ToString();
@@ -278,25 +262,10 @@ namespace Hiking.Journey
                 signSeedMinus.interactable = flow.Placement.EditedSeeds > 0;
                 signSeedPlus.interactable = flow.Placement.EditedSeeds < 3;
             }
-            if (hint != null) hint.text = "点击木牌设置投放；狐狸停留后自动投放";
-            if (toast != null && Time.unscaledTime > toastUntil) toast.text = "";
-        }
-        void UpdateMaterials(MaterialButton[] views, bool available)
-        {
-            if (views == null) return;
-            foreach (var view in views)
-            {
-                var material = flow.Material(view.materialId); int stock = flow.Session.Stock(view.materialId);
-                view.button.interactable = available && material != null && stock > 0;
-                if (material == null) { view.label.text = "未配置材料"; continue; }
-                view.label.text = material.displayName + " × " +
-                    (material.id == "water" ? flow.Session.Amount("water").ToString("0.##") : stock.ToString());
-                if (view.button.targetGraphic != null) view.button.targetGraphic.color = view.normalColor;
-            }
         }
         public void Notify(string message)
         {
-            if (toast == null) return; toast.text = message; toastUntil = Time.unscaledTime + 2.5f;
+            if (!string.IsNullOrEmpty(message)) Debug.Log(message, this);
         }
     }
 }

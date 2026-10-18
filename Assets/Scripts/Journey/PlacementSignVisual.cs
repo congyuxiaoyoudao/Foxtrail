@@ -17,6 +17,8 @@ namespace Hiking.Journey
         Camera worldCamera;
         bool hidden;
         bool themedBoard;
+        bool themedWater;
+        bool themedSeed;
 
         public void Configure(RingMapSettings settings)
         {
@@ -43,26 +45,38 @@ namespace Hiking.Journey
                     new Color(.32f, .22f, .12f), BoardSortingOrder + 1);
             }
 
-            waterBubble = MakePanel("WaterBubble", sprite, new Color(.80f, .92f, .98f),
+            var labelColor = new Color32(0x85, 0x4f, 0x39, 0xff);
+            themedWater = settings.placementWaterSignSprite != null;
+            themedSeed = settings.placementSeedSignSprite != null;
+            waterBubble = MakePanel("WaterBubble", themedWater ? settings.placementWaterSignSprite : sprite,
+                themedWater ? Color.white : new Color(.80f, .92f, .98f),
                 new Vector3(-.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
-            MakePanel("WaterBubbleTail", sprite, new Color(.80f, .92f, .98f),
-                new Vector3(-.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
-                .transform.localRotation = Quaternion.Euler(0, 0, 45);
-            waterText = MakeText("WaterValue", "", font, new Vector3(-.39f, 1.01f, -.05f), .13f,
-                new Color(.16f, .34f, .48f), 23);
-            seedBubble = MakePanel("SeedBubble", sprite, new Color(.88f, .94f, .73f),
+            if (!themedWater)
+                MakePanel("WaterBubbleTail", sprite, new Color(.80f, .92f, .98f),
+                    new Vector3(-.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
+                    .transform.localRotation = Quaternion.Euler(0, 0, 45);
+            waterText = MakeText("WaterValue", "", font,
+                new Vector3(themedWater ? -.21f : -.39f, 1.01f, -.05f), themedWater ? .17f : .13f,
+                labelColor, 23);
+            seedBubble = MakePanel("SeedBubble", themedSeed ? settings.placementSeedSignSprite : sprite,
+                themedSeed ? Color.white : new Color(.88f, .94f, .73f),
                 new Vector3(.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
-            MakePanel("SeedBubbleTail", sprite, new Color(.88f, .94f, .73f),
-                new Vector3(.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
-                .transform.localRotation = Quaternion.Euler(0, 0, 45);
-            seedText = MakeText("SeedValue", "", font, new Vector3(.39f, 1.01f, -.05f), .13f,
-                new Color(.28f, .39f, .19f), 23);
-            warning = MakePanel("WarningBubble", sprite, new Color(1f, .86f, .47f),
-                new Vector3(0, 1.39f, -.06f), new Vector2(.29f, .31f), 25);
-            warningMark = MakeText("WarningMark", "!", font, new Vector3(0, 1.37f, -.07f), .21f,
-                new Color(.60f, .21f, .12f), 26).gameObject;
+            if (!themedSeed)
+                MakePanel("SeedBubbleTail", sprite, new Color(.88f, .94f, .73f),
+                    new Vector3(.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
+                    .transform.localRotation = Quaternion.Euler(0, 0, 45);
+            seedText = MakeText("SeedValue", "", font,
+                new Vector3(themedSeed ? .57f : .39f, 1.01f, -.05f), themedSeed ? .17f : .13f,
+                labelColor, 23);
+            bool themedWarning = settings.placementExclamationSprite != null;
+            warning = MakePanel("WarningBubble", themedWarning ? settings.placementExclamationSprite : sprite,
+                themedWarning ? Color.white : new Color(1f, .86f, .47f),
+                new Vector3(0, 1.39f, -.06f), themedWarning ? new Vector2(.11f, .39f) : new Vector2(.29f, .31f), 25);
+            if (!themedWarning)
+                warningMark = MakeText("WarningMark", "!", font, new Vector3(0, 1.37f, -.07f), .21f,
+                    labelColor, 26).gameObject;
             warning.gameObject.SetActive(false);
-            warningMark.SetActive(false);
+            if (warningMark != null) warningMark.SetActive(false);
         }
 
         SpriteRenderer MakePanel(string name, Sprite sprite, Color color, Vector3 position,
@@ -107,8 +121,8 @@ namespace Hiking.Journey
         {
             waterBubble.gameObject.SetActive(true);
             seedBubble.gameObject.SetActive(true);
-            waterText.text = $"水 {slot.PlannedWater}";
-            seedText.text = $"种 {slot.PlannedSeeds}";
+            waterText.text = themedWater ? slot.PlannedWater.ToString() : $"水 {slot.PlannedWater}";
+            seedText.text = themedSeed ? slot.PlannedSeeds.ToString() : $"种 {slot.PlannedSeeds}";
         }
 
         public void Frame(Camera camera, PlacementSlot slot, bool hovered)
@@ -121,7 +135,7 @@ namespace Hiking.Journey
                 : (hovered ? new Color(.96f, .75f, .39f) : new Color(.73f, .53f, .29f));
             bool showWarning = slot.WarningAtArrival;
             warning.gameObject.SetActive(showWarning);
-            warningMark.SetActive(showWarning);
+            if (warningMark != null) warningMark.SetActive(showWarning);
         }
 
         public bool Contains(Vector2 pointer, bool warningOnly = false)
