@@ -2001,6 +2001,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Hiking.UIUX::Hiking.UIUX.AllocationFrameDock
   Frame: {fileID: 0}
   InsetPixels: {x: 18, y: -12}
+  SlideOutVerticalOffset: 0
   RevealSeconds: 0.24
 --- !u!1 &8671551478042030624
 GameObject:

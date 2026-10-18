@@ -11,6 +11,8 @@ namespace Hiking.UIUX
         public Rect ArtworkBounds = new Rect(.03f, .09f, .95f, .80f);
         [Tooltip("Left inner edge of the frame as a fraction of texture width.")]
         public float InnerLeft = .085f;
+        [Tooltip("Vertical offset of the fully revealed panel in frame UI units. Positive moves it upward.")]
+        public float SlideOutVerticalOffset = 0f;
         private const float WidthRatio = 1f / 3f;
         // Authored board ends 15 UI units above the 270-unit panel rectangle.
         private const float BoardBottomInset = 15f;
@@ -119,7 +121,7 @@ namespace Hiking.UIUX
             rect.GetWorldCorners(corners);
             var current = RectTransformUtility.WorldToScreenPoint(camera, corners[0]);
             var desired = frameLeft + (frameRight - frameLeft) * ((InnerLeft - ArtworkBounds.xMin) / ArtworkBounds.width)
-                - Vector2.up * (BoardBottomInset * scale);
+                + Vector2.up * ((SlideOutVerticalOffset - BoardBottomInset) * scale);
             RectTransformUtility.ScreenPointToLocalPointInRectangle(parent, current, camera, out var previous);
             rect.anchoredPosition += desired - previous;
         }

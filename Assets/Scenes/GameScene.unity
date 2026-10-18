@@ -6293,6 +6293,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1642597931012399119, guid: 10a25b1387200424ba85da584fcca7ed, type: 3}
+      propertyPath: Frame
+      value: 
+      objectReference: {fileID: 2500000201}
+    - target: {fileID: 1642597931012399119, guid: 10a25b1387200424ba85da584fcca7ed, type: 3}
+      propertyPath: ArtworkBounds.y
+      value: 0.11
+      objectReference: {fileID: 0}
     - target: {fileID: 3897901670608717580, guid: 10a25b1387200424ba85da584fcca7ed, type: 3}
       propertyPath: m_Name
       value: TravelUI
