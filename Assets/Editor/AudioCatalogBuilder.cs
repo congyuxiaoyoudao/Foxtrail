@@ -30,11 +30,11 @@ public static class AudioCatalogBuilder
         new CueSpec("footstep_wet", "潮湿地面脚步声", "SE_Footsteps_WetGround.mp3", AudioCueCategory.Footstep, -46f),
         new CueSpec("footstep_snow", "雪地脚步声", "SE_Footsteps_Snow.mp3", AudioCueCategory.Footstep, -46f),
         new CueSpec("rain_loop", "下雨背景音", "BG_Rain.mp3", AudioCueCategory.Ambience, -52f, true),
-        new CueSpec("ui_hover", "UI，光标选中", "SE_UI_Hover.mp3", AudioCueCategory.Ui, -38f,
+        new CueSpec("ui_hover", "UI，光标选中", "SE_UI_Hover.mp3", AudioCueCategory.Ui, -36f,
             false, "免费开源", HoverSource),
         new CueSpec("ui_click", "UI，点击按钮", "SE_UI_Click.mp3", AudioCueCategory.Ui, -33f),
         new CueSpec("start_game", "开始游戏时播放一次", "SE_StartGame.mp3", AudioCueCategory.Stinger, -33f),
-        new CueSpec("putdown", "投放音效", "SE_PutDown.mp3", AudioCueCategory.Placement, -36f)
+        new CueSpec("putdown", "投放音效", "SE_PutDown.mp3", AudioCueCategory.Placement, -34f)
     };
 
     [MenuItem("Hiking/Audio/Build Audio Catalog")]
@@ -77,7 +77,7 @@ public static class AudioCatalogBuilder
         }
 
         catalog.sfxTrim = .9f;
-        catalog.musicTargetRmsDb = -30f;
+        catalog.musicTargetRmsDb = -38f;
         catalog.footstepFadeSeconds = .08f;
         catalog.hoverCooldownSeconds = .08f;
         catalog.ambienceFadeSeconds = 1.2f;

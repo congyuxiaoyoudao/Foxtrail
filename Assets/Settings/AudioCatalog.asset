@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 36adc17f3fdee334a8d008dcdcea8c63, type: 3}
   m_Name: AudioCatalog
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.AudioCatalog
-  musicTrim: 0.3227081
-  sfxTrim: 0.9
-  musicTargetRmsDb: -30
+  musicTrim: 0.1285
+  sfxTrim: 0.783
+  musicTargetRmsDb: -38
   musicMeasuredRmsDb: -20.176197
   musicMeasuredPeakDb: -2.7886484
   footstepFadeSeconds: 0.08
@@ -59,7 +59,7 @@ MonoBehaviour:
     displayName: "\u6F6E\u6E7F\u5730\u9762\u811A\u6B65\u58F0"
     category: 1
     clip: {fileID: 8300000, guid: b9bcffc897d4b9543b39554f4edd556d, type: 3}
-    volume: 0.55
+    volume: 1
     pitch: 1
     pitchJitter: 0.02
     loop: 0
@@ -110,12 +110,12 @@ MonoBehaviour:
     displayName: "UI\uFF0C\u5149\u6807\u9009\u4E2D"
     category: 0
     clip: {fileID: 8300000, guid: 6e536c9184757f64297f700761c02327, type: 3}
-    volume: 0.2683632
+    volume: 0.34
     pitch: 1
     pitchJitter: 0.02
     loop: 0
     spatialBlend: 0
-    targetRmsDb: -38
+    targetRmsDb: -36
     measuredRmsDb: -27.85844
     measuredActiveRmsDb: -26.57446
     measuredPeakDb: -6.0588546
@@ -161,12 +161,12 @@ MonoBehaviour:
     displayName: "\u6295\u653E\u97F3\u6548"
     category: 3
     clip: {fileID: 8300000, guid: 5d46cc2047870dd479bc583ff3b7e0ab, type: 3}
-    volume: 0.4777809
+    volume: 0.62
     pitch: 1
     pitchJitter: 0.02
     loop: 0
     spatialBlend: 0
-    targetRmsDb: -36
+    targetRmsDb: -34
     measuredRmsDb: -32.20758
     measuredActiveRmsDb: -29.584576
     measuredPeakDb: -11.789356
