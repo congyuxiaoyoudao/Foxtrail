@@ -3835,6 +3835,8 @@ GameObject:
   - component: {fileID: 1748048903}
   - component: {fileID: 1748048902}
   - component: {fileID: 1748048901}
+  - component: {fileID: 1748048907}
+  - component: {fileID: 1748048906}
   m_Layer: 0
   m_Name: GameRoot
   m_TagString: Untagged
@@ -3919,6 +3921,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1748048906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1748048900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac7076e0919b9084f8f5e47a88c3c9f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.JourneyAudioHooks
+  Flow: {fileID: 1748048904}
+--- !u!114 &1748048907
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1748048900}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c47f6b792c5c6924eb213fd1ccec94af, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.GameAudio
+  Catalog: {fileID: 11400000, guid: 16f46f1415ccc974fb0cb9dba1a42145, type: 2}
+  voiceCount: 8
 --- !u!1 &1758139811
 GameObject:
   m_ObjectHideFlags: 0
@@ -4017,14 +4046,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &1806386077
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1806386073}
-  m_Enabled: 1
 --- !u!20 &1806386074
 Camera:
   m_ObjectHideFlags: 0
@@ -4135,6 +4156,14 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
+--- !u!81 &1806386077
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1806386073}
+  m_Enabled: 1
 --- !u!1 &1848922391
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,5 +1,12 @@
 # 项目说明与开发约定
 
+## 2026-10-19 音效配置
+
+- 音效表的唯一配置入口是 `Assets/Settings/AudioCatalog.asset`，自定义 Inspector 按行维护 ID、类别、AudioClip、音量、音高、循环、目标/实测 RMS、授权类型、来源和使用率。Inspector 的“分析响度并更新建议”只读分析素材，“应用建议音量”会把建议值写回表格；菜单 `Hiking/Audio/Build Audio Catalog` 用于把 `Assets/Audios/SE` 中的素材同步进表。
+- `GameRoot` 上的 `GameAudio` 提供 8 个音效声部和 1 个环境音循环声部；`JourneyAudioHooks` 负责主题脚步、水洼/降雨潮湿脚步、雨声淡入淡出和投放音效；`UiSoundFeedback` 在 `GameUIController.Initialize` 中为 Canvas 按钮自动绑定悬停与点击音效。
+- 音量链路：设置面板“总音量”写 `AudioListener.volume`，“音乐”乘 `AudioCatalog.musicTrim` 后控制 BGM，“操作音量”控制全部音效。当前首版混音为 BGM 实测平均约 -20.2 dBFS RMS、目标 -30 dBFS，`musicTrim=0.323`；`sfxTrim=0.9`。
+- 现有四首 BGM 仍由 `GameUIController` 的 `titleBgm`、`plainBgm`、`snowMountainBgm`、`desertBgm` 引用；音效说明表的 BGM 部分原为空。音效素材的原始 `SE` 目录不提交，导入副本在 `Assets/Audios/SE`。
+
 ## 2026-10-15 地块转变：表现口径定稿 + 数值调整 + 存档补充
 
 本节优先于下方所有关于地块类别、逐块过渡与整站切景的描述；数值部分优先于 2026-10-13 那一节。
@@ -106,11 +113,16 @@ Unity 6（6000.3.7f1）旅途原型，使用 URP3D。以当前代码、场景和
 | `JourneyMap` | 直线路线坐标、地块网格与环境结算 |
 | `TileState` / `TileSnapshot` | 单块属性、派生容量、离散水分更新及最近一步变化量 |
 | `PlantCatalog` / `PlantCatalogEditor` | 按地块主题生成自然植物，配置阶段阈值、前景和阶段外观的 Inspector 表格 |
+| `AudioCatalog` / `GameAudio` / `JourneyAudioHooks` | 音效表、播放声部与旅途音效接线 |
+| `UiSoundFeedback` | 为 Canvas 按钮自动绑定悬停和点击音效 |
 | `CameraController` / `ScrollHoldButton` | 整站固定视口、站间推进和预览／终局共用的长卷浏览 |
 | `GameUIController` | Canvas 的按钮事件、动态文字与面板显隐 |
 | `Assets/Arts/Prototype` | 图形、字体、材质与历史网格资源 |
 
 ## 调整位置
+
+- `Assets/Settings/AudioCatalog.asset`：音效表的音量、音高、循环、目标响度和授权/来源；修改后可用 Inspector 的“分析响度并更新建议”重算。脚步间隔、悬停冷却和环境音淡入淡出也在此配置。
+- `Assets/Audios/SE`：已导入的九条音效素材；新增或替换素材后运行菜单 `Hiking/Audio/Build Audio Catalog` 同步，不覆盖已有音量。
 
 - `JourneyConfig.asset` 的“镜头从倒数第几块开始” `cameraTransitionStartFromEnd` 默认 2，范围 1～12；1 表示最后一块，2 表示倒数第二块。
 
