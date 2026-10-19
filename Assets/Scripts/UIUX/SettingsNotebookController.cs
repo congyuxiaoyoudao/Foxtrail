@@ -13,7 +13,7 @@ namespace Hiking.UIUX
         private const string BgmKey = "ShiyuanUI.BgmVolume";
 
         [Header("Notebook")]
-        [SerializeField] private CanvasGroup overlay;
+        [SerializeField] private CanvasGroup notebookGroup;
         [SerializeField] private RectTransform book;
         [SerializeField] private RectTransform windowTab;
         [SerializeField] private RectTransform audioTab;
@@ -91,15 +91,15 @@ namespace Hiking.UIUX
             bgmSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat(BgmKey, 1f));
             RefreshValues();
             ShowPage(false, true);
-            overlay.gameObject.SetActive(false);
+            notebookGroup.gameObject.SetActive(false);
         }
 
         public void Open()
         {
-            overlay.gameObject.SetActive(true);
-            overlay.alpha = 1f;
-            overlay.blocksRaycasts = true;
-            overlay.interactable = true;
+            notebookGroup.gameObject.SetActive(true);
+            notebookGroup.alpha = 1f;
+            notebookGroup.blocksRaycasts = true;
+            notebookGroup.interactable = true;
             ShowPage(false, true);
         }
 
@@ -107,9 +107,9 @@ namespace Hiking.UIUX
         {
             if (transition != null) StopCoroutine(transition);
             transition = null;
-            overlay.blocksRaycasts = false;
-            overlay.interactable = false;
-            overlay.gameObject.SetActive(false);
+            notebookGroup.blocksRaycasts = false;
+            notebookGroup.interactable = false;
+            notebookGroup.gameObject.SetActive(false);
             PlayerPrefs.Save();
         }
 
@@ -118,10 +118,10 @@ namespace Hiking.UIUX
 
         public void ApplyTypography()
         {
-            if (overlay == null) return;
+            if (notebookGroup == null) return;
             if (notebookFont != null)
             {
-                foreach (Text label in overlay.GetComponentsInChildren<Text>(true))
+                foreach (Text label in notebookGroup.GetComponentsInChildren<Text>(true))
                     label.font = notebookFont;
             }
 

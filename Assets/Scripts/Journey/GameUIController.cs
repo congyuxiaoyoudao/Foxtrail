@@ -7,17 +7,21 @@ namespace Hiking.Journey
     {
         GameFlowController flow;
         public GameObject startPanel, panoramaPanel;
+        [Header("开始界面木牌")]
+        [InspectorName("悬停白色描边宽度"), Min(0f)]
+        public float startSignHoverOutlineWidth = 4f;
         [Header("终局与长卷浏览（布局及按钮事件保存在 Canvas）")]
         public Button continueButton, exitAppreciationButton,
             returnToTitleButton, scrollLeftButton, scrollRightButton;
-        public Text panoramaHint;
         public Image foxOutsideFrame;
         [Header("全景画框与浏览进度（布局保存在 Canvas）")]
         public GameObject panoramaBrowsingDecoration;
+        [InspectorName("全景进度条整体位移")]
+        [Tooltip("同时移动进度条背景、填充、百分比和狐狸装饰；播放时修改立即生效")]
+        public Vector2 panoramaProgressOffset;
         public Image panoramaProgressFill;
         public RectTransform panoramaProgressFox;
         public Text panoramaProgressPercent;
-        public GameObject panoramaCompletionControls;
         public Button panoramaBrowseReturnButton;
         [Header("背景音乐")]
         public AudioClip titleBgm, plainBgm, snowMountainBgm, desertBgm;
@@ -94,7 +98,7 @@ namespace Hiking.Journey
                 Mathf.Clamp(local.x, canvasRect.rect.xMin + half.x + 8, canvasRect.rect.xMax - half.x - 8),
                 Mathf.Clamp(local.y, canvasRect.rect.yMin + half.y + 8, canvasRect.rect.yMax - half.y - 8));
         }
-        public Button startButton, returnButton;
+        public Button startButton;
         [HideInInspector] public Button returnToTravelerButton;
         [Tooltip("开始界面的「继续游戏」，仅在存在存档时显示")]
         public Button loadGameButton;
@@ -145,7 +149,6 @@ namespace Hiking.Journey
             Application.Quit();
 #endif
         }
-        public void ReturnToStart() => flow.ReturnToStart();
         public void ReturnToTitle()
         {
             if (flow == null) return;
@@ -165,11 +168,7 @@ namespace Hiking.Journey
             flow.ReturnToStart();
         }
         public void PreviewPanorama() => flow.PreviewPanorama();
-        public void PrimaryCompletionAction()
-        {
-            if (flow.IsPreviewing) { flow.ExitPreview(); return; }
-            if (!flow.IsFinalized) flow.TryFinalize();
-        }
+        public void ExitPanoramaPreview() => flow?.ExitPreview();
         public void ContinueJourney()
         {
             if (flow.IsAppreciating) flow.ExitAppreciation();
@@ -210,9 +209,11 @@ namespace Hiking.Journey
             bool browsing = flow.IsBrowsingPanorama;
             panoramaPanel.SetActive(finished || previewing);
             if (panoramaBrowsingDecoration != null)
+            {
                 panoramaBrowsingDecoration.SetActive(browsing);
-            if (panoramaCompletionControls != null)
-                panoramaCompletionControls.SetActive(finished && !flow.IsFinalized);
+                if (panoramaBrowsingDecoration.transform is RectTransform progressGroup)
+                    progressGroup.anchoredPosition = panoramaProgressOffset;
+            }
             if (panoramaBrowseReturnButton != null)
                 panoramaBrowseReturnButton.gameObject.SetActive(previewing);
             if (browsing)
@@ -232,10 +233,8 @@ namespace Hiking.Journey
             if (panoramaTitle != null) panoramaTitle.text =
                 previewing ? $"第 {flow.LevelIndex} 段旅途 · 全景预览" :
                 appreciating ? $"第 {flow.LevelIndex} 段旅途 · 长卷欣赏" :
-                "保存失败 · 请重试";
-            var returnLabel = returnButton.GetComponentInChildren<Text>();
-            if (returnLabel != null) returnLabel.text = "重试保存";
-            returnButton.gameObject.SetActive(finished && !flow.IsFinalized);
+                flow.IsFinalized ? $"第 {flow.LevelIndex} 段旅途 · 旅途完成" :
+                "保存失败";
             if (continueButton != null)
             {
                 continueButton.gameObject.SetActive(finished && flow.IsFinalized);
@@ -255,10 +254,6 @@ namespace Hiking.Journey
                 scrollRightButton.interactable = flow.Camera.CanScrollRight;
             }
             if (foxOutsideFrame != null) foxOutsideFrame.gameObject.SetActive(flow.IsBrowsingPanorama);
-            if (panoramaHint != null) panoramaHint.text = previewing ?
-                "点击箭头前进一站 · 按住连续浏览 · 返回旅途继续行走" : appreciating ?
-                "点击箭头前进一站 · 按住连续浏览 · 松开停止" :
-                "未完成保存：" + flow.SaveError;
             var editingSlot = flow.Placement.EditingSlot;
             if (editingSlot != null && signEditorPanel != null && signEditorPanel.activeSelf)
             {

@@ -13,8 +13,11 @@ namespace Hiking.Journey
         SpriteRenderer warning;
         TextMesh waterText;
         TextMesh seedText;
+        Transform waterHint;
+        Transform seedHint;
         GameObject warningMark;
         Camera worldCamera;
+        RingMapSettings sourceSettings;
         bool hidden;
         bool themedBoard;
         bool themedWater;
@@ -22,8 +25,11 @@ namespace Hiking.Journey
 
         public void Configure(RingMapSettings settings)
         {
+            sourceSettings = settings;
             var sprite = settings.fallbackPlantSprite;
             var font = settings.tileLabelFont;
+            var numberFont = settings.placementSignNumberFont != null
+                ? settings.placementSignNumberFont : font;
             themedBoard = settings.placementSignSprite != null;
             if (themedBoard)
             {
@@ -51,23 +57,34 @@ namespace Hiking.Journey
             waterBubble = MakePanel("WaterBubble", themedWater ? settings.placementWaterSignSprite : sprite,
                 themedWater ? Color.white : new Color(.80f, .92f, .98f),
                 new Vector3(-.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
+            SpriteRenderer waterTail = null;
             if (!themedWater)
-                MakePanel("WaterBubbleTail", sprite, new Color(.80f, .92f, .98f),
-                    new Vector3(-.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
-                    .transform.localRotation = Quaternion.Euler(0, 0, 45);
-            waterText = MakeText("WaterValue", "", font,
-                new Vector3(themedWater ? -.21f : -.39f, 1.01f, -.05f), themedWater ? .17f : .13f,
+                waterTail = MakePanel("WaterBubbleTail", sprite, new Color(.80f, .92f, .98f),
+                    new Vector3(-.39f, .82f, -.04f), new Vector2(.13f, .13f), 21);
+            if (waterTail != null)
+                waterTail.transform.localRotation = Quaternion.Euler(0, 0, 45);
+            waterText = MakeText("WaterValue", "", numberFont,
+                new Vector3(themedWater ? -.21f : -.39f, 1.01f, -.05f),
+                (themedWater ? .17f : .13f) * settings.placementSignNumberTextScale,
                 labelColor, 23);
+            waterHint = GroupHint("WaterHint", new Vector3(-.39f, 1.02f, 0f),
+                waterBubble.transform, waterText.transform, waterTail != null ? waterTail.transform : null);
             seedBubble = MakePanel("SeedBubble", themedSeed ? settings.placementSeedSignSprite : sprite,
                 themedSeed ? Color.white : new Color(.88f, .94f, .73f),
                 new Vector3(.39f, 1.02f, -.04f), new Vector2(.70f, .36f), 22);
+            SpriteRenderer seedTail = null;
             if (!themedSeed)
-                MakePanel("SeedBubbleTail", sprite, new Color(.88f, .94f, .73f),
-                    new Vector3(.39f, .82f, -.04f), new Vector2(.13f, .13f), 21)
-                    .transform.localRotation = Quaternion.Euler(0, 0, 45);
-            seedText = MakeText("SeedValue", "", font,
-                new Vector3(themedSeed ? .57f : .39f, 1.01f, -.05f), themedSeed ? .17f : .13f,
+                seedTail = MakePanel("SeedBubbleTail", sprite, new Color(.88f, .94f, .73f),
+                    new Vector3(.39f, .82f, -.04f), new Vector2(.13f, .13f), 21);
+            if (seedTail != null)
+                seedTail.transform.localRotation = Quaternion.Euler(0, 0, 45);
+            seedText = MakeText("SeedValue", "", numberFont,
+                new Vector3(themedSeed ? .57f : .39f, 1.01f, -.05f),
+                (themedSeed ? .17f : .13f) * settings.placementSignNumberTextScale,
                 labelColor, 23);
+            seedHint = GroupHint("SeedHint", new Vector3(.39f, 1.02f, 0f),
+                seedBubble.transform, seedText.transform, seedTail != null ? seedTail.transform : null);
+            ApplyHintScale();
             bool themedWarning = settings.placementExclamationSprite != null;
             warning = MakePanel("WarningBubble", themedWarning ? settings.placementExclamationSprite : sprite,
                 themedWarning ? Color.white : new Color(1f, .86f, .47f),
@@ -77,6 +94,27 @@ namespace Hiking.Journey
                     labelColor, 26).gameObject;
             warning.gameObject.SetActive(false);
             if (warningMark != null) warningMark.SetActive(false);
+        }
+
+        void Update() => ApplyHintScale();
+
+        Transform GroupHint(string name, Vector3 center, params Transform[] parts)
+        {
+            var group = new GameObject(name).transform;
+            group.SetParent(transform, false);
+            group.localPosition = center;
+            foreach (var part in parts)
+                if (part != null) part.SetParent(group, true);
+            return group;
+        }
+
+        void ApplyHintScale()
+        {
+            if (sourceSettings == null || waterHint == null || seedHint == null) return;
+            float scale = Mathf.Max(.1f, sourceSettings.placementSignHintScale);
+            if (Mathf.Approximately(waterHint.localScale.x, scale)) return;
+            waterHint.localScale = Vector3.one * scale;
+            seedHint.localScale = Vector3.one * scale;
         }
 
         SpriteRenderer MakePanel(string name, Sprite sprite, Color color, Vector3 position,

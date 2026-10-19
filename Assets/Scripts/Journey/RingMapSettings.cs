@@ -29,6 +29,13 @@ namespace Hiking.Journey
         public Sprite placementWaterSignSprite;
         public Sprite placementSeedSignSprite;
         public Sprite placementExclamationSprite;
+        [InspectorName("木牌数字字体")]
+        public Font placementSignNumberFont;
+        [InspectorName("木牌数字文字大小（倍率）"), Min(.1f)]
+        public float placementSignNumberTextScale = 1.5f;
+        [InspectorName("木牌水和种子提示整体大小（倍率）"), Min(.1f)]
+        [Tooltip("同时缩放水和种子的图标与文字；播放时修改立即生效")]
+        public float placementSignHintScale = 1f;
         [Tooltip("背景植物未配置 Sprite 时使用的树形占位图，按阶段占位色着色")]
         public Sprite fallbackBackgroundPlantSprite;
         [Header("景色布局（运行时生效）")]
@@ -117,7 +124,7 @@ public SceneThemeCatalog sceneThemes;
         [Tooltip("雨丝透明度")]
         [Range(0, 1)] public float rainStreakOpacity = .42f;
         [Tooltip("下雨时覆盖世界画面的冷灰色滤镜透明度；界面不受影响")]
-        [InspectorName("阴天滤镜强度"), Range(0, .4f)] public float rainOvercastOpacity = .16f;
+        [InspectorName("阴天滤镜强度"), Range(0, .8f)] public float rainOvercastOpacity = .16f;
         public Font tileLabelFont;
         [Header("生态初值（按主题）")]
         public Vector2 snowSoilRange = new Vector2(30,65), grassSoilRange = new Vector2(40,80), desertSoilRange = new Vector2(20,50);

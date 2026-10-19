@@ -397,7 +397,7 @@ namespace Hiking.Journey
             if (gameObject.activeSelf != show) gameObject.SetActive(show);
             if (show) transform.rotation = camera.transform.rotation;
             if (overcastRenderer == null) return;
-            float target = show ? Mathf.Clamp(settings.rainOvercastOpacity, 0, .4f) : 0f;
+            float target = show ? Mathf.Clamp(settings.rainOvercastOpacity, 0, .8f) : 0f;
             overcastOpacity = visible ? Mathf.MoveTowards(overcastOpacity, target,
                 Mathf.Max(Time.unscaledDeltaTime, 1f / 60f) * .55f) : 0f;
             overcastRenderer.enabled = visible && camera != null && overcastOpacity > .001f;

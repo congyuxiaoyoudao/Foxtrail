@@ -29,6 +29,7 @@ namespace Hiking.Journey
         const int ScreenEdgeMargin = 16;
         const int FrameArtRegionPadding = 3;
         const byte FrameRegionAlphaThreshold = 8;
+        const float GameplayDragThreshold = 5f;
 
         [StructLayout(LayoutKind.Sequential)]
         struct Margins
@@ -136,6 +137,7 @@ namespace Hiking.Journey
         RectTransform frameRoot;
         Camera clearCamera;
         bool draggingFrame;
+        bool pendingGameplayDrag;
         bool draggingFloatingWidget;
         Vector2 lastPointer;
         bool windowConfigured;
@@ -203,6 +205,7 @@ namespace Hiking.Journey
             ActiveFrameRoot = null;
             frameRoot = null;
             draggingFrame = false;
+            pendingGameplayDrag = false;
             draggingFloatingWidget = false;
             expandedRegionWhileDragging = false;
             lastFittedViewportScale = 0f;
@@ -393,12 +396,31 @@ namespace Hiking.Journey
                 Mouse.current == null)
             {
                 if (draggingFrame) FinishDragging();
+                pendingGameplayDrag = false;
                 if (draggingFloatingWidget) EndFloatingWidgetDrag();
                 return;
             }
 
             var mouse = Mouse.current;
             Vector2 pointer = mouse.position.ReadValue();
+            if (pendingGameplayDrag)
+            {
+                if (draggingFloatingWidget)
+                {
+                    pendingGameplayDrag = false;
+                    return;
+                }
+                if (!mouse.leftButton.isPressed)
+                {
+                    pendingGameplayDrag = false;
+                    return;
+                }
+                if ((pointer - lastPointer).sqrMagnitude <
+                    GameplayDragThreshold * GameplayDragThreshold) return;
+                pendingGameplayDrag = false;
+                draggingFrame = true;
+                ExpandRegionForDragging();
+            }
             if (draggingFrame)
             {
                 if (!mouse.leftButton.isPressed)
@@ -418,11 +440,15 @@ namespace Hiking.Journey
                 if (!mouse.leftButton.isPressed) EndFloatingWidgetDrag();
                 return;
             }
-            if (!mouse.leftButton.wasPressedThisFrame || !IsOnVisibleFrame(pointer) ||
-                IsOnInteractiveUI(pointer)) return;
-            draggingFrame = true;
+            if (!mouse.leftButton.wasPressedThisFrame || IsOnInteractiveUI(pointer)) return;
+            if (IsOnVisibleFrame(pointer))
+            {
+                draggingFrame = true;
+                ExpandRegionForDragging();
+            }
+            else if (IsOnGameplayViewport(pointer)) pendingGameplayDrag = true;
+            else return;
             lastPointer = pointer;
-            ExpandRegionForDragging();
         }
 
         void LateUpdate()
@@ -799,6 +825,17 @@ namespace Hiking.Journey
             return sprite.texture.GetPixelBilinear(textureU, textureV).a >= .2f;
         }
 
+        bool IsOnGameplayViewport(Vector2 pointer)
+        {
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    frameRoot, pointer, null, out var local)) return false;
+            Rect rect = frameRoot.rect;
+            if (!rect.Contains(local)) return false;
+            float u = Mathf.InverseLerp(rect.xMin, rect.xMax, local.x);
+            float v = Mathf.InverseLerp(rect.yMin, rect.yMax, local.y);
+            return FramedViewport.Contains(new Vector2(u, v));
+        }
+
         Vector2 ClampFrameToScreen(Vector2 position)
         {
             if (frameRoot == null || frameImage == null) return position;
@@ -880,7 +917,8 @@ namespace Hiking.Journey
             EventSystem.current.RaycastAll(new PointerEventData(EventSystem.current) { position = pointer }, uiHits);
             foreach (var hit in uiHits)
             {
-                if (ExecuteEvents.GetEventHandler<IPointerDownHandler>(hit.gameObject) != null)
+                if (ExecuteEvents.GetEventHandler<IPointerDownHandler>(hit.gameObject) != null ||
+                    ExecuteEvents.GetEventHandler<IBeginDragHandler>(hit.gameObject) != null)
                     return true;
             }
             return false;

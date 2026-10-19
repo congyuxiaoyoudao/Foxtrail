@@ -129,6 +129,35 @@ MonoBehaviour:
       minLife: 60
       sprite: {fileID: 21300000, guid: 9af9cf7a5ec7ce74b9d36d257231331c, type: 3}
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
+  - id: gentiana
+    displayName: "\u9F99\u80C6\u82B1"
+    suitableHabitats: 3
+    enabledForGeneration: 1
+    initialHabitats: 1
+    growthWaterPerLife: 0.015
+    isForeground: 1
+    visualHeight: 1
+    preserveSpriteStageScale: 1
+    floodTolerant: 0
+    maxHumidityPercent: 100
+    maxSoilPercent: 100
+    maxLife: 90
+    stages:
+    - minHumidityPercent: 15
+      minSoilPercent: 1
+      minLife: 0
+      sprite: {fileID: 21300000, guid: 78d3bd2c959576c4fa2954ca04445d1b, type: 3}
+      fallbackColor: {r: 0.35, g: 0.75, b: 0.35, a: 1}
+    - minHumidityPercent: 35
+      minSoilPercent: 25
+      minLife: 30
+      sprite: {fileID: 21300000, guid: 78d3bd2c959576c4fa2954ca04445d1b, type: 3}
+      fallbackColor: {r: 0.35, g: 0.75, b: 0.35, a: 1}
+    - minHumidityPercent: 55
+      minSoilPercent: 40
+      minLife: 60
+      sprite: {fileID: 21300000, guid: 46ac23e3aa2152c43bdce7baff5af881, type: 3}
+      fallbackColor: {r: 0.35, g: 0.75, b: 0.35, a: 1}
   - id: spruce
     displayName: "\u4E91\u6749\u6811"
     suitableHabitats: 3

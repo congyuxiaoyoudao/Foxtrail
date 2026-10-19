@@ -32,9 +32,14 @@ namespace Hiking.Journey
         float PanoramaViewWidthMultiplier => Mathf.Max(1f,
             flow.Map.sourceSettings.sceneLayout?.framedViewWidthMultiplier ?? 1.3f);
         // Keep the journey composition and zoom it out uniformly inside the same framed viewport.
-        float ScrollViewWidth => JourneyViewWidth * PanoramaViewWidthMultiplier;
+        float ScrollViewWidth => Mathf.Min(flow.Map.RouteLength,
+            JourneyViewWidth * PanoramaViewWidthMultiplier);
+        // Preserve the original starting composition. Only limit the far end so
+        // scrolling cannot expose the route's right edge.
+        float ScrollRightEdgeInset => Mathf.Min(flow.Map.TileWidth * .25f,
+            Mathf.Max(0f, (flow.Map.RouteLength - ScrollViewWidth) * .5f));
         float ScrollMinimum => flow.Map.stations[0].length * .5f;
-        float ScrollMaximum => flow.Map.RouteLength - flow.Map.stations[0].length * .5f;
+        float ScrollMaximum => flow.Map.RouteLength - ScrollViewWidth * .5f - ScrollRightEdgeInset;
         public float ScrollProgress01 => flow == null || flow.Map == null ? 0f :
             Mathf.InverseLerp(ScrollMinimum, ScrollMaximum, scrollCenter);
         public bool CanScrollLeft => flow != null && flow.Map != null && scrollCenter > ScrollMinimum + .001f;
