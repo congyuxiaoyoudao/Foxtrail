@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 36adc17f3fdee334a8d008dcdcea8c63, type: 3}
   m_Name: AudioCatalog
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.AudioCatalog
-  musicTrim: 0.1285
-  sfxTrim: 0.783
-  musicTargetRmsDb: -38
-  musicMeasuredRmsDb: -20.176197
-  musicMeasuredPeakDb: -2.7886484
+  musicTrim: 0.505
+  sfxTrim: 0.9
+  musicTargetRmsDb: -35
+  musicMeasuredRmsDb: -29.071743
+  musicMeasuredPeakDb: -12.285637
   footstepFadeSeconds: 0.08
   hoverCooldownSeconds: 0.08
   ambienceFadeSeconds: 1.2
@@ -119,7 +119,7 @@ MonoBehaviour:
     measuredRmsDb: -27.85844
     measuredActiveRmsDb: -26.57446
     measuredPeakDb: -6.0588546
-    suggestedVolume: 0.2683632
+    suggestedVolume: 0.33784923
     license: "\u514D\u8D39\u5F00\u6E90"
     source: https://freesound.org/people/GameDevC/sounds/422836/
     usage: 1
@@ -170,7 +170,7 @@ MonoBehaviour:
     measuredRmsDb: -32.20758
     measuredActiveRmsDb: -29.584576
     measuredPeakDb: -11.789356
-    suggestedVolume: 0.4777809
+    suggestedVolume: 0.6014905
     license: "\u4ED8\u8D39\u5546\u7528"
     source: https://elevenlabs.io/app/sound-effects
     usage: 1

@@ -77,7 +77,7 @@ public static class AudioCatalogBuilder
         }
 
         catalog.sfxTrim = .9f;
-        catalog.musicTargetRmsDb = -38f;
+        catalog.musicTargetRmsDb = -35f;
         catalog.footstepFadeSeconds = .08f;
         catalog.hoverCooldownSeconds = .08f;
         catalog.ambienceFadeSeconds = 1.2f;

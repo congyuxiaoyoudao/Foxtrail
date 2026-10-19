@@ -50,7 +50,7 @@ namespace Hiking.Journey
         [Tooltip("全部音效的额外增益，与设置面板中的操作音量相乘。")]
         [Range(0f, 1f)] public float sfxTrim = .9f;
         [Tooltip("自动混音时希望音乐达到的整体 RMS 响度。")]
-        public float musicTargetRmsDb = -38f;
+        public float musicTargetRmsDb = -35f;
         [HideInInspector] public float musicMeasuredRmsDb;
         [HideInInspector] public float musicMeasuredPeakDb;
 
