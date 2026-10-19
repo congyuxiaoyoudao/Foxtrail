@@ -7,13 +7,20 @@
 - 音量链路：设置面板“总音量”写 `AudioListener.volume`，“音乐”乘 `AudioCatalog.musicTrim` 后控制 BGM，“操作音量”控制全部音效。当前 BGM 素材实测平均约 -29.1 dBFS RMS、目标 -35 dBFS，`musicTrim=0.505`；`sfxTrim=0.9`，UI 悬停和投放音效的目标分别约为 -36/-34 dBFS，确保操作反馈高于背景音乐。
 - 四首 BGM 由 `GameUIController` 的 `titleBgm`、`plainBgm`、`snowMountainBgm`、`desertBgm` 引用。2026-10-19 已用根目录 `BGM` 的新素材替换：Desert、Plain 同名覆盖，Snowfield → SnowMountain，Title → Title_Elfwood；保留原文件名、`.meta` 与 GUID，场景引用不变。音效说明表的 BGM 部分原为空；原始 `SE`、`BGM` 目录不提交，导入副本分别在 `Assets/Audios/SE` 与 `Assets/Audios/BGM`。
 
+## 2026-10-19 雪地地面过渡修复
+
+- 现象：雪地格升温进入 4～6°C 过渡带后，实际类别仍是 `Snow`，但地面贴图提前换成了草地。
+- 修复：`Station.GroundThemeAt()` 增加雪地保护——只要 `Tiles[tile].Category == Snow`，即使过渡状态记录了 `transitionTo = Grass`，地面仍返回 `Snow`；类别真正变成 `Grass` 后才使用草地贴图。其他主题的过渡表现保持不变。
+- 改动范围：只改地面贴图的选择逻辑，位于 `Assets/Scripts/Journey/Station.cs` 的 `GroundThemeAt()`；未改 `TileState.UpdateWaterTemperature`、类别阈值、`transitionBandWidth`、`RingMapSettings.asset` 数值、整站远景/中景切换阈值或存档格式。旧存档中的 `transitionActive` / `transitionTo` 不需要迁移，读档后同样按雪地类别显示。
+- 验证：Unity 重新编译无错误或警告；临时对象测试结果为 `snow+grass=Snow`、`grass+desert=Desert`、`grass+grass=Grass`。
+
 ## 2026-10-15 地块转变：表现口径定稿 + 数值调整 + 存档补充
 
 本节优先于下方所有关于地块类别、逐块过渡与整站切景的描述；数值部分优先于 2026-10-13 那一节。
 
 ### 表现口径（按策划 2026-10-15 的决定）
 
-- **单块转变只改这一格的地面**，不动整站远景与中景。原先叠在远景层的「原类别整高后片 + 预期类别半高后片」已整体移除，`SceneTransitionPiece.cs`（含 `.meta`）已删除。`Station.RefreshTileTransitions` 只保留过渡温度带判断：温度距 5°C／12°C 分界不超过 `transitionBandWidth`（默认 1，即 4～6、11～13）时，这一格的地面提前换成预期类别的土地素材，离开温度带回到地块自己的类别。
+- **单块转变只改这一格的地面**，不动整站远景与中景。原先叠在远景层的「原类别整高后片 + 预期类别半高后片」已整体移除，`SceneTransitionPiece.cs`（含 `.meta`）已删除。`Station.RefreshTileTransitions` 只保留过渡温度带判断：温度距 5°C／12°C 分界不超过 `transitionBandWidth`（默认 1，即 4～6、11～13）时，这一格的地面提前换成预期类别的土地素材，离开温度带回到地块自己的类别。**2026-10-19 起雪地例外：实际类别仍为 `Snow` 时 `GroundThemeAt()` 固定返回雪地，不再提前显示草地地面。**
 - **整站按「已转变块数」切景**：达到 `farThemeSwitchTiles`（默认 7）换远景（天空／云／山三层），达到 `middleThemeSwitchTiles`（默认 10）换中景，**远景先变、中景后变**；低于阈值时自动退回本站主题——这就是「回退」，不需要单独逻辑。三个「过渡后片」比例旋钮已随表现方案一起删除，`transitionBandWidth` 保留。
 - **过渡格改为每站最左与最右两块**（第 1、12 块），见 `Station.IsTransitionTile(tile, tileCount)`；不再是「第 4／8／12 块的灰蓝色过渡块」。
 - 站点切换的「留 13 格 + 调透明度过渡」**未做**。

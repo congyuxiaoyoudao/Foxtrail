@@ -256,9 +256,16 @@ Tiles = new TileState[tileCount];
             else if (patchVisuals[tile] != null)
                 patchVisuals[tile].color = Color.Lerp(Color.white, new Color(.38f, .72f, 1f), blend);
         }
-        // 过渡期间地面先换成预期类别的土地素材，其余时候就是地块自己的类别。
-        StationTheme GroundThemeAt(int tile) => transitionActive != null && tile >= 0 &&
-            tile < transitionActive.Length && transitionActive[tile] ? transitionTo[tile] : Tiles[tile].Category;
+        // 过渡期间地面先换成预期类别的土地素材；雪地例外，类别未变时保持雪地地面。
+        StationTheme GroundThemeAt(int tile)
+        {
+            if (transitionActive == null || tile < 0 || tile >= transitionActive.Length ||
+                !transitionActive[tile])
+                return Tiles[tile].Category;
+            // 雪地只有类别真正变成其他主题后才换地面，避免 4～6°C 过渡带提前显示草地贴图。
+            return Tiles[tile].Category == StationTheme.Snow &&
+                transitionTo[tile] != StationTheme.Snow ? StationTheme.Snow : transitionTo[tile];
+        }
         public void SyncPondVisuals(JourneyMap map, int stationIndex)
         {
             if (Tiles == null || pondMarkers == null || mapSettings == null) return;
