@@ -3,7 +3,7 @@
 ## 2026-10-19 音效配置
 
 - 音效表的唯一配置入口是 `Assets/Settings/AudioCatalog.asset`，自定义 Inspector 按行维护 ID、类别、AudioClip、音量、音高、循环、目标/实测 RMS、授权类型、来源和使用率。Inspector 的“分析响度并更新建议”只读分析素材，“应用建议音量”会把建议值写回表格；菜单 `Hiking/Audio/Build Audio Catalog` 用于把 `Assets/Audios/SE` 中的素材同步进表。
-- `GameRoot` 上的 `GameAudio` 提供 8 个音效声部和 1 个环境音循环声部；`JourneyAudioHooks` 负责主题脚步、水洼/降雨潮湿脚步、雨声淡入淡出和投放音效；`UiSoundFeedback` 在 `GameUIController.Initialize` 中为 Canvas 按钮自动绑定悬停与点击音效。
+- `GameRoot` 上的 `GameAudio` 提供 8 个音效声部、1 个脚步序列循环声部和 1 个环境音循环声部；`JourneyAudioHooks` 负责主题脚步、水洼/降雨潮湿脚步、雨声淡入淡出和投放音效；`UiSoundFeedback` 在 `GameUIController.Initialize` 中为 Canvas 按钮自动绑定悬停与点击音效。脚步素材是约 4.1 秒的多步序列，只在 `Traveler.IsMoving` 为真时循环播放，停止、暂停或进入预览时按 `footstepFadeSeconds`（默认 0.08 秒）淡出停止；不要按 0.42 秒间隔重复触发整段，否则会叠出多份脚步和拖尾。
 - 音量链路：设置面板“总音量”写 `AudioListener.volume`，“音乐”乘 `AudioCatalog.musicTrim` 后控制 BGM，“操作音量”控制全部音效。当前首版混音为 BGM 实测平均约 -20.2 dBFS RMS、目标 -30 dBFS，`musicTrim=0.323`；`sfxTrim=0.9`。
 - 现有四首 BGM 仍由 `GameUIController` 的 `titleBgm`、`plainBgm`、`snowMountainBgm`、`desertBgm` 引用；音效说明表的 BGM 部分原为空。音效素材的原始 `SE` 目录不提交，导入副本在 `Assets/Audios/SE`。
 

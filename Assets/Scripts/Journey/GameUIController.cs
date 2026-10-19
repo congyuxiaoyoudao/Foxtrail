@@ -205,6 +205,8 @@ namespace Hiking.Journey
         void LateUpdate()
         {
             if (flow == null) return;
+            // Play Mode can start on a partially initialized frame after a domain reload.
+            if (bgmPlayer == null) bgmPlayer = new JourneyBgmPlayer(gameObject);
             bgmPlayer.SetTarget(CurrentBgm(), bgmCrossfadeSeconds);
             bgmPlayer.Tick(Time.unscaledDeltaTime);
             var session = flow.Session;

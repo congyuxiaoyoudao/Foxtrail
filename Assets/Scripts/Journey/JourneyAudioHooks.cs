@@ -5,9 +5,9 @@ namespace Hiking.Journey
     public sealed class JourneyAudioHooks : MonoBehaviour
     {
         public GameFlowController Flow;
-        float stepTimer;
         float lastPlacementSoundTime = -10f;
         bool rainPlaying;
+        string footstepCueId;
 
         void Awake()
         {
@@ -24,6 +24,7 @@ namespace Hiking.Journey
         {
             if (Flow != null && Flow.Placement != null)
                 Flow.Placement.PlacementCommitted -= OnPlacementCommitted;
+            GameAudio.Instance?.StopFootstep();
         }
 
         void Update()
@@ -38,17 +39,18 @@ namespace Hiking.Journey
             var audio = GameAudio.Instance;
             var traveler = Flow.Traveler;
             var map = Flow.Map;
-            if (audio == null || audio.Catalog == null || traveler == null || map == null ||
-                !traveler.IsMoving || traveler.Paused || Flow.IsPreviewing ||
-                Flow.IsSettlingOffline || Flow.Activity == JourneyActivity.Complete)
+            bool walking = audio != null && audio.Catalog != null && traveler != null && map != null &&
+                traveler.IsMoving && !traveler.Paused && !Flow.IsPreviewing &&
+                !Flow.IsSettlingOffline && Flow.Activity != JourneyActivity.Complete;
+            if (!walking)
             {
-                stepTimer = 0f;
+                if (footstepCueId != null)
+                {
+                    audio?.StopFootstep();
+                    footstepCueId = null;
+                }
                 return;
             }
-
-            stepTimer -= Time.unscaledDeltaTime;
-            if (stepTimer > 0f) return;
-            stepTimer = Mathf.Max(.05f, audio.Catalog.footstepIntervalSeconds);
 
             int totalTiles = Mathf.Max(1, map.stations.Length * RingMapSettings.TilesPerStation);
             int globalTile = Mathf.Clamp(Mathf.FloorToInt(
@@ -68,7 +70,9 @@ namespace Hiking.Journey
                 station.MiddleTheme == StationTheme.Snow ? "footstep_snow" :
                 station.MiddleTheme == StationTheme.Desert ? "footstep_desert" :
                 "footstep_plain";
-            audio.Play(cueId, Random.Range(.92f, 1.06f), Random.Range(.97f, 1.03f));
+            if (cueId == footstepCueId) return;
+            footstepCueId = cueId;
+            audio.StartFootstep(cueId);
         }
 
         void TickRain()

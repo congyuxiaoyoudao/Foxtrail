@@ -10,11 +10,16 @@ namespace Hiking.Journey
         [Min(1)] public int voiceCount = 8;
 
         AudioSource[] voices;
+        AudioCue[] voiceCues;
         AudioSource ambienceSource;
+        AudioSource footstepSource;
+        AudioCue footstepCue;
         int nextVoice;
         float sfxVolume = 1f;
         float ambienceGain = 1f;
         float ambienceTarget;
+        float footstepGain = 1f;
+        float footstepTarget;
         AudioCue ambienceCue;
 
         public float MusicTrim => Catalog != null ? Catalog.musicTrim : 1f;
@@ -38,10 +43,13 @@ namespace Hiking.Journey
         void BuildSources()
         {
             voices = new AudioSource[Mathf.Max(1, voiceCount)];
+            voiceCues = new AudioCue[voices.Length];
             for (int i = 0; i < voices.Length; i++)
                 voices[i] = CreateSource();
             ambienceSource = CreateSource();
             ambienceSource.loop = true;
+            footstepSource = CreateSource();
+            footstepSource.loop = true;
         }
 
         AudioSource CreateSource()
@@ -57,6 +65,7 @@ namespace Hiking.Journey
         {
             sfxVolume = Mathf.Clamp01(volume);
             RefreshAmbienceTarget();
+            RefreshFootstepTarget();
         }
 
         public void Play(string id, float volumeScale = 1f, float pitchScale = 1f)
@@ -68,7 +77,8 @@ namespace Hiking.Journey
         public void Play(AudioCue cue, float volumeScale = 1f, float pitchScale = 1f)
         {
             if (cue == null || cue.clip == null || Catalog == null) return;
-            var source = NextVoice();
+            var source = NextVoice(out int voiceIndex);
+            voiceCues[voiceIndex] = cue;
             source.Stop();
             source.clip = cue.clip;
             source.loop = cue.loop;
@@ -105,6 +115,61 @@ namespace Hiking.Journey
             ambienceTarget = 0f;
         }
 
+        public void StartFootstep(string id, float volumeScale = 1f)
+        {
+            if (Catalog == null) return;
+            var cue = Catalog.Find(id);
+            if (cue == null || cue.clip == null) return;
+            footstepGain = Mathf.Max(0f, volumeScale);
+            if (footstepCue != cue || footstepSource.clip != cue.clip)
+            {
+                footstepCue = cue;
+                footstepSource.Stop();
+                footstepSource.clip = cue.clip;
+                footstepSource.spatialBlend = cue.spatialBlend;
+                footstepSource.pitch = cue.pitch;
+                footstepSource.volume = 0f;
+                footstepSource.Play();
+            }
+            RefreshFootstepTarget();
+        }
+
+        public void StopFootstep()
+        {
+            footstepCue = null;
+            footstepTarget = 0f;
+        }
+
+        void RefreshFootstepTarget()
+        {
+            footstepTarget = footstepCue == null || Catalog == null ? 0f :
+                Mathf.Clamp01(footstepCue.volume * footstepGain * Catalog.sfxTrim * sfxVolume);
+        }
+
+        public void StopCategory(AudioCueCategory category)
+        {
+            if (voices != null)
+            {
+                for (int i = 0; i < voices.Length; i++)
+                {
+                    if (voiceCues[i] == null || voiceCues[i].category != category) continue;
+                    if (voices[i].isPlaying) voices[i].Stop();
+                    voices[i].clip = null;
+                    voiceCues[i] = null;
+                }
+            }
+            if (category == AudioCueCategory.Ambience &&
+                ambienceCue != null && ambienceCue.category == category)
+                StopAmbience();
+            if (category == AudioCueCategory.Footstep && footstepSource != null)
+            {
+                footstepSource.Stop();
+                footstepSource.clip = null;
+                footstepCue = null;
+                footstepTarget = 0f;
+            }
+        }
+
         void RefreshAmbienceTarget()
         {
             ambienceTarget = ambienceCue == null || Catalog == null ? 0f :
@@ -123,9 +188,18 @@ namespace Hiking.Journey
                 ambienceSource.clip = null;
                 ambienceCue = null;
             }
+            if (footstepSource == null) return;
+            float footstepFade = Catalog != null ? Mathf.Max(.02f, Catalog.footstepFadeSeconds) : .08f;
+            footstepSource.volume = Mathf.MoveTowards(footstepSource.volume, footstepTarget,
+                Time.unscaledDeltaTime / footstepFade);
+            if (footstepTarget <= 0f && footstepSource.volume <= .0001f && footstepSource.isPlaying)
+            {
+                footstepSource.Stop();
+                footstepSource.clip = null;
+            }
         }
 
-        AudioSource NextVoice()
+        AudioSource NextVoice(out int voiceIndex)
         {
             for (int i = 0; i < voices.Length; i++)
             {
@@ -133,10 +207,12 @@ namespace Hiking.Journey
                 if (!voices[index].isPlaying)
                 {
                     nextVoice = (index + 1) % voices.Length;
+                    voiceIndex = index;
                     return voices[index];
                 }
             }
-            var voice = voices[nextVoice];
+            voiceIndex = nextVoice;
+            var voice = voices[voiceIndex];
             nextVoice = (nextVoice + 1) % voices.Length;
             return voice;
         }

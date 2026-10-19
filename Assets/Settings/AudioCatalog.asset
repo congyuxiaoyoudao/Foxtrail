@@ -17,7 +17,7 @@ MonoBehaviour:
   musicTargetRmsDb: -30
   musicMeasuredRmsDb: -20.176197
   musicMeasuredPeakDb: -2.7886484
-  footstepIntervalSeconds: 0.42
+  footstepFadeSeconds: 0.08
   hoverCooldownSeconds: 0.08
   ambienceFadeSeconds: 1.2
   cues:

@@ -17,7 +17,7 @@ public sealed class AudioCatalogEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("sfxTrim"), new GUIContent("音效额外增益"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("musicTargetRmsDb"), new GUIContent("音乐目标 RMS"));
         GUILayout.Label($"BGM 实测：RMS {catalog.musicMeasuredRmsDb:0.0} dBFS · 峰值 {catalog.musicMeasuredPeakDb:0.0} dBFS");
-        EditorGUILayout.PropertyField(serializedObject.FindProperty("footstepIntervalSeconds"), new GUIContent("脚步声间隔（秒）"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("footstepFadeSeconds"), new GUIContent("脚步淡入淡出（秒）"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("hoverCooldownSeconds"), new GUIContent("悬停音最短间隔"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("ambienceFadeSeconds"), new GUIContent("环境音淡入淡出"));
 

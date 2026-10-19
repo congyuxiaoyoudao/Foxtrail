@@ -78,7 +78,7 @@ public static class AudioCatalogBuilder
 
         catalog.sfxTrim = .9f;
         catalog.musicTargetRmsDb = -30f;
-        catalog.footstepIntervalSeconds = .42f;
+        catalog.footstepFadeSeconds = .08f;
         catalog.hoverCooldownSeconds = .08f;
         catalog.ambienceFadeSeconds = 1.2f;
         EditorUtility.SetDirty(catalog);

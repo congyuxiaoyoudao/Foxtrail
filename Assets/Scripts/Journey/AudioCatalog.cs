@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Hiking.Journey
 {
@@ -54,7 +55,9 @@ namespace Hiking.Journey
         [HideInInspector] public float musicMeasuredPeakDb;
 
         [Header("节奏")]
-        [Min(.05f)] public float footstepIntervalSeconds = .42f;
+        [Tooltip("脚步序列切换或停止时的淡入淡出时间。")]
+        [FormerlySerializedAs("footstepIntervalSeconds")]
+        [Min(.02f)] public float footstepFadeSeconds = .08f;
         [Min(0f)] public float hoverCooldownSeconds = .08f;
         [Min(.05f)] public float ambienceFadeSeconds = 1.2f;
 
@@ -82,7 +85,7 @@ namespace Hiking.Journey
             musicTrim = Mathf.Clamp01(musicTrim);
             sfxTrim = Mathf.Clamp01(sfxTrim);
             musicTargetRmsDb = Mathf.Clamp(musicTargetRmsDb, -60f, 0f);
-            footstepIntervalSeconds = Mathf.Max(.05f, footstepIntervalSeconds);
+            footstepFadeSeconds = Mathf.Max(.02f, footstepFadeSeconds);
             hoverCooldownSeconds = Mathf.Max(0f, hoverCooldownSeconds);
             ambienceFadeSeconds = Mathf.Max(.05f, ambienceFadeSeconds);
             if (cues == null) cues = Array.Empty<AudioCue>();

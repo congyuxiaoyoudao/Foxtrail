@@ -23,7 +23,7 @@ public static class AudioCatalogAnalyzer
                 float measured = cue.loop || cue.category == AudioCueCategory.Ambience ? overall : active;
                 cue.suggestedVolume = Mathf.Clamp01(Mathf.Pow(10f, (cue.targetRmsDb - measured) / 20f));
                 if (apply) cue.volume = cue.suggestedVolume;
-                Debug.Log($"[AudioCatalog] {cue.id}: 整体 {overall:0.0} dBFS · 活跃 {active:0.0} dBFS · 峰值 {peak:0.0} dBFS · 目标 {cue.targetRmsDb:0.0} · 建议音量 {cue.suggestedVolume:0.00}");
+                Debug.Log($"[AudioCatalog] {cue.id}: 时长 {cue.clip.length:0.00}s · 整体 {overall:0.0} dBFS · 活跃 {active:0.0} dBFS · 峰值 {peak:0.0} dBFS · 目标 {cue.targetRmsDb:0.0} · 建议音量 {cue.suggestedVolume:0.00}");
             }
         }
 
