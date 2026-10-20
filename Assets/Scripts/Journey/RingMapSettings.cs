@@ -26,6 +26,9 @@ namespace Hiking.Journey
         [Tooltip("投放点使用的完整木牌贴图；未配置时使用占位木牌")]
         public Sprite placementSignSprite;
         [Header("投放点木牌提示")]
+        [InspectorName("木牌和 Sign 整体大小（倍率）"), Min(.1f)]
+        [Tooltip("木牌、水和种子提示、警告标记一起缩放并保持相对位置；播放时修改立即生效")]
+        public float placementSignBoardScale = 1f;
         public Sprite placementWaterSignSprite;
         public Sprite placementSeedSignSprite;
         public Sprite placementExclamationSprite;

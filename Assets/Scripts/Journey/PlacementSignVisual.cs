@@ -13,6 +13,7 @@ namespace Hiking.Journey
         SpriteRenderer warning;
         TextMesh waterText;
         TextMesh seedText;
+        Transform signRoot;
         Transform waterHint;
         Transform seedHint;
         GameObject warningMark;
@@ -26,6 +27,8 @@ namespace Hiking.Journey
         public void Configure(RingMapSettings settings)
         {
             sourceSettings = settings;
+            signRoot = new GameObject("SignRoot").transform;
+            signRoot.SetParent(transform, false);
             var sprite = settings.fallbackPlantSprite;
             var font = settings.tileLabelFont;
             var numberFont = settings.placementSignNumberFont != null
@@ -67,7 +70,7 @@ namespace Hiking.Journey
                 new Vector3(themedWater ? -.21f : -.39f, 1.01f, -.05f),
                 (themedWater ? .17f : .13f) * settings.placementSignNumberTextScale,
                 labelColor, 23);
-            waterHint = GroupHint("WaterHint", new Vector3(-.39f, 1.02f, 0f),
+            waterHint = GroupParts("WaterHint", new Vector3(-.39f, 1.02f, 0f),
                 waterBubble.transform, waterText.transform, waterTail != null ? waterTail.transform : null);
             seedBubble = MakePanel("SeedBubble", themedSeed ? settings.placementSeedSignSprite : sprite,
                 themedSeed ? Color.white : new Color(.88f, .94f, .73f),
@@ -82,9 +85,8 @@ namespace Hiking.Journey
                 new Vector3(themedSeed ? .57f : .39f, 1.01f, -.05f),
                 (themedSeed ? .17f : .13f) * settings.placementSignNumberTextScale,
                 labelColor, 23);
-            seedHint = GroupHint("SeedHint", new Vector3(.39f, 1.02f, 0f),
+            seedHint = GroupParts("SeedHint", new Vector3(.39f, 1.02f, 0f),
                 seedBubble.transform, seedText.transform, seedTail != null ? seedTail.transform : null);
-            ApplyHintScale();
             bool themedWarning = settings.placementExclamationSprite != null;
             warning = MakePanel("WarningBubble", themedWarning ? settings.placementExclamationSprite : sprite,
                 themedWarning ? Color.white : new Color(1f, .86f, .47f),
@@ -94,18 +96,31 @@ namespace Hiking.Journey
                     labelColor, 26).gameObject;
             warning.gameObject.SetActive(false);
             if (warningMark != null) warningMark.SetActive(false);
+            ApplyScales();
         }
 
-        void Update() => ApplyHintScale();
+        void Update() => ApplyScales();
 
-        Transform GroupHint(string name, Vector3 center, params Transform[] parts)
+        Transform GroupParts(string name, Vector3 center, params Transform[] parts)
         {
             var group = new GameObject(name).transform;
-            group.SetParent(transform, false);
+            group.SetParent(signRoot, false);
             group.localPosition = center;
             foreach (var part in parts)
                 if (part != null) part.SetParent(group, true);
             return group;
+        }
+
+        void ApplyScales()
+        {
+            if (sourceSettings == null) return;
+            if (signRoot != null)
+            {
+                float signScale = Mathf.Max(.1f, sourceSettings.placementSignBoardScale);
+                if (!Mathf.Approximately(signRoot.localScale.x, signScale))
+                    signRoot.localScale = Vector3.one * signScale;
+            }
+            ApplyHintScale();
         }
 
         void ApplyHintScale()
@@ -121,7 +136,7 @@ namespace Hiking.Journey
             Vector2 size, int sortingOrder)
         {
             var child = new GameObject(name).transform;
-            child.SetParent(transform, false);
+            child.SetParent(signRoot, false);
             child.localPosition = position;
             var renderer = child.gameObject.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
@@ -137,7 +152,7 @@ namespace Hiking.Journey
             float size, Color color, int sortingOrder)
         {
             var child = new GameObject(name).transform;
-            child.SetParent(transform, false);
+            child.SetParent(signRoot, false);
             child.localPosition = position;
             var label = child.gameObject.AddComponent<TextMesh>();
             label.text = text;
@@ -182,17 +197,18 @@ namespace Hiking.Journey
             var center = warningOnly ? warning.transform.position : board.transform.position;
             Vector3 screen = worldCamera.WorldToScreenPoint(center);
             if (screen.z <= 0) return false;
+            float signScale = signRoot != null ? signRoot.localScale.x : 1f;
             Vector3 edge = worldCamera.WorldToScreenPoint(center + worldCamera.transform.right *
-                (warningOnly ? .26f : .42f));
+                (warningOnly ? .26f : .42f) * signScale);
             Vector3 top = worldCamera.WorldToScreenPoint(center + worldCamera.transform.up *
-                (warningOnly ? .25f : (themedBoard ? .46f : .34f)));
+                (warningOnly ? .25f : (themedBoard ? .46f : .34f)) * signScale);
             return Mathf.Abs(pointer.x - screen.x) <= Mathf.Abs(edge.x - screen.x) &&
                 Mathf.Abs(pointer.y - screen.y) <= Mathf.Abs(top.y - screen.y);
         }
 
         public Vector2 ScreenPosition(Camera camera) =>
             camera == null ? Vector2.zero : camera.WorldToScreenPoint(transform.position +
-                camera.transform.up * 1.15f);
+                camera.transform.up * (1.15f * (signRoot != null ? signRoot.localScale.x : 1f)));
 
         public void Hide() { hidden = true; gameObject.SetActive(false); }
     }

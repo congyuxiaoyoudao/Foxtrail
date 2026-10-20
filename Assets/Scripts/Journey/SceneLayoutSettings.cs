@@ -47,6 +47,9 @@ namespace Hiking.Journey
         public float groundY = -.26f;
         [Tooltip("狐狸相对行走基线的 Y 偏移")]
         public float foxY = -.5f;
+        [Tooltip("只调整旅途中场景狐狸的大小，不影响全景进度条的小狐狸；播放时修改立即生效")]
+        [InspectorName("旅途中狐狸大小（倍率）"), Min(.1f)]
+        public float journeyFoxScale = 1f;
         [Tooltip("前景植物相对道路顶面的 Y 偏移")]
         public float foregroundPlantY = -.83f;
         [Tooltip("背景植物落地点相对道路顶面的 Y 偏移；叠加随机偏移后也不会高于狐狸行走位置")]

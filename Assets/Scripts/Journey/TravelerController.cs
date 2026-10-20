@@ -86,6 +86,10 @@ namespace Hiking.Journey
             RefreshPosition();
             transform.rotation = camera.transform.rotation;
             if (visual == null) return;
+            var layout = map != null && map.sourceSettings != null
+                ? map.sourceSettings.sceneLayout : null;
+            visual.localScale = Vector3.one * Mathf.Max(.1f,
+                layout != null ? layout.journeyFoxScale : 1f);
             visual.localPosition = new Vector3(0, finalJumpHeight, 0);
         }
         public void SetFinalJump(float height) => finalJumpHeight = Mathf.Max(0, height);

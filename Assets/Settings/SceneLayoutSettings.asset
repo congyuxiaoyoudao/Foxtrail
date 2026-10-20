@@ -21,13 +21,14 @@ MonoBehaviour:
   journeyViewWidthInStations: 0.995
   framedViewWidthMultiplier: 1.3
   skyY: 0.33
-  cloudsY: 2.23
+  cloudsY: 1.76
   mountainsY: -1.69
   middleY: -2.23
   fallbackY: 0
   nearSharedY: -2.84
   groundY: -0.26
   foxY: -0.5
-  foregroundPlantY: -0.65
-  backgroundPlantY: -0.58
+  journeyFoxScale: 1
+  foregroundPlantY: -1.05
+  backgroundPlantY: -0.98
   placementSignY: -0.78

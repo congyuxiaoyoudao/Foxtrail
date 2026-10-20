@@ -30,6 +30,7 @@ public sealed class SceneLayoutSettingsEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("nearSharedY"), new GUIContent("近景共享偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("groundY"), new GUIContent("地面单独偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("foxY"), new GUIContent("狐狸单独偏移 Y"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("journeyFoxScale"), new GUIContent("旅途中狐狸大小（倍率）"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("foregroundPlantY"), new GUIContent("前景植物单独偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("backgroundPlantY"), new GUIContent("背景植物单独偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("placementSignY"), new GUIContent("木牌单独偏移 Y"));
