@@ -1,0 +1,7 @@
+{
+  "name": "Hiking.Journey.SeedHarvest.Tests",
+  "rootNamespace": "Hiking.Journey.Tests",
+  "references": ["Hiking.Journey"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": ["Editor"]
+}

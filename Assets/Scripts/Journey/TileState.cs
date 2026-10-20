@@ -318,7 +318,10 @@ namespace Hiking.Journey
             bool approaching = Mathf.Abs(target-neutral) < Mathf.Abs(Temperature-neutral);
             float rate = settings != null ? (approaching ? settings.thermalApproachRate : settings.thermalRecoveryRate) : (approaching ? .06f : .002f);
             float cap = settings != null ? (approaching ? settings.thermalApproachCap : settings.thermalRecoveryCap) : (approaching ? .15f : .01f);
-            Temperature = Mathf.Clamp(Temperature + Mathf.Clamp((target-Temperature)*rate, -cap, cap), 0, 20);
+            float change = Mathf.Clamp((target-Temperature)*rate, -cap, cap);
+            if (ClimateTemperature < 5f && Temperature < 5f && influence > 0f && change > 0f)
+                change *= settings != null ? Mathf.Clamp01(settings.snowToGrassWarmingMultiplier) : .7f;
+            Temperature = Mathf.Clamp(Temperature + change, 0, 20);
             Category = Temperature < 5 ? StationTheme.Snow : Temperature < 12 ? StationTheme.Grass : StationTheme.Desert;
         }
 

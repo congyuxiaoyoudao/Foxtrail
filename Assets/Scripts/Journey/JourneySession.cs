@@ -32,7 +32,8 @@ namespace Hiking.Journey
         public IReadOnlyDictionary<string, float> Inventory => inventory;
         public IReadOnlyCollection<int> SeedCollectedTiles => seedCollectedTiles;
         public const int CarryCapacity = 20;
-        public const float RainCollectionLimit = 2f;
+        public const float RainCollectionLimit = 3f;
+        public const float PuddleCollectionLimit = 3f;
         readonly Dictionary<string, float> inventory = new Dictionary<string, float>();
         readonly List<PlacementRequest> placements = new List<PlacementRequest>();
         readonly HashSet<int> seedCollectedTiles = new HashSet<int>();
@@ -41,19 +42,13 @@ namespace Hiking.Journey
         bool approachingFirstStation;
 
         public void Begin(int stationCount, double waitSeconds, IEnumerable<MaterialDefinition> materials,
-            bool approachFirstStation = false, SavedInventory[] carried = null)
+            bool approachFirstStation = false)
         {
             if (stationCount < 1 || waitSeconds <= 0) throw new ArgumentOutOfRangeException();
             inventory.Clear(); placements.Clear(); seedCollectedTiles.Clear();
             rainEventId = -1; rainCollected = 0;
             foreach (var material in materials)
                 inventory.Add(material.id, Math.Min(CarryCapacity, Math.Max(0, material.startingCount)));
-            if (carried != null)
-                foreach (var entry in carried)
-                    if (entry != null && entry.id != null && inventory.ContainsKey(entry.id))
-                        // A new leg starts with at least its configured supplies; keep any larger carry-over.
-                        inventory[entry.id] = Math.Min(CarryCapacity,
-                            Math.Max(inventory[entry.id], Math.Max(0, entry.amount)));
             StationCount = stationCount;
             WaitSeconds = waitSeconds;
             ResidenceSeconds = 0;
@@ -65,19 +60,29 @@ namespace Hiking.Journey
 
         public float Amount(string id) => id != null && inventory.TryGetValue(id, out var count) ? count : 0;
         public int Stock(string id) => (int)Math.Floor(Amount(id) + 0.000001f);
-        public int CollectSeedsOnFirstEntry(int globalTile, int survivingPlants)
+        public int CollectSeedsOnFirstEntry(int globalTile, IReadOnlyList<PlantInstance> plants)
         {
             if (globalTile < 0 || !seedCollectedTiles.Add(globalTile)) return 0;
             if (!inventory.ContainsKey("seed")) return 0;
-            int collected = Math.Min(Math.Max(0, survivingPlants - 2),
-                Math.Max(0, CarryCapacity - Stock("seed")));
+            int remainingCapacity = Math.Max(0, CarryCapacity - Stock("seed"));
+            int collected = 0;
+            if (plants != null)
+                foreach (var plant in plants)
+                {
+                    if (plant == null || plant.life <= 0) continue;
+                    // The first stage yields none; every later stage yields one seed.
+                    int seedYield = (int)Math.Min(remainingCapacity - collected,
+                        Math.Min(1, Math.Max(0, plant.stageIndex)));
+                    collected += seedYield;
+                    if (collected == remainingCapacity) break;
+                }
             inventory["seed"] += collected;
             return collected;
         }
         public float CollectPuddleWater(float available)
         {
             if (!inventory.ContainsKey("water")) return 0;
-            float collected = Math.Min(2f, Math.Min(Math.Max(0, available),
+            float collected = Math.Min(PuddleCollectionLimit, Math.Min(Math.Max(0, available),
                 Math.Max(0, CarryCapacity - Amount("water"))));
             inventory["water"] += collected;
             return collected;

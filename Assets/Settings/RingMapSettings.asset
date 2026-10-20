@@ -95,6 +95,7 @@ MonoBehaviour:
   thermalRecoveryRate: 0.002
   thermalApproachCap: 0.05
   thermalRecoveryCap: 0.01
+  snowToGrassWarmingMultiplier: 0.6
   matureSeedInterval: 30
   maxNaturalSpeciesTilesPerStation: 4
   maxNaturalSpeciesRun: 2

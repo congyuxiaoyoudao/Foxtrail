@@ -219,8 +219,13 @@ Tiles = new TileState[tileCount];
         public void RefreshTile(int tile, bool syncPond = true)
         {
             RefreshWaterVisual(tile);
+            // Edge tiles display the themes of both neighbors, so redraw them when either changes.
+            if (tile == 1) RefreshWaterVisual(0);
+            if (tile == tileCount - 2) RefreshWaterVisual(tileCount - 1);
             if (tile == 0 && previousStation != null)
-                previousStation.RefreshTile(previousStation.tileCount - 1, false);
+                previousStation.RefreshWaterVisual(previousStation.tileCount - 1);
+            if (tile == tileCount - 1 && NextStation != null)
+                NextStation.RefreshWaterVisual(0);
             if (syncPond && ownerMap != null) ownerMap.SyncPondVisuals();
         }
         public void SetPatchMesh(int tile, Mesh mesh, Color baseColor, JourneyMap map)
@@ -241,14 +246,13 @@ Tiles = new TileState[tileCount];
             float blend = pond != null && pond.HasWetSprites ? 0f :
                 Tiles[tile].Depth == WaterDepth.Deep ? .72f : Tiles[tile].Depth == WaterDepth.Medium ? .43f : 0f;
             var groundTheme = GroundThemeAt(tile);
+            var transition = TransitionForTile(tile, out var sharedNeighborTheme);
+            if (sharedNeighborTheme.HasValue) groundTheme = sharedNeighborTheme.Value;
             Color baseColor = groundTheme == theme ? patchColors[tile] : mapSettings.ThemeColor(groundTheme);
             ownerMap.SetRouteMeshColor(patchMeshes[tile], Color.Lerp(baseColor, new Color(.18f, .58f, .92f), blend));
             if (patchVisuals[tile] != null)
             {
                 var layers = mapSettings.sceneThemes != null ? mapSettings.sceneThemes.For(groundTheme) : null;
-                var transition = tile == tileCount - 1 && NextStation != null ?
-                    mapSettings.sceneThemes?.TransitionFor(groundTheme,
-                        NextStation.GroundThemeAt(0)) : null;
                 var transitionSprite = transition?.nearGround;
                 var sprite = transitionSprite != null ? transitionSprite :
                     layers != null && layers.nearGround != null ?
@@ -274,6 +278,25 @@ Tiles = new TileState[tileCount];
                 patchWaterOverlays[tile].color = new Color(.18f, .58f, .92f, blend);
             else if (patchVisuals[tile] != null)
                 patchVisuals[tile].color = Color.Lerp(Color.white, new Color(.38f, .72f, 1f), blend);
+        }
+        // The first and last tiles bridge the visible ground themes immediately to their left and right.
+        SceneThemeTransition TransitionForTile(int tile, out StationTheme? sharedNeighborTheme)
+        {
+            sharedNeighborTheme = null;
+            if (!IsTransitionTile(tile, tileCount)) return null;
+            bool hasLeft = tile > 0 || previousStation != null;
+            bool hasRight = tile + 1 < tileCount || NextStation != null;
+            if (!hasLeft || !hasRight) return null;
+            var left = tile > 0 ? GroundThemeAt(tile - 1) :
+                previousStation.GroundThemeAt(previousStation.tileCount - 1);
+            var right = tile + 1 < tileCount ? GroundThemeAt(tile + 1) :
+                NextStation.GroundThemeAt(0);
+            if (left == right)
+            {
+                sharedNeighborTheme = left;
+                return null;
+            }
+            return mapSettings.sceneThemes?.TransitionFor(left, right);
         }
         // 过渡期间地面先换成预期类别的土地素材，其余时候就是地块自己的类别。
         StationTheme GroundThemeAt(int tile) => transitionActive != null && tile >= 0 &&

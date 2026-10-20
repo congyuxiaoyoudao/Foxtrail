@@ -311,8 +311,7 @@ namespace Hiking.Journey
                 if (!next.Validate(out string error)) throw new InvalidOperationException(error);
                 var previous = Map;
                 Traveler.transform.SetParent(null, true);
-                Session.Begin(next.stations.Length, .1, Config.materials,
-                    carried: archive.nextLevelIndex > 1 ? archive.carryInventory : null);
+                Session.Begin(next.stations.Length, .1, Config.materials);
                 Map = next; next = null;
                 Placement.InitializeSlots();
                 UI.ApplyTravelPreset();
@@ -475,7 +474,7 @@ namespace Hiking.Journey
         {
             if (Map == null) return;
             var tile = CurrentStation.Tiles[CurrentTileIndex];
-            int seeds = Session.CollectSeedsOnFirstEntry(CurrentGlobalTile, tile.PlantCount);
+            int seeds = Session.CollectSeedsOnFirstEntry(CurrentGlobalTile, tile.NaturalPlants);
             float water = tile.IsPuddle ? Session.CollectPuddleWater(tile.SurfaceWater) : 0;
             if (water > 0)
             {

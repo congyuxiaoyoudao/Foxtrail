@@ -61,7 +61,6 @@ namespace Hiking.Journey
     {
         public int version = 1;
         public int nextLevelIndex = 1;
-        public SavedInventory[] carryInventory;
         public List<CompletedJourney> completed = new List<CompletedJourney>();
     }
 
@@ -90,7 +89,7 @@ namespace Hiking.Journey
             foreach (var saved in archive.completed)
                 if (saved.runId == runId) return archive;
             if (levelIndex != archive.nextLevelIndex)
-                throw new InvalidOperationException("本段旅途已结算，不能再次继承资源。");
+                throw new InvalidOperationException("本段旅途已结算，不能重复结算。");
             var inventory = new SavedInventory[materials.Length];
             for (int i = 0; i < materials.Length; i++)
                 inventory[i] = new SavedInventory { id = materials[i].id,
@@ -139,7 +138,6 @@ namespace Hiking.Journey
             }
             // Build the next archive before touching the file or the in-memory original.
             var next = new JourneyArchive { nextLevelIndex = levelIndex + 1,
-                carryInventory = inventory,
                 completed = new List<CompletedJourney>(archive.completed) };
             next.completed.Add(finished);
             path = path ?? PathName;

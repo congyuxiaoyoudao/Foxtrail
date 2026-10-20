@@ -152,6 +152,8 @@ public SceneThemeCatalog sceneThemes;
         [Range(0,1)] public float thermalApproachRate = .02f, thermalRecoveryRate = .002f;
         [Tooltip("单步升温上限／回温上限（°C）。原值 0.15 / 0.01；2026-10-15 升温上限调为 0.05")]
         [Min(0)] public float thermalApproachCap = .05f, thermalRecoveryCap = .01f;
+        [Tooltip("雪地升温、尚未变为草地时，每步由水分造成的升温量倍率。0.7 表示原来的 70%。")]
+        [Range(0, 1)] public float snowToGrassWarmingMultiplier = .7f;
         [Min(1)] public int matureSeedInterval = 30;
         [Header("自然生成与传播的空间限制")]
         [Tooltip("自然生成和传播时，同一种植物在单站最多占据的地块数；玩家投放不受此限制")]
