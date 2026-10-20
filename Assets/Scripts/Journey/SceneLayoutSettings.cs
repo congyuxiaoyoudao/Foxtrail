@@ -35,6 +35,9 @@ namespace Hiking.Journey
         [Tooltip("全景相对旅途画面的缩小倍率。1 保持原尺寸，1.3 表示画面内的物体约缩小到 77%；画框不变")]
         [InspectorName("全景画面缩小倍率")]
         [Range(1f, 2f)] public float framedViewWidthMultiplier = 1.3f;
+        [Tooltip("全景浏览相对旅途取景的额外垂直偏移，按画面高度计算；正值使画面内容下移。播放时修改立即生效")]
+        [InspectorName("全景画面上下偏移比例")]
+        [Range(-.25f, .25f)] public float panoramaFrameHeightOffsetRatio;
         [Header("三个主题共用的远中景 Y 偏移")]
         public float skyY = 1.6f;
         public float cloudsY = 1.24f;

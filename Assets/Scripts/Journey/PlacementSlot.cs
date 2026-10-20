@@ -17,8 +17,8 @@ namespace Hiking.Journey
 
         public void InitializePlan(JourneyConfig config, RingMapSettings settings)
         {
-            PlannedWater = Mathf.Clamp(config.defaultPlacementWater, 0, 3);
-            PlannedSeeds = Mathf.Clamp(config.defaultPlacementSeeds, 0, 3);
+            PlannedWater = Mathf.Clamp(config.defaultPlacementWater, 0, JourneyConfig.PlacementPresetMaximum);
+            PlannedSeeds = Mathf.Clamp(config.defaultPlacementSeeds, 0, JourneyConfig.PlacementPresetMaximum);
             Sign = gameObject.AddComponent<PlacementSignVisual>();
             Sign.Configure(settings);
             Sign.SetPlan(this);
@@ -28,7 +28,7 @@ namespace Hiking.Journey
         {
             if (Committed) return;
             PlannedWater = Mathf.Clamp(water, 0, 3);
-            PlannedSeeds = Mathf.Clamp(seeds, 0, 3);
+            PlannedSeeds = Mathf.Clamp(seeds, 0, TileState.MaxPlantsPerTile);
             HasCustomPlan = true;
             if (Sign != null) Sign.SetPlan(this);
         }
@@ -36,8 +36,8 @@ namespace Hiking.Journey
         public void ApplyPreset(int water, int seeds)
         {
             if (Committed || HasCustomPlan) return;
-            PlannedWater = Mathf.Clamp(water, 0, 3);
-            PlannedSeeds = Mathf.Clamp(seeds, 0, 3);
+            PlannedWater = Mathf.Clamp(water, 0, JourneyConfig.PlacementPresetMaximum);
+            PlannedSeeds = Mathf.Clamp(seeds, 0, JourneyConfig.PlacementPresetMaximum);
             if (Sign != null) Sign.SetPlan(this);
         }
 
@@ -53,8 +53,9 @@ namespace Hiking.Journey
         public void RestorePlan(int water, int seeds, bool custom, bool committed,
             bool warningAtArrival = false)
         {
-            PlannedWater = Mathf.Clamp(water, 0, 3);
-            PlannedSeeds = Mathf.Clamp(seeds, 0, 3);
+            PlannedWater = Mathf.Clamp(water, 0,
+                custom ? 3 : JourneyConfig.PlacementPresetMaximum);
+            PlannedSeeds = Mathf.Clamp(seeds, 0, TileState.MaxPlantsPerTile);
             HasCustomPlan = custom;
             Committed = committed;
             WarningAtArrival = warningAtArrival && !committed;

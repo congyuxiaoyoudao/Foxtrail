@@ -23,7 +23,7 @@ MonoBehaviour:
   plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
   fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
   placementSignSprite: {fileID: 21300000, guid: 165fa77924186d245a91959249871586, type: 3}
-  placementSignBoardScale: 1
+  placementSignBoardScale: 1.47
   placementWaterSignSprite: {fileID: 21300000, guid: 1c1847e8dbf315f4cadb2a86b82c224d, type: 3}
   placementSeedSignSprite: {fileID: 21300000, guid: 337a0366ae62c684a95245cd96688bf4, type: 3}
   placementExclamationSprite: {fileID: 21300000, guid: 055ef51f4b8ed494387e508cc2c54ab1, type: 3}

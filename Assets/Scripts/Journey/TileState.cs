@@ -8,6 +8,7 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class TileState
     {
+        public const int MaxPlantsPerTile = 2;
         public StationTheme Category { get; private set; }
         public float SoilContent { get; private set; }
         public const float SurfaceCapacity = 35f;
@@ -16,7 +17,7 @@ namespace Hiking.Journey
         public PlantInstance[] NaturalPlants { get; private set; }
         public List<SeedInstance> Seeds { get; } = new List<SeedInstance>();
         public int SeedCount => Seeds.Count;
-        public int FreePlantCapacity => Mathf.Max(0, 5 - PlantCount - SeedCount);
+        public int FreePlantCapacity => Mathf.Max(0, MaxPlantsPerTile - PlantCount - SeedCount);
         public float SoilWater { get; private set; }
         public float SoilHumidity => SoilWater / MaxWater;
         public float BaseEvaporationRate { get; private set; }
@@ -43,7 +44,7 @@ namespace Hiking.Journey
             Category = category;
             SoilContent = Mathf.Clamp(soilContent, 1, 100);
             NaturalPlants = naturalPlants ?? Array.Empty<PlantInstance>();
-            PlantCount = naturalPlants == null ? Mathf.Clamp(plants, 0, 5) : naturalPlants.Length;
+            PlantCount = naturalPlants == null ? Mathf.Clamp(plants, 0, MaxPlantsPerTile) : naturalPlants.Length;
             for (int i = 0; i < NaturalPlants.Length; i++)
                 NaturalPlants[i].positionOffset = (i - (NaturalPlants.Length - 1) * .5f) * .16f;
             SoilWater = Mathf.Clamp01(humidity) * MaxWater;
@@ -245,7 +246,7 @@ namespace Hiking.Journey
                     bool canGerminate = definition != null && definition.Suits(Category) && toleratesWater &&
                         definition.HighestSuitableStage(SoilContent, SoilHumidity * 100f) >= 0 &&
                         SoilWater >= .1f;
-                    if (canGerminate && PlantCount < 5)
+                    if (canGerminate && PlantCount < MaxPlantsPerTile)
                     {
                         SoilWater = Mathf.Max(0, SoilWater - .1f);
                         var plant = new PlantInstance(seed.plantId) { positionOffset = FreePlantPosition() };

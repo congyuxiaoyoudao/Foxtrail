@@ -66,7 +66,7 @@ namespace Hiking.Journey
 
         public void GetPlanLimits(PlacementSlot slot, out int seeds, out int water)
         {
-            seeds = Mathf.Min(3, AllowedSeeds(slot));
+            seeds = Mathf.Min(TileState.MaxPlantsPerTile, AllowedSeeds(slot));
             water = Mathf.Min(3, AllowedWater(slot));
         }
 
@@ -74,7 +74,7 @@ namespace Hiking.Journey
         {
             if (EditingSlot == null) return;
             if (materialId == "water") EditedWater = Mathf.Clamp(EditedWater + delta, 0, 3);
-            if (materialId == "seed") EditedSeeds = Mathf.Clamp(EditedSeeds + delta, 0, 3);
+            if (materialId == "seed") EditedSeeds = Mathf.Clamp(EditedSeeds + delta, 0, TileState.MaxPlantsPerTile);
         }
 
         public void ConfirmPlan()

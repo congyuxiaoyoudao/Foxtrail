@@ -39,8 +39,8 @@ namespace Hiking.Journey
             var frame = frameRoot != null ? frameRoot.Find("GameFrame") as RectTransform : null;
             if (dock != null) dock.SetFrame(frame);
 
-            presetSeeds = Mathf.Clamp(flow.Config.defaultPlacementSeeds, 0, 3);
-            presetWater = Mathf.Clamp(flow.Config.defaultPlacementWater, 0, 3);
+            presetSeeds = Mathf.Clamp(flow.Config.defaultPlacementSeeds, 0, JourneyConfig.PlacementPresetMaximum);
+            presetWater = Mathf.Clamp(flow.Config.defaultPlacementWater, 0, JourneyConfig.PlacementPresetMaximum);
             binding.Submitted += OnSubmitted;
             panel.EditingEnded += OnEditingEnded;
             hud.ExitRequested.AddListener(OnExitRequested);
@@ -140,8 +140,8 @@ namespace Hiking.Journey
         {
             if (result.Mode == AllocationMode.Preset)
             {
-                presetSeeds = result.Seed;
-                presetWater = result.Water;
+                presetSeeds = Mathf.Clamp(result.Seed, 0, JourneyConfig.PlacementPresetMaximum);
+                presetWater = Mathf.Clamp(result.Water, 0, JourneyConfig.PlacementPresetMaximum);
                 ApplyPresetToMap();
                 if (flow.Map != null) flow.SaveNow();
                 return;
@@ -175,8 +175,8 @@ namespace Hiking.Journey
                 foreach (var slot in station.slots)
                     if (!slot.HasCustomPlan && !slot.Committed)
                     {
-                        presetWater = slot.PlannedWater;
-                        presetSeeds = slot.PlannedSeeds;
+                        presetWater = Mathf.Clamp(slot.PlannedWater, 0, JourneyConfig.PlacementPresetMaximum);
+                        presetSeeds = Mathf.Clamp(slot.PlannedSeeds, 0, JourneyConfig.PlacementPresetMaximum);
                         return;
                     }
         }
@@ -188,7 +188,8 @@ namespace Hiking.Journey
             hud.SetValues(station, flow.Session.StationCount,
                 flow.Session.Stock("seed"), flow.Session.Stock("water"));
             // A preset describes future stops, so it may exceed today's stock.
-            binding.SetPresetSnapshot(presetSeeds, presetWater, 3, 3);
+            binding.SetPresetSnapshot(presetSeeds, presetWater,
+                JourneyConfig.PlacementPresetMaximum, JourneyConfig.PlacementPresetMaximum);
             if (IsPointOpen)
             {
                 var slot = flow.Placement.EditingSlot;

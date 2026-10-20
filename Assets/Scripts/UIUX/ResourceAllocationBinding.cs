@@ -9,8 +9,8 @@ namespace Hiking.UIUX
         public ResourceAllocationPanel Panel;
         public int PresetSeed = 1;
         public int PresetWater = 1;
-        public int PresetSeedMaximum = 3;
-        public int PresetWaterMaximum = 3;
+        public int PresetSeedMaximum = 2;
+        public int PresetWaterMaximum = 2;
         public event Action<AllocationResult> Submitted;
         private void Awake() { Panel.Confirmed += Forward; }
         private void OnDestroy() { if (Panel) Panel.Confirmed -= Forward; }

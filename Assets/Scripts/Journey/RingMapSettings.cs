@@ -86,7 +86,7 @@ public SceneThemeCatalog sceneThemes;
             theme == StationTheme.Grass ? grassLandscape : desertLandscape;
         [Header("地块随机初值（湿度以 0～1 填写，新地图生效）")]
         [HideInInspector] public Vector2 soilContentRange = new Vector2(1, 100);
-        [HideInInspector] public Vector2Int plantCountRange = new Vector2Int(0, 5);
+        [HideInInspector] public Vector2Int plantCountRange = new Vector2Int(0, 2);
         [HideInInspector] public Vector2 soilHumidityRange = new Vector2(0, 1);
         [Tooltip("基础蒸发量 / 秒；实际蒸发量还受泥土含量和植物数量影响")]
         public Vector2 evaporationRateRange = new Vector2(.01f, .03f);

@@ -120,8 +120,8 @@ MonoBehaviour:
   Panel: {fileID: 5417089783392432746}
   PresetSeed: 1
   PresetWater: 1
-  PresetSeedMaximum: 3
-  PresetWaterMaximum: 3
+  PresetSeedMaximum: 2
+  PresetWaterMaximum: 2
 --- !u!1001 &440161949220396541
 PrefabInstance:
   m_ObjectHideFlags: 0

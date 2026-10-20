@@ -18,6 +18,7 @@ namespace Hiking.Journey
     [CreateAssetMenu(menuName = "Hiking/Journey Config")]
     public class JourneyConfig : ScriptableObject
     {
+        public const int PlacementPresetMaximum = 2;
         [Header("自动旅途节奏")]
         [InspectorName("每块移动时间（秒）"), Min(.1f)] public float tileMoveSeconds = 3;
         [HideInInspector] public float tileRestSeconds = 5;
@@ -26,8 +27,8 @@ namespace Hiking.Journey
         [InspectorName("镜头从倒数第几块开始"), Range(1, 12)] public int cameraTransitionStartFromEnd = 1;
         [InspectorName("默认模式站间移动时间（秒）"), Min(.1f)] public float stationTransitionSeconds = 8;
         [Header("投放木牌")]
-        [InspectorName("默认预设水量"), Range(0, 3)] public int defaultPlacementWater = 1;
-        [InspectorName("默认预设种子量"), Range(0, 3)] public int defaultPlacementSeeds = 1;
+        [InspectorName("默认预设水量"), Range(0, PlacementPresetMaximum)] public int defaultPlacementWater = 1;
+        [InspectorName("默认预设种子量"), Range(0, PlacementPresetMaximum)] public int defaultPlacementSeeds = 1;
         [InspectorName("投放点停留时间（秒）"), Min(.1f)] public float placementStopSeconds = 2f;
         [InspectorName("资源不足提示时间（秒）"), Min(.1f)] public float placementWarningSeconds = 3f;
         [Header("完成后长卷浏览")]

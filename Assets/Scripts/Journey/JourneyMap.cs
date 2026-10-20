@@ -45,7 +45,8 @@ namespace Hiking.Journey
             landscapeMeshes.Add(mesh);
         }
         public void FrameLandscapes(Camera camera, int blendFromStation = -1,
-            float blendProgress = 0f, float blendCenter = 0f)
+            float blendProgress = 0f, float blendCenter = 0f,
+            int currentStationIndex = -1, bool allowRainFilter = true)
         {
             bool visible = camera != null && camera.orthographic;
             bool blending = visible && stations != null && blendFromStation >= 0 &&
@@ -76,7 +77,8 @@ namespace Hiking.Journey
             if (visible && stations != null)
                 foreach (var station in stations)
                     if (station != null) station.FramePlants(camera);
-            if (rainVisual != null) rainVisual.FaceCamera(camera, visible);
+            if (rainVisual != null)
+                rainVisual.FaceCamera(camera, visible, currentStationIndex, allowRainFilter);
         }
 
         // Mesh vertices are authored in route coordinates. Runtime meshes are owned by this map.
@@ -391,16 +393,20 @@ namespace Hiking.Journey
             }
         }
 
-        public void FaceCamera(Camera camera, bool visible)
+        public void FaceCamera(Camera camera, bool visible, int currentStationIndex,
+            bool allowRainFilter)
         {
             bool show = raining && visible && camera != null;
             if (gameObject.activeSelf != show) gameObject.SetActive(show);
             if (show) transform.rotation = camera.transform.rotation;
             if (overcastRenderer == null) return;
-            float target = show ? Mathf.Clamp(settings.rainOvercastOpacity, 0, .8f) : 0f;
-            overcastOpacity = visible ? Mathf.MoveTowards(overcastOpacity, target,
+            bool canRenderFilter = visible && camera != null && allowRainFilter;
+            bool showFilter = show && canRenderFilter &&
+                map.Weather.CoversStation(currentStationIndex);
+            float target = showFilter ? Mathf.Clamp(settings.rainOvercastOpacity, 0, .8f) : 0f;
+            overcastOpacity = canRenderFilter ? Mathf.MoveTowards(overcastOpacity, target,
                 Mathf.Max(Time.unscaledDeltaTime, 1f / 60f) * .55f) : 0f;
-            overcastRenderer.enabled = visible && camera != null && overcastOpacity > .001f;
+            overcastRenderer.enabled = canRenderFilter && overcastOpacity > .001f;
             if (!overcastRenderer.enabled) return;
             overcastTransform.SetPositionAndRotation(camera.transform.position +
                 camera.transform.forward * (camera.nearClipPlane + .5f), camera.transform.rotation);
@@ -465,6 +471,13 @@ namespace Hiking.Journey
         public bool LastCheckSucceeded { get; private set; }
         public bool IsRaining => RemainingSeconds > 0;
         public bool RainAppliedThisStep { get; private set; }
+        public bool CoversStation(int stationIndex)
+        {
+            if (stationIndex < 0 || RainStartTile < 0) return false;
+            int firstTile = stationIndex * RingMapSettings.TilesPerStation;
+            int lastTile = firstTile + RingMapSettings.TilesPerStation - 1;
+            return RainStartTile <= lastTile && RainEndTile >= firstTile;
+        }
 
         // 读档：进行中的这场雨要原样恢复（覆盖范围、剩余雨量、剩余时间、事件 id），
         // 读档后不能重新抽取这场雨，也不能重新发放完整降水。

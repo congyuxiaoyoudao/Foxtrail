@@ -98,8 +98,10 @@ namespace Hiking.Journey
             WorldCamera.orthographicSize = width / (2 * framedAspect);
             var rotation = Quaternion.Euler(overviewPitchAngle, 0, 0);
             var target = map.transform.position + new Vector3(scrollCenter - map.RouteLength * .5f, .6f, 0);
+            var layout = map.sourceSettings.sceneLayout;
             target += rotation * Vector3.up * (2 * WorldCamera.orthographicSize *
-                (map.sourceSettings.sceneLayout?.cameraFrameHeightRatio ?? 0f));
+                ((layout?.cameraFrameHeightRatio ?? 0f) +
+                    (layout?.panoramaFrameHeightOffsetRatio ?? 0f)));
             WorldCamera.transform.SetPositionAndRotation(target - rotation * Vector3.forward * 30, rotation);
         }
         public float JourneyViewWidth => flow.CurrentStation.length * Mathf.Max(.85f,
@@ -130,7 +132,8 @@ namespace Hiking.Journey
             flow.Map.FrameLandscapes(WorldCamera,
                 !flow.IsBrowsingPanorama && blendingStationLandscapes ?
                     flow.Session.StationIndex : -1,
-                landscapeBlend, journeyCenter);
+                landscapeBlend, journeyCenter,
+                flow.Session.StationIndex, !flow.IsBrowsingPanorama);
             if (labels == null) labels = flow.Map.GetComponentsInChildren<TextMesh>(true);
             foreach (var label in labels) label.transform.rotation = WorldCamera.transform.rotation;
         }

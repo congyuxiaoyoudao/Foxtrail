@@ -18,6 +18,7 @@ public sealed class SceneLayoutSettingsEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewportVerticalInset"), new GUIContent("画面上下内缩比例"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("journeyViewWidthInStations"), new GUIContent("旅途取景宽度（站数）"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewWidthMultiplier"), new GUIContent("全景画面缩小倍率"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("panoramaFrameHeightOffsetRatio"), new GUIContent("全景画面上下偏移比例"));
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("远景与中景", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("skyY"), new GUIContent("天空偏移 Y"));

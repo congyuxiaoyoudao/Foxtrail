@@ -283,7 +283,7 @@ namespace Hiking.Journey
                 signWaterMinus.interactable = flow.Placement.EditedWater > 0;
                 signWaterPlus.interactable = flow.Placement.EditedWater < 3;
                 signSeedMinus.interactable = flow.Placement.EditedSeeds > 0;
-                signSeedPlus.interactable = flow.Placement.EditedSeeds < 3;
+                signSeedPlus.interactable = flow.Placement.EditedSeeds < TileState.MaxPlantsPerTile;
             }
         }
         public void Notify(string message)
