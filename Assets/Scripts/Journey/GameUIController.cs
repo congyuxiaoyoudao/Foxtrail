@@ -156,6 +156,7 @@ namespace Hiking.Journey
             flow.StartJourney();
         }
         public bool TryShowJourneyTutorial() => tutorial != null && tutorial.TryShow();
+        public void CloseJourneyTutorial() => tutorial?.Dismiss();
         public void OpenSettings() => travelUI?.OpenSettings();
         public void QuitGame()
         {

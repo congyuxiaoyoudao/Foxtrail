@@ -120,13 +120,19 @@ public SceneThemeCatalog sceneThemes;
         [Header("雨丝占位效果")]
         [Tooltip("每格显示的雨丝数；雨丝在主题远景之前、背景植物之后的层级绘制")]
         [Range(1, 16)] public int rainStreaksPerTile = 6;
-        [Tooltip("雨丝可见高度（世界单位）")]
+        [Tooltip("雨幕覆盖的垂直范围（世界单位）；不会改变单条雨丝的长度；播放时修改立即生效")]
         [Min(.5f)] public float rainVisualHeight = 3.2f;
         [Tooltip("雨丝下落速度（世界单位/秒）")]
         [Min(.1f)] public float rainStreakSpeed = 3.6f;
+        [Tooltip("单条雨丝的宽度（世界单位）；播放时修改立即生效")]
+        [Min(.001f)] public float rainStreakThickness = .018f;
+        [Tooltip("雨丝颜色；透明度由下方的雨丝透明度控制")]
+        public Color rainStreakColor = new Color(.78f, .92f, 1f, 1f);
         [Tooltip("雨丝透明度")]
         [Range(0, 1)] public float rainStreakOpacity = .42f;
-        [Tooltip("下雨时覆盖世界画面的冷灰色滤镜透明度；界面不受影响")]
+        [Tooltip("下雨时覆盖世界画面的滤镜颜色；透明度由下方的阴天滤镜强度控制")]
+        public Color rainOvercastColor = new Color(.18f, .23f, .29f, 1f);
+        [Tooltip("下雨时覆盖世界画面的滤镜透明度；界面不受影响")]
         [InspectorName("阴天滤镜强度"), Range(0, .8f)] public float rainOvercastOpacity = .16f;
         public Font tileLabelFont;
         [Header("生态初值（按主题）")]

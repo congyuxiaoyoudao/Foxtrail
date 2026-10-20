@@ -70,7 +70,10 @@ MonoBehaviour:
   rainStreaksPerTile: 6
   rainVisualHeight: 3.2
   rainStreakSpeed: 3.6
+  rainStreakThickness: 0.018
+  rainStreakColor: {r: 0.78, g: 0.92, b: 1, a: 1}
   rainStreakOpacity: 0.42
+  rainOvercastColor: {r: 0.18, g: 0.23, b: 0.29, a: 1}
   rainOvercastOpacity: 0.494
   tileLabelFont: {fileID: 12800000, guid: a84ffcea11c431a4b92aa97c037d50d8, type: 3}
   snowSoilRange: {x: 30, y: 65}

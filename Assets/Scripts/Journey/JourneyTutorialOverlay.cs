@@ -63,9 +63,14 @@ namespace Hiking.Journey
                 ShowStep();
                 return;
             }
+            Dismiss();
+            flow.ResumeAfterTutorial();
+        }
+
+        public void Dismiss()
+        {
             travelUI?.PreviewTutorialHud(false);
             gameObject.SetActive(false);
-            flow.ResumeAfterTutorial();
         }
 
         void OnDisable()

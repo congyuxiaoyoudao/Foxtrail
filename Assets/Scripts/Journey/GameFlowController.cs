@@ -490,7 +490,7 @@ namespace Hiking.Journey
         }
         public void ReturnToStart()
         {
-            generation++; UI.CloseExitPrompt(); UI.ClosePlacementPrompt(false);
+            generation++; UI.CloseJourneyTutorial(); UI.CloseExitPrompt(); UI.ClosePlacementPrompt(false);
             IsAppreciating = false; IsPreviewing = false;
             IsFinalized = false; runId = null;
             environmentSeconds = 0;

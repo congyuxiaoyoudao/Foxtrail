@@ -318,6 +318,8 @@ namespace Hiking.Journey
         JourneyMap map;
         RingMapSettings settings;
         Transform[] streaks;
+        SpriteRenderer[] streakRenderers;
+        float[] streakOpacityVariation;
         float[] speeds;
         float width;
         float height;
@@ -328,6 +330,9 @@ namespace Hiking.Journey
         Transform overcastTransform;
         SpriteRenderer overcastRenderer;
         float overcastOpacity;
+        Color lastStreakColor;
+        float lastStreakOpacity;
+        float lastStreakThickness;
 
         public void Configure(JourneyMap owner, RingMapSettings configuration)
         {
@@ -335,7 +340,10 @@ namespace Hiking.Journey
             width = map.TileWidth * RainWeatherSystem.RainTileCount;
             height = Mathf.Max(.5f, settings.rainVisualHeight);
             int count = RainWeatherSystem.RainTileCount * Mathf.Clamp(settings.rainStreaksPerTile, 1, 16);
-            streaks = new Transform[count]; speeds = new float[count];
+            streaks = new Transform[count];
+            streakRenderers = new SpriteRenderer[count];
+            streakOpacityVariation = new float[count];
+            speeds = new float[count];
             Sprite sprite = settings.fallbackPlantSprite;
             if (sprite == null)
             {
@@ -365,16 +373,24 @@ namespace Hiking.Journey
                 obj.transform.localPosition = new Vector3(x, y, 0);
                 obj.transform.localRotation = Quaternion.Euler(0, 0, -12);
                 float length = Mathf.Lerp(.2f, .38f, (float)random.NextDouble());
-                obj.transform.localScale = new Vector3(.018f / spriteWidth, length / spriteHeight, 1);
+                obj.transform.localScale = new Vector3(
+                    Mathf.Max(.001f, settings.rainStreakThickness) / spriteWidth,
+                    length / spriteHeight, 1);
                 var renderer = obj.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
-                renderer.color = new Color(.78f, .92f, 1f,
-                    Mathf.Clamp01(settings.rainStreakOpacity) * Mathf.Lerp(.65f, 1f, (float)random.NextDouble()));
+                streakOpacityVariation[i] = Mathf.Lerp(.65f, 1f, (float)random.NextDouble());
+                Color streakColor = settings.rainStreakColor;
+                renderer.color = new Color(streakColor.r, streakColor.g, streakColor.b,
+                    Mathf.Clamp01(settings.rainStreakOpacity) * streakOpacityVariation[i]);
                 renderer.sortingOrder = -500;
                 streaks[i] = obj.transform;
+                streakRenderers[i] = renderer;
                 speeds[i] = Mathf.Max(.1f, settings.rainStreakSpeed) *
                     Mathf.Lerp(.75f, 1.25f, (float)random.NextDouble());
             }
+            lastStreakColor = settings.rainStreakColor;
+            lastStreakOpacity = settings.rainStreakOpacity;
+            lastStreakThickness = settings.rainStreakThickness;
         }
 
         public void SyncWeather(RainWeatherSystem weather)
@@ -384,13 +400,35 @@ namespace Hiking.Journey
             if (displayedStart != weather.RainStartTile)
             {
                 displayedStart = weather.RainStartTile;
-                int firstStation = displayedStart / RingMapSettings.TilesPerStation;
-                int lastStation = weather.RainEndTile / RingMapSettings.TilesPerStation;
-                float first = map.stations[firstStation].TileCenter(displayedStart % RingMapSettings.TilesPerStation);
-                float last = map.stations[lastStation].TileCenter(weather.RainEndTile % RingMapSettings.TilesPerStation);
-                map.UpdateRouteObject(transform, new Vector3((first + last) * .5f,
-                    settings.ringThickness * .5f + height * .42f, 1f));
+                PositionRain();
             }
+        }
+
+        void PositionRain()
+        {
+            if (displayedStart < 0 || map.stations == null) return;
+            int lastTile = displayedStart + RainWeatherSystem.RainTileCount - 1;
+            int firstStation = displayedStart / RingMapSettings.TilesPerStation;
+            int lastStation = lastTile / RingMapSettings.TilesPerStation;
+            float first = map.stations[firstStation].TileCenter(displayedStart % RingMapSettings.TilesPerStation);
+            float last = map.stations[lastStation].TileCenter(lastTile % RingMapSettings.TilesPerStation);
+            map.UpdateRouteObject(transform, new Vector3((first + last) * .5f,
+                settings.ringThickness * .5f + height * .42f, 1f));
+        }
+
+        void RefreshVisualHeight()
+        {
+            float nextHeight = Mathf.Max(.5f, settings.rainVisualHeight);
+            if (Mathf.Approximately(height, nextHeight)) return;
+            float ratio = nextHeight / height;
+            foreach (var streak in streaks)
+            {
+                Vector3 position = streak.localPosition;
+                position.y *= ratio;
+                streak.localPosition = position;
+            }
+            height = nextHeight;
+            PositionRain();
         }
 
         public void FaceCamera(Camera camera, bool visible, int currentStationIndex,
@@ -398,7 +436,12 @@ namespace Hiking.Journey
         {
             bool show = raining && visible && camera != null;
             if (gameObject.activeSelf != show) gameObject.SetActive(show);
-            if (show) transform.rotation = camera.transform.rotation;
+            if (show)
+            {
+                RefreshVisualHeight();
+                transform.rotation = camera.transform.rotation;
+                RefreshStreakAppearance();
+            }
             if (overcastRenderer == null) return;
             bool canRenderFilter = visible && camera != null && allowRainFilter;
             bool showFilter = show && canRenderFilter &&
@@ -415,7 +458,35 @@ namespace Hiking.Journey
             overcastTransform.localScale = new Vector3(
                 viewHeight * camera.aspect / Mathf.Max(.001f, spriteSize.x),
                 viewHeight / Mathf.Max(.001f, spriteSize.y), 1f);
-            overcastRenderer.color = new Color(.18f, .23f, .29f, overcastOpacity);
+            Color overcastColor = settings.rainOvercastColor;
+            overcastRenderer.color = new Color(overcastColor.r, overcastColor.g,
+                overcastColor.b, overcastOpacity);
+        }
+
+        void RefreshStreakAppearance()
+        {
+            Color color = settings.rainStreakColor;
+            float opacity = settings.rainStreakOpacity;
+            float thickness = settings.rainStreakThickness;
+            bool colorChanged = color != lastStreakColor || opacity != lastStreakOpacity;
+            bool thicknessChanged = thickness != lastStreakThickness;
+            if (!colorChanged && !thicknessChanged) return;
+            lastStreakColor = color;
+            lastStreakOpacity = opacity;
+            lastStreakThickness = thickness;
+            for (int i = 0; i < streakRenderers.Length; i++)
+            {
+                if (colorChanged)
+                    streakRenderers[i].color = new Color(color.r, color.g, color.b,
+                        Mathf.Clamp01(opacity) * streakOpacityVariation[i]);
+                if (thicknessChanged)
+                {
+                    Vector3 scale = streaks[i].localScale;
+                    scale.x = Mathf.Max(.001f, thickness) /
+                        Mathf.Max(.001f, streakRenderers[i].sprite.bounds.size.x);
+                    streaks[i].localScale = scale;
+                }
+            }
         }
 
         void Update()

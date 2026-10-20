@@ -61,7 +61,8 @@ namespace Hiking.UIUX
         public void ShowWaterDetails() { WaterDetailsRequested.Invoke(); }
         public void SetValues(int station, int total, int seed, int water)
         {
-            StationLabel.text = "第 " + station.ToString("00") + " / " + total + " 站";
+            StationLabel.text = total <= 0 ? "小狐狸的家" :
+                "第 " + station.ToString("00") + " / " + total + " 站";
             SeedLabel.text = seed.ToString(); WaterLabel.text = water.ToString();
         }
         public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
