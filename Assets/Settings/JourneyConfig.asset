@@ -12,14 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcf19aa6164ad164186aa4456d6c163c, type: 3}
   m_Name: JourneyConfig
   m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.JourneyConfig
-  tileMoveSeconds: 0.1
+  tileMoveSeconds: 3
   tileRestSeconds: 5
   cameraTransitionStartFromEnd: 1
-  stationTransitionSeconds: 0.1
+  stationTransitionSeconds: 5
   defaultPlacementWater: 1
   defaultPlacementSeeds: 1
-  placementStopSeconds: 0.1
-  placementWarningSeconds: 0.1
+  placementStopSeconds: 3
+  placementWarningSeconds: 8
   panoramaScrollStationsPerSecond: 1.2
   normalWaitSeconds: 300
   demoWaitSeconds: 3

@@ -67,6 +67,7 @@ namespace Hiking.Journey
             float delta = (float)(now - lastTime); lastTime = now;
             // 离线结算期间不推进旅途、不结算行动点：这一段时间属于"读档"，不属于游戏
             if (IsSettlingOffline) return;
+            if (UI != null && UI.TutorialOpen) return;
             if (IsPreviewing || Activity == JourneyActivity.Complete) return;
             Session.Tick(delta);
             TickAutosave(delta);
@@ -330,13 +331,18 @@ namespace Hiking.Journey
                 Placement.ClearSelection();
                 // Spawn at the first tile and start the first timed step immediately.
                 CollectOnTileEntry();
-                Advance();
+                if (!UI.TryShowJourneyTutorial()) Advance();
             }
             catch (Exception error)
             {
                 if (next != null) Destroy(next.gameObject);
                 UI.Notify("无法开始旅途：" + error.Message); Debug.LogException(error);
             }
+        }
+        public void ResumeAfterTutorial()
+        {
+            if (Map != null && Activity == JourneyActivity.Walking && !Traveler.IsMoving)
+                Advance();
         }
         void Advance()
         {

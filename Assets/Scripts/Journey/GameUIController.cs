@@ -117,6 +117,8 @@ namespace Hiking.Journey
         JourneyBgmPlayer bgmPlayer;
         GameAudio gameAudio;
         UiSoundFeedback uiSound;
+        JourneyTutorialOverlay tutorial;
+        public bool TutorialOpen => tutorial != null && tutorial.isActiveAndEnabled;
         Text panoramaTitle;
         public void Initialize(GameFlowController owner)
         {
@@ -127,6 +129,8 @@ namespace Hiking.Journey
             bgmPlayer = new JourneyBgmPlayer(gameObject);
             travelUI = gameObject.AddComponent<TravelUIBridge>();
             travelUI.Initialize(owner);
+            tutorial = GetComponentInChildren<JourneyTutorialOverlay>(true);
+            if (tutorial != null) tutorial.Initialize(owner);
             uiSound = gameObject.AddComponent<UiSoundFeedback>();
             uiSound.Initialize(startButton);
             if (signWaterMinus != null) signWaterMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", -1));
@@ -151,6 +155,7 @@ namespace Hiking.Journey
                 gameAudio?.Play("start_game");
             flow.StartJourney();
         }
+        public bool TryShowJourneyTutorial() => tutorial != null && tutorial.TryShow();
         public void OpenSettings() => travelUI?.OpenSettings();
         public void QuitGame()
         {

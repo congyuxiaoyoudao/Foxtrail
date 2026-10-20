@@ -89,6 +89,28 @@ namespace Hiking.Journey
 
         public void OpenSettings() => settings?.Open();
 
+        public void PreviewTutorialHud(bool expanded)
+        {
+            if (hud == null) return;
+            if (expanded) hud.SetPreview(true);
+            else hud.ResumeHover();
+        }
+
+        public bool TryGetTutorialTarget(bool resources, out Vector2 screen)
+        {
+            screen = default;
+            if (hud == null) return false;
+            RectTransform target = resources ? hud.Resources : hud.Operations;
+            if (target == null) return false;
+            if (!resources)
+                foreach (var child in target.GetComponentsInChildren<RectTransform>(true))
+                    if (child.name == "preset") { target = child; break; }
+            var corners = new Vector3[4];
+            target.GetWorldCorners(corners);
+            screen = RectTransformUtility.WorldToScreenPoint(null, (corners[0] + corners[2]) * .5f);
+            return true;
+        }
+
         void OnExitRequested()
         {
             if (flow.Map == null) flow.UI.QuitGame();
