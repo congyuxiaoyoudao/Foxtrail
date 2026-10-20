@@ -115,14 +115,20 @@ namespace Hiking.Journey
         }
         TravelUIBridge travelUI;
         JourneyBgmPlayer bgmPlayer;
+        GameAudio gameAudio;
+        UiSoundFeedback uiSound;
         Text panoramaTitle;
         public void Initialize(GameFlowController owner)
         {
             flow = owner;
             ClosePlacementPrompt(false); CloseExitPrompt(); HideSignEditor();
+            gameAudio = GetComponent<GameAudio>();
+            if (gameAudio == null) gameAudio = FindFirstObjectByType<GameAudio>();
             bgmPlayer = new JourneyBgmPlayer(gameObject);
             travelUI = gameObject.AddComponent<TravelUIBridge>();
             travelUI.Initialize(owner);
+            uiSound = gameObject.AddComponent<UiSoundFeedback>();
+            uiSound.Initialize(startButton);
             if (signWaterMinus != null) signWaterMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", -1));
             if (signWaterPlus != null) signWaterPlus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", 1));
             if (signSeedMinus != null) signSeedMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("seed", -1));
@@ -139,7 +145,12 @@ namespace Hiking.Journey
                 scrollRightButton.GetComponent<ScrollHoldButton>()?.Configure(flow, 1);
             if (signEditorPanel != null) signEditorPanel.SetActive(false);
         }
-        public void StartJourney() => flow.StartJourney();
+        public void StartJourney()
+        {
+            if (flow != null && flow.Session.Phase == JourneyPhase.Start)
+                gameAudio?.Play("start_game");
+            flow.StartJourney();
+        }
         public void OpenSettings() => travelUI?.OpenSettings();
         public void QuitGame()
         {
@@ -186,11 +197,15 @@ namespace Hiking.Journey
         }
         public void ApplyTravelPreset() => travelUI?.ApplyPresetToMap();
         public void SyncTravelPreset() => travelUI?.SyncPresetFromMap();
-        public void SetBgmVolume(float volume) => bgmPlayer?.SetVolume(volume);
+        public void SetBgmVolume(float volume) =>
+            bgmPlayer?.SetVolume(volume * (gameAudio != null ? gameAudio.MusicTrim : 1f));
+        public void SetSfxVolume(float volume) => gameAudio?.SetSfxVolume(volume);
         public void ExitAppreciation() => flow.ExitAppreciation();
         void LateUpdate()
         {
             if (flow == null) return;
+            // Play Mode can start on a partially initialized frame after a domain reload.
+            if (bgmPlayer == null) bgmPlayer = new JourneyBgmPlayer(gameObject);
             bgmPlayer.SetTarget(CurrentBgm(), bgmCrossfadeSeconds);
             bgmPlayer.Tick(Time.unscaledDeltaTime);
             var session = flow.Session;

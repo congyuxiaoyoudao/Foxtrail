@@ -60,6 +60,8 @@ namespace Hiking.Journey
             settings.MasterVolumeChanged += OnMasterVolumeChanged;
             flow.UI.SetBgmVolume(settings.BgmVolume);
             settings.BgmVolumeChanged += flow.UI.SetBgmVolume;
+            flow.UI.SetSfxVolume(settings.OperationVolume);
+            settings.OperationVolumeChanged += flow.UI.SetSfxVolume;
         }
 
         void RegisterDrag(FixedWidgetDrag drag)
@@ -193,6 +195,7 @@ namespace Hiking.Journey
                 settings.ViewportScaleRequested -= OnViewportScaleRequested;
                 settings.MasterVolumeChanged -= OnMasterVolumeChanged;
                 settings.BgmVolumeChanged -= flow.UI.SetBgmVolume;
+                settings.OperationVolumeChanged -= flow.UI.SetSfxVolume;
             }
             if (hudDrag != null) UnregisterDrag(hudDrag);
             if (notebookDrag != null) UnregisterDrag(notebookDrag);

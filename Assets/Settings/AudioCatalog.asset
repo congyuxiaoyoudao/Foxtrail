@@ -1,0 +1,176 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36adc17f3fdee334a8d008dcdcea8c63, type: 3}
+  m_Name: AudioCatalog
+  m_EditorClassIdentifier: Hiking.Journey::Hiking.Journey.AudioCatalog
+  musicTrim: 0.505
+  sfxTrim: 0.9
+  musicTargetRmsDb: -35
+  musicMeasuredRmsDb: -29.071743
+  musicMeasuredPeakDb: -12.285637
+  footstepFadeSeconds: 0.08
+  hoverCooldownSeconds: 0.08
+  ambienceFadeSeconds: 1.2
+  cues:
+  - id: footstep_plain
+    displayName: "\u5E73\u539F\u811A\u6B65\u58F0"
+    category: 1
+    clip: {fileID: 8300000, guid: 183538136cd2b6d48946a0e3465a191e, type: 3}
+    volume: 1
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -46
+    measuredRmsDb: -50.566566
+    measuredActiveRmsDb: -47.06409
+    measuredPeakDb: -25.954058
+    suggestedVolume: 1
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: footstep_desert
+    displayName: "\u6C99\u6F20\u811A\u6B65\u58F0"
+    category: 1
+    clip: {fileID: 8300000, guid: 48484e182fe78a8438564a7c0c3bbb28, type: 3}
+    volume: 1
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -46
+    measuredRmsDb: -50.06929
+    measuredActiveRmsDb: -48.06364
+    measuredPeakDb: -23.273071
+    suggestedVolume: 1
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: footstep_wet
+    displayName: "\u6F6E\u6E7F\u5730\u9762\u811A\u6B65\u58F0"
+    category: 1
+    clip: {fileID: 8300000, guid: b9bcffc897d4b9543b39554f4edd556d, type: 3}
+    volume: 1
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -46
+    measuredRmsDb: -49.63372
+    measuredActiveRmsDb: -46.32991
+    measuredPeakDb: -13.751279
+    suggestedVolume: 1
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: footstep_snow
+    displayName: "\u96EA\u5730\u811A\u6B65\u58F0"
+    category: 1
+    clip: {fileID: 8300000, guid: 863d14b9abcad9c4ba69a0e60b92c6c5, type: 3}
+    volume: 0.829692
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -46
+    measuredRmsDb: -44.7065
+    measuredActiveRmsDb: -44.378338
+    measuredPeakDb: -18.418938
+    suggestedVolume: 0.829692
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: rain_loop
+    displayName: "\u4E0B\u96E8\u80CC\u666F\u97F3"
+    category: 2
+    clip: {fileID: 8300000, guid: 9999b3ec959c9044db60833dc25f148c, type: 3}
+    volume: 1
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 1
+    spatialBlend: 0
+    targetRmsDb: -52
+    measuredRmsDb: -54.64408
+    measuredActiveRmsDb: -54.606968
+    measuredPeakDb: -29.910067
+    suggestedVolume: 1
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: ui_hover
+    displayName: "UI\uFF0C\u5149\u6807\u9009\u4E2D"
+    category: 0
+    clip: {fileID: 8300000, guid: 6e536c9184757f64297f700761c02327, type: 3}
+    volume: 0.34
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -36
+    measuredRmsDb: -27.85844
+    measuredActiveRmsDb: -26.57446
+    measuredPeakDb: -6.0588546
+    suggestedVolume: 0.33784923
+    license: "\u514D\u8D39\u5F00\u6E90"
+    source: https://freesound.org/people/GameDevC/sounds/422836/
+    usage: 1
+  - id: ui_click
+    displayName: "UI\uFF0C\u70B9\u51FB\u6309\u94AE"
+    category: 0
+    clip: {fileID: 8300000, guid: 251087ae241dab547a0517a6c8ecacd4, type: 3}
+    volume: 0.38752562
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -33
+    measuredRmsDb: -29.729921
+    measuredActiveRmsDb: -24.766008
+    measuredPeakDb: -4.6194816
+    suggestedVolume: 0.38752562
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: start_game
+    displayName: "\u5F00\u59CB\u6E38\u620F\u65F6\u64AD\u653E\u4E00\u6B21"
+    category: 4
+    clip: {fileID: 8300000, guid: 9316875723757774288637bbe6745861, type: 3}
+    volume: 0.43316746
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -33
+    measuredRmsDb: -28.328922
+    measuredActiveRmsDb: -25.733116
+    measuredPeakDb: -7.0308704
+    suggestedVolume: 0.43316746
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
+  - id: putdown
+    displayName: "\u6295\u653E\u97F3\u6548"
+    category: 3
+    clip: {fileID: 8300000, guid: 5d46cc2047870dd479bc583ff3b7e0ab, type: 3}
+    volume: 0.62
+    pitch: 1
+    pitchJitter: 0.02
+    loop: 0
+    spatialBlend: 0
+    targetRmsDb: -34
+    measuredRmsDb: -32.20758
+    measuredActiveRmsDb: -29.584576
+    measuredPeakDb: -11.789356
+    suggestedVolume: 0.6014905
+    license: "\u4ED8\u8D39\u5546\u7528"
+    source: https://elevenlabs.io/app/sound-effects
+    usage: 1
