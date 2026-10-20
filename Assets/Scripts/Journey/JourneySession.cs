@@ -51,7 +51,9 @@ namespace Hiking.Journey
             if (carried != null)
                 foreach (var entry in carried)
                     if (entry != null && entry.id != null && inventory.ContainsKey(entry.id))
-                        inventory[entry.id] = Math.Min(CarryCapacity, Math.Max(0, entry.amount));
+                        // A new leg starts with at least its configured supplies; keep any larger carry-over.
+                        inventory[entry.id] = Math.Min(CarryCapacity,
+                            Math.Max(inventory[entry.id], Math.Max(0, entry.amount)));
             StationCount = stationCount;
             WaitSeconds = waitSeconds;
             ResidenceSeconds = 0;

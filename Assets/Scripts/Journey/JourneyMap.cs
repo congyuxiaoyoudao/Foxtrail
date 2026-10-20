@@ -25,16 +25,28 @@ namespace Hiking.Journey
         readonly List<Station> landscapeStations = new List<Station>();
         readonly List<Material> landscapeMaterials = new List<Material>();
         readonly List<Mesh> landscapeMeshes = new List<Mesh>();
-        RainStreakVisual rainVisual;
+        RainStreakVisual[] rainVisuals;
 
         public void InitializeRainVisual()
         {
-            var rain = new GameObject("RainStreaks_15Tiles");
-            rain.transform.SetParent(transform, false);
-            rainVisual = rain.AddComponent<RainStreakVisual>();
-            rainVisual.Configure(this, sourceSettings);
-            RegisterRouteObject(rain.transform, new Vector3(0, 0, 1f));
-            rain.SetActive(false);
+            rainVisuals = new RainStreakVisual[stations.Length];
+            for (int station = 0; station < stations.Length; station++)
+            {
+                var rain = new GameObject("RainStreaks_Station_" + station);
+                rain.transform.SetParent(transform, false);
+                var visual = rain.AddComponent<RainStreakVisual>();
+                visual.Configure(this, sourceSettings, station);
+                RegisterRouteObject(rain.transform, new Vector3(0, 0, 1f));
+                rain.SetActive(false);
+                rainVisuals[station] = visual;
+            }
+        }
+
+        public void SyncRainVisuals()
+        {
+            if (rainVisuals == null) return;
+            foreach (var visual in rainVisuals)
+                if (visual != null) visual.SyncWeather(Weather);
         }
 
         public void RegisterLandscape(Renderer renderer, Material material = null, Mesh mesh = null)
@@ -45,7 +57,8 @@ namespace Hiking.Journey
             landscapeMeshes.Add(mesh);
         }
         public void FrameLandscapes(Camera camera, int blendFromStation = -1,
-            float blendProgress = 0f, float blendCenter = 0f)
+            float blendProgress = 0f, float blendCenter = 0f,
+            int currentStationIndex = -1, bool allowRainFilter = true)
         {
             bool visible = camera != null && camera.orthographic;
             bool blending = visible && stations != null && blendFromStation >= 0 &&
@@ -76,7 +89,9 @@ namespace Hiking.Journey
             if (visible && stations != null)
                 foreach (var station in stations)
                     if (station != null) station.FramePlants(camera);
-            if (rainVisual != null) rainVisual.FaceCamera(camera, visible);
+            if (rainVisuals != null)
+                foreach (var visual in rainVisuals)
+                    if (visual != null) visual.FaceCamera(camera, visible, currentStationIndex, allowRainFilter);
         }
 
         // Mesh vertices are authored in route coordinates. Runtime meshes are owned by this map.
@@ -215,7 +230,9 @@ namespace Hiking.Journey
                 foreach (var plant in tile.NaturalPlants)
                 {
                     var definition = sourceSettings.plantCatalog?.Find(plant.plantId);
-                    bool mature = definition != null && definition.StageCount >= 3 && plant.stageIndex >= 2 && plant.life > definition.stages[2].minLife;
+                    bool mature = definition != null && definition.StageCount > 0 &&
+                        plant.stageIndex >= definition.StageCount - 1 &&
+                        plant.life > definition.stages[definition.StageCount - 1].minLife;
                     if (!mature || SimulationStep < plant.nextSeedStep) continue;
                     plant.nextSeedStep = SimulationStep + Mathf.Max(1, sourceSettings.matureSeedInterval);
                     emissions.Add((index, plant.plantId));
@@ -226,19 +243,39 @@ namespace Hiking.Journey
             {
                 int left = emission.tile - 1, right = emission.tile + 1;
                 foreach (int target in new[] { left, right })
-                    if (target >= 0 && target < total && TileAt(target).TryAddSeed(emission.plantId, SimulationStep))
+                    if (target >= 0 && target < total &&
+                        CanNaturallySpread(target, emission.plantId, total) &&
+                        TileAt(target).TryAddSeed(emission.plantId, SimulationStep,
+                            sourceSettings.plantCatalog))
                         stations[target / RingMapSettings.TilesPerStation].RefreshTile(target % RingMapSettings.TilesPerStation, false);
             }
             Weather.Advance(tiles, sourceSettings, SimulationStep, collectRain);
-            if (rainVisual != null) rainVisual.SyncWeather(Weather);
+            SyncRainVisuals();
             for (int index = 0; index < total; index++)
             {
                 tiles[index].RecordStepChange(beforeFlow[index]);
                 stations[index / RingMapSettings.TilesPerStation].RefreshTile(index % RingMapSettings.TilesPerStation, false);
             }
             SyncPondVisuals();
-            if (Weather.RainAppliedThisStep)
-                for (int station = 0; station < stations.Length; station++) stations[station].SyncPlantMarkers(this, true);
+            for (int station = 0; station < stations.Length; station++)
+                if (Weather.RainAppliedAtStation(station)) stations[station].SyncPlantMarkers(this, true);
+        }
+
+        bool CanNaturallySpread(int target, string plantId, int total)
+        {
+            if (TileAt(target).HasPlantOrSeed(plantId)) return false;
+            int stationStart = target / RingMapSettings.TilesPerStation * RingMapSettings.TilesPerStation;
+            int occupied = 0;
+            for (int tile = stationStart; tile < stationStart + RingMapSettings.TilesPerStation; tile++)
+                if (TileAt(tile).HasPlantOrSeed(plantId)) occupied++;
+            if (occupied >= Mathf.Clamp(sourceSettings.maxNaturalSpeciesTilesPerStation,
+                    1, RingMapSettings.TilesPerStation)) return false;
+
+            int run = 1;
+            for (int tile = target - 1; tile >= 0 && TileAt(tile).HasPlantOrSeed(plantId); tile--) run++;
+            for (int tile = target + 1; tile < total && TileAt(tile).HasPlantOrSeed(plantId); tile++) run++;
+            return run <= Mathf.Clamp(sourceSettings.maxNaturalSpeciesRun,
+                1, RingMapSettings.TilesPerStation);
         }
         public void CompletePlantFades()
         {
@@ -316,24 +353,33 @@ namespace Hiking.Journey
         JourneyMap map;
         RingMapSettings settings;
         Transform[] streaks;
+        SpriteRenderer[] streakRenderers;
+        float[] streakOpacityVariation;
         float[] speeds;
         float width;
         float height;
         bool raining;
+        int stationIndex;
         int displayedStart = -1;
         Sprite ownedSprite;
         Texture2D ownedTexture;
         Transform overcastTransform;
         SpriteRenderer overcastRenderer;
         float overcastOpacity;
+        Color lastStreakColor;
+        float lastStreakOpacity;
+        float lastStreakThickness;
 
-        public void Configure(JourneyMap owner, RingMapSettings configuration)
+        public void Configure(JourneyMap owner, RingMapSettings configuration, int station)
         {
-            map = owner; settings = configuration;
+            map = owner; settings = configuration; stationIndex = station;
             width = map.TileWidth * RainWeatherSystem.RainTileCount;
             height = Mathf.Max(.5f, settings.rainVisualHeight);
             int count = RainWeatherSystem.RainTileCount * Mathf.Clamp(settings.rainStreaksPerTile, 1, 16);
-            streaks = new Transform[count]; speeds = new float[count];
+            streaks = new Transform[count];
+            streakRenderers = new SpriteRenderer[count];
+            streakOpacityVariation = new float[count];
+            speeds = new float[count];
             Sprite sprite = settings.fallbackPlantSprite;
             if (sprite == null)
             {
@@ -363,44 +409,84 @@ namespace Hiking.Journey
                 obj.transform.localPosition = new Vector3(x, y, 0);
                 obj.transform.localRotation = Quaternion.Euler(0, 0, -12);
                 float length = Mathf.Lerp(.2f, .38f, (float)random.NextDouble());
-                obj.transform.localScale = new Vector3(.018f / spriteWidth, length / spriteHeight, 1);
+                obj.transform.localScale = new Vector3(
+                    Mathf.Max(.001f, settings.rainStreakThickness) / spriteWidth,
+                    length / spriteHeight, 1);
                 var renderer = obj.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
-                renderer.color = new Color(.78f, .92f, 1f,
-                    Mathf.Clamp01(settings.rainStreakOpacity) * Mathf.Lerp(.65f, 1f, (float)random.NextDouble()));
+                streakOpacityVariation[i] = Mathf.Lerp(.65f, 1f, (float)random.NextDouble());
+                Color streakColor = settings.rainStreakColor;
+                renderer.color = new Color(streakColor.r, streakColor.g, streakColor.b,
+                    Mathf.Clamp01(settings.rainStreakOpacity) * streakOpacityVariation[i]);
                 renderer.sortingOrder = -500;
                 streaks[i] = obj.transform;
+                streakRenderers[i] = renderer;
                 speeds[i] = Mathf.Max(.1f, settings.rainStreakSpeed) *
                     Mathf.Lerp(.75f, 1.25f, (float)random.NextDouble());
             }
+            lastStreakColor = settings.rainStreakColor;
+            lastStreakOpacity = settings.rainStreakOpacity;
+            lastStreakThickness = settings.rainStreakThickness;
         }
 
         public void SyncWeather(RainWeatherSystem weather)
         {
-            raining = weather != null && (weather.IsRaining || weather.RainAppliedThisStep);
+            raining = weather != null && (weather.IsRainingAtStation(stationIndex) ||
+                weather.RainAppliedAtStation(stationIndex));
             if (!raining) { gameObject.SetActive(false); return; }
-            if (displayedStart != weather.RainStartTile)
+            int start = stationIndex * RingMapSettings.TilesPerStation;
+            if (displayedStart != start)
             {
-                displayedStart = weather.RainStartTile;
-                int firstStation = displayedStart / RingMapSettings.TilesPerStation;
-                int lastStation = weather.RainEndTile / RingMapSettings.TilesPerStation;
-                float first = map.stations[firstStation].TileCenter(displayedStart % RingMapSettings.TilesPerStation);
-                float last = map.stations[lastStation].TileCenter(weather.RainEndTile % RingMapSettings.TilesPerStation);
-                map.UpdateRouteObject(transform, new Vector3((first + last) * .5f,
-                    settings.ringThickness * .5f + height * .42f, 1f));
+                displayedStart = start;
+                PositionRain();
             }
         }
 
-        public void FaceCamera(Camera camera, bool visible)
+        void PositionRain()
+        {
+            if (displayedStart < 0 || map.stations == null) return;
+            int lastTile = displayedStart + RainWeatherSystem.RainTileCount - 1;
+            int firstStation = displayedStart / RingMapSettings.TilesPerStation;
+            int lastStation = lastTile / RingMapSettings.TilesPerStation;
+            float first = map.stations[firstStation].TileCenter(displayedStart % RingMapSettings.TilesPerStation);
+            float last = map.stations[lastStation].TileCenter(lastTile % RingMapSettings.TilesPerStation);
+            map.UpdateRouteObject(transform, new Vector3((first + last) * .5f,
+                settings.ringThickness * .5f + height * .42f, 1f));
+        }
+
+        void RefreshVisualHeight()
+        {
+            float nextHeight = Mathf.Max(.5f, settings.rainVisualHeight);
+            if (Mathf.Approximately(height, nextHeight)) return;
+            float ratio = nextHeight / height;
+            foreach (var streak in streaks)
+            {
+                Vector3 position = streak.localPosition;
+                position.y *= ratio;
+                streak.localPosition = position;
+            }
+            height = nextHeight;
+            PositionRain();
+        }
+
+        public void FaceCamera(Camera camera, bool visible, int currentStationIndex,
+            bool allowRainFilter)
         {
             bool show = raining && visible && camera != null;
             if (gameObject.activeSelf != show) gameObject.SetActive(show);
-            if (show) transform.rotation = camera.transform.rotation;
+            if (show)
+            {
+                RefreshVisualHeight();
+                transform.rotation = camera.transform.rotation;
+                RefreshStreakAppearance();
+            }
             if (overcastRenderer == null) return;
-            float target = show ? Mathf.Clamp(settings.rainOvercastOpacity, 0, .4f) : 0f;
-            overcastOpacity = visible ? Mathf.MoveTowards(overcastOpacity, target,
+            bool canRenderFilter = visible && camera != null && allowRainFilter;
+            bool showFilter = show && canRenderFilter && stationIndex == currentStationIndex;
+            float target = showFilter ? Mathf.Clamp(settings.rainOvercastOpacity, 0, .8f) : 0f;
+            overcastOpacity = canRenderFilter ? Mathf.MoveTowards(overcastOpacity, target,
                 Mathf.Max(Time.unscaledDeltaTime, 1f / 60f) * .55f) : 0f;
-            overcastRenderer.enabled = visible && camera != null && overcastOpacity > .001f;
+            overcastRenderer.enabled = canRenderFilter && overcastOpacity > .001f;
             if (!overcastRenderer.enabled) return;
             overcastTransform.SetPositionAndRotation(camera.transform.position +
                 camera.transform.forward * (camera.nearClipPlane + .5f), camera.transform.rotation);
@@ -409,7 +495,35 @@ namespace Hiking.Journey
             overcastTransform.localScale = new Vector3(
                 viewHeight * camera.aspect / Mathf.Max(.001f, spriteSize.x),
                 viewHeight / Mathf.Max(.001f, spriteSize.y), 1f);
-            overcastRenderer.color = new Color(.18f, .23f, .29f, overcastOpacity);
+            Color overcastColor = settings.rainOvercastColor;
+            overcastRenderer.color = new Color(overcastColor.r, overcastColor.g,
+                overcastColor.b, overcastOpacity);
+        }
+
+        void RefreshStreakAppearance()
+        {
+            Color color = settings.rainStreakColor;
+            float opacity = settings.rainStreakOpacity;
+            float thickness = settings.rainStreakThickness;
+            bool colorChanged = color != lastStreakColor || opacity != lastStreakOpacity;
+            bool thicknessChanged = thickness != lastStreakThickness;
+            if (!colorChanged && !thicknessChanged) return;
+            lastStreakColor = color;
+            lastStreakOpacity = opacity;
+            lastStreakThickness = thickness;
+            for (int i = 0; i < streakRenderers.Length; i++)
+            {
+                if (colorChanged)
+                    streakRenderers[i].color = new Color(color.r, color.g, color.b,
+                        Mathf.Clamp01(opacity) * streakOpacityVariation[i]);
+                if (thicknessChanged)
+                {
+                    Vector3 scale = streaks[i].localScale;
+                    scale.x = Mathf.Max(.001f, thickness) /
+                        Mathf.Max(.001f, streakRenderers[i].sprite.bounds.size.x);
+                    streaks[i].localScale = scale;
+                }
+            }
         }
 
         void Update()
@@ -450,32 +564,81 @@ namespace Hiking.Journey
         }
     }
 
-    // Keeps rain scoped to one contiguous route segment, including station boundaries.
+    // Each station owns its vapor check and rain event. Event IDs remain unique for rain collection.
     public sealed class RainWeatherSystem
     {
-        public const int RainTileCount = 15;
-        public int RainStartTile { get; private set; } = -1;
+        public const int RainTileCount = RingMapSettings.TilesPerStation;
+        StationRainData[] states = System.Array.Empty<StationRainData>();
+        int nextEventId;
+        public int RainStartTile { get { for (int i = 0; i < states.Length; i++)
+            if (IsRainingAtStation(i)) return i * RainTileCount; return -1; } }
         public int RainEndTile => RainStartTile < 0 ? -1 : RainStartTile + RainTileCount - 1;
-        public int RemainingSeconds { get; private set; }
-        public float RemainingRain { get; private set; }
-        public float EventRain { get; private set; }
-        public int EventId { get; private set; }
+        public int RemainingSeconds => RainStartTile < 0 ? 0 : states[RainStartTile / RainTileCount].remainingSeconds;
+        public float RemainingRain => RainStartTile < 0 ? 0 : states[RainStartTile / RainTileCount].remainingRain;
+        public float EventRain => RainStartTile < 0 ? 0 : states[RainStartTile / RainTileCount].eventRain;
+        public int EventId => nextEventId;
         public int LastCheckStep { get; private set; }
         public float LastCheckVapor { get; private set; }
         public bool LastCheckSucceeded { get; private set; }
-        public bool IsRaining => RemainingSeconds > 0;
+        public bool IsRaining => RainStartTile >= 0;
         public bool RainAppliedThisStep { get; private set; }
+        public bool CoversStation(int stationIndex) => IsRainingAtStation(stationIndex);
+        public bool IsRainingAtStation(int stationIndex) => stationIndex >= 0 &&
+            stationIndex < states.Length && states[stationIndex].remainingSeconds > 0;
+        public bool IsRainingAtTile(int globalTile) =>
+            globalTile >= 0 && IsRainingAtStation(globalTile / RainTileCount);
+        public bool RainAppliedAtStation(int stationIndex) => stationIndex >= 0 &&
+            stationIndex < states.Length && states[stationIndex].rainAppliedThisStep;
+        public StationRainData[] CaptureStations()
+        {
+            var result = new StationRainData[states.Length];
+            for (int i = 0; i < result.Length; i++) result[i] = Copy(states[i]);
+            return result;
+        }
+        static StationRainData Copy(StationRainData s) => new StationRainData
+        {
+            remainingSeconds = s.remainingSeconds, remainingRain = s.remainingRain,
+            eventRain = s.eventRain, eventId = s.eventId, lastCheckStep = s.lastCheckStep,
+            lastCheckVapor = s.lastCheckVapor, lastCheckSucceeded = s.lastCheckSucceeded,
+            rainAppliedThisStep = s.rainAppliedThisStep
+        };
+        void EnsureStations(int count)
+        {
+            if (states.Length == count) return;
+            var next = new StationRainData[count];
+            for (int i = 0; i < count; i++)
+                next[i] = i < states.Length && states[i] != null ? states[i] : new StationRainData();
+            states = next;
+        }
 
-        // 读档：进行中的这场雨要原样恢复（覆盖范围、剩余雨量、剩余时间、事件 id），
-        // 读档后不能重新抽取这场雨，也不能重新发放完整降水。
         public void Restore(WeatherData data)
         {
             if (data == null) return;
-            RainStartTile = data.rainStartTile;
-            RemainingSeconds = Mathf.Max(0, data.remainingSeconds);
-            RemainingRain = Mathf.Max(0, data.remainingRain);
-            EventRain = Mathf.Max(0, data.eventRain);
-            EventId = data.eventId;
+            nextEventId = Mathf.Max(nextEventId, data.eventId);
+            if (data.stations != null && data.stations.Length > 0)
+            {
+                states = new StationRainData[data.stations.Length];
+                for (int i = 0; i < states.Length; i++)
+                {
+                    states[i] = data.stations[i] == null ? new StationRainData() : Copy(data.stations[i]);
+                    nextEventId = Mathf.Max(nextEventId, states[i].eventId);
+                }
+            }
+            else if (data.rainStartTile >= 0)
+            {
+                int station = data.rainStartTile / RainTileCount;
+                EnsureStations(station + 1);
+                states[station] = new StationRainData
+                {
+                    remainingSeconds = Mathf.Max(0, data.remainingSeconds),
+                    remainingRain = Mathf.Max(0, data.remainingRain), eventRain = Mathf.Max(0, data.eventRain),
+                    eventId = data.eventId, lastCheckStep = data.lastCheckStep,
+                    lastCheckVapor = data.lastCheckVapor,
+                    lastCheckSucceeded = data.lastCheckSucceeded,
+                    rainAppliedThisStep = data.rainAppliedThisStep
+                };
+                nextEventId = Mathf.Max(nextEventId, data.eventId);
+            }
             LastCheckStep = data.lastCheckStep;
             LastCheckVapor = Mathf.Max(0, data.lastCheckVapor);
             LastCheckSucceeded = data.lastCheckSucceeded;
@@ -487,40 +650,52 @@ namespace Hiking.Journey
         {
             RainAppliedThisStep = false;
             if (tiles == null || tiles.Length < RainTileCount || settings == null) return;
+            int count = tiles.Length / RainTileCount;
+            EnsureStations(count);
             int interval = Mathf.Max(1, settings.rainCheckInterval);
-            if (currentStep > 0 && currentStep % interval == 0 && !IsRaining)
+            for (int station = 0; station < count; station++)
             {
-                LastCheckStep = currentStep;
-                var eligibleStarts = new List<int>();
-                for (int start = 0; start + RainTileCount <= tiles.Length; start++)
-                    if (HasSimulatedWindow(tiles, start)) eligibleStarts.Add(start);
-                LastCheckVapor = 0;
-                LastCheckSucceeded = false;
-                if (eligibleStarts.Count > 0)
-                    TryStartRain(tiles, eligibleStarts[UnityEngine.Random.Range(0, eligibleStarts.Count)], settings);
+                var state = states[station];
+                state.rainAppliedThisStep = false;
+                int start = station * RainTileCount;
+                if (!HasSimulatedWindow(tiles, start)) continue;
+                // Give each station its own starting phase instead of checking all stations together.
+                if (currentStep == 1 && state.lastCheckStep == 0)
+                    state.lastCheckStep = -UnityEngine.Random.Range(0, interval);
+                if (currentStep > 0 && currentStep - state.lastCheckStep >= interval &&
+                    state.remainingSeconds <= 0)
+                {
+                    state.lastCheckStep = currentStep;
+                    LastCheckStep = currentStep;
+                    TryStartRain(tiles, start, settings);
+                }
+                if (state.remainingSeconds <= 0) continue;
+                float thisSecond = state.remainingRain / state.remainingSeconds;
+                float perTile = thisSecond / RainTileCount;
+                for (int i = start; i < start + RainTileCount; i++)
+                {
+                    float collected = Mathf.Clamp(collectRain?.Invoke(state.eventId, i, perTile) ?? 0, 0, perTile);
+                    tiles[i].AddRain(perTile - collected);
+                }
+                state.rainAppliedThisStep = true;
+                RainAppliedThisStep = true;
+                state.remainingRain = Mathf.Max(0, state.remainingRain - thisSecond);
+                state.remainingSeconds--;
             }
-            if (!IsRaining) return;
-            // An unloaded segment must never receive rain without a live tile state.
-            if (!HasSimulatedWindow(tiles, RainStartTile)) return;
-            float thisSecond = RemainingRain / RemainingSeconds;
-            float perTile = thisSecond / RainTileCount;
-            for (int i = RainStartTile; i <= RainEndTile; i++)
-            {
-                float collected = Mathf.Clamp(collectRain?.Invoke(EventId, i, perTile) ?? 0, 0, perTile);
-                tiles[i].AddRain(perTile - collected);
-            }
-            RainAppliedThisStep = true;
-            RemainingRain = Mathf.Max(0, RemainingRain - thisSecond);
-            RemainingSeconds--;
         }
 
         public bool TryStartRain(TileState[] tiles, int start, RingMapSettings settings)
         {
-            if (settings == null || IsRaining || !HasSimulatedWindow(tiles, start)) return false;
+            if (settings == null || start < 0 || start % RainTileCount != 0 ||
+                !HasSimulatedWindow(tiles, start)) return false;
+            int station = start / RainTileCount;
+            EnsureStations(tiles.Length / RainTileCount);
+            var state = states[station];
+            if (state.remainingSeconds > 0) return false;
             float vapor = 0;
             for (int i = start; i < start + RainTileCount; i++) vapor += tiles[i].PendingVapor;
-            LastCheckVapor = vapor;
-            LastCheckSucceeded = false;
+            state.lastCheckVapor = LastCheckVapor = vapor;
+            state.lastCheckSucceeded = LastCheckSucceeded = false;
             if (vapor < Mathf.Max(0, settings.rainVaporThreshold)) return false;
             float rain = Mathf.Min(Mathf.Max(0, settings.maxRainPerEvent),
                 vapor * Mathf.Clamp01(settings.rainReturnRatio));
@@ -528,12 +703,11 @@ namespace Hiking.Journey
             float deducted = 0;
             for (int i = start; i < start + RainTileCount; i++)
                 deducted += tiles[i].ConsumeVapor(rain * tiles[i].PendingVapor / vapor);
-            EventRain = deducted;
-            RemainingRain = EventRain;
-            RemainingSeconds = Mathf.Max(1, settings.rainDuration);
-            RainStartTile = start;
-            EventId++;
-            LastCheckSucceeded = true;
+            state.eventRain = deducted;
+            state.remainingRain = deducted;
+            state.remainingSeconds = Mathf.Max(1, settings.rainDuration);
+            state.eventId = ++nextEventId;
+            state.lastCheckSucceeded = LastCheckSucceeded = true;
             return true;
         }
 

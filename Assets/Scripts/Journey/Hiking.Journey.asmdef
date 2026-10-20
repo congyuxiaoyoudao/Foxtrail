@@ -1,5 +1,5 @@
 {
   "name": "Hiking.Journey",
   "rootNamespace": "Hiking.Journey",
-  "references": ["Unity.InputSystem", "Unity.ugui"]
+  "references": ["Unity.InputSystem", "Unity.ugui", "Unity.RenderPipelines.Universal.Runtime", "Hiking.UIUX"]
 }

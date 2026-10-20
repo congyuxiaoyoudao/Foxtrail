@@ -1,0 +1,5 @@
+{
+  "name": "Hiking.UIUX",
+  "rootNamespace": "Hiking.UIUX",
+  "references": ["Unity.ugui"]
+}

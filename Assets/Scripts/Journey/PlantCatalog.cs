@@ -14,6 +14,8 @@ namespace Hiking.Journey
         [Range(0, 100)] public int minSoilPercent;
         [Min(0)] public int minLife;
         public Sprite sprite;
+        [Tooltip("当前阶段贴图的独立缩放；播放时调整植物表可实时预览")]
+        [Min(.01f)] public float visualScale = 1f;
         public Color fallbackColor = new Color(.35f, .75f, .35f);
     }
 
@@ -70,10 +72,6 @@ namespace Hiking.Journey
         public PlantHabitat initialHabitats = PlantHabitat.Grass;
         [Min(0)] public float growthWaterPerLife = .03f;
         public bool isForeground = true;
-        [Tooltip("该植物成熟阶段的画面高度；启用原画比例时，其他阶段按贴图本身尺寸缩放")]
-        [Min(.05f)] public float visualHeight = .35f;
-        [Tooltip("按成熟贴图确定统一缩放，让幼苗与成株保留原画的尺寸比例")]
-        public bool preserveSpriteStageScale;
         [Tooltip("中等积水时仍可正常生长；深水会伤害所有陆地植物")]
         public bool floodTolerant;
         [Range(0, 100)] public int maxHumidityPercent = 100;
@@ -128,7 +126,6 @@ namespace Hiking.Journey
             maxLife = Mathf.Max(0, maxLife);
             growthWaterPerLife = Mathf.Max(0, growthWaterPerLife);
             initialHabitats &= PlantHabitat.Snow | PlantHabitat.Grass | PlantHabitat.Desert;
-            visualHeight = Mathf.Max(.05f, visualHeight);
             suitableHabitats &= PlantHabitat.Snow | PlantHabitat.Grass | PlantHabitat.Desert;
             if (stages == null || stages.Length == 0) stages = new[] { new PlantStage() };
             int lastHumidity = 0, lastSoil = 0, lastLife = 0;
@@ -139,6 +136,7 @@ namespace Hiking.Journey
                 stage.minHumidityPercent = Mathf.Clamp(stage.minHumidityPercent, lastHumidity, maxHumidityPercent);
                 stage.minSoilPercent = Mathf.Clamp(stage.minSoilPercent, lastSoil, maxSoilPercent);
                 stage.minLife = Mathf.Clamp(stage.minLife, lastLife, maxLife);
+                stage.visualScale = Mathf.Max(.01f, stage.visualScale);
                 lastHumidity = stage.minHumidityPercent;
                 lastSoil = stage.minSoilPercent;
                 lastLife = stage.minLife;
@@ -162,22 +160,27 @@ namespace Hiking.Journey
             return eligible.ToArray();
         }
         public PlantInstance[] SpawnNaturalPlants(StationTheme theme, int count,
-            float soilContent, float humidityPercent)
+            float soilContent, float humidityPercent, Func<PlantDefinition, bool> allow = null)
         {
             var eligible = SuitableFor(theme);
             if (eligible.Length == 0 || count <= 0) return Array.Empty<PlantInstance>();
-            var result = new PlantInstance[count];
+            var result = new List<PlantInstance>(count);
+            bool hasBackground = false;
             for (int i = 0; i < count; i++)
             {
-                var definition = eligible[UnityEngine.Random.Range(0, eligible.Length)];
+                var choices = Array.FindAll(eligible, plant =>
+                    (!hasBackground || plant.isForeground) && (allow == null || allow(plant)));
+                if (choices.Length == 0) break;
+                var definition = choices[UnityEngine.Random.Range(0, choices.Length)];
                 int allowedStage = definition.HighestSuitableStage(soilContent, humidityPercent);
                 // Existing plants on unsuitable land begin declining instead of vanishing on step one.
                 int ceiling = Mathf.Max(1, allowedStage < 0 ? definition.maxLife : definition.LifeCeiling(allowedStage));
                 int life = UnityEngine.Random.Range(ceiling >= 2 ? 2 : 1, ceiling + 1);
                 int stage = definition.StageAtLife(life, allowedStage < 0 ? definition.StageCount - 1 : allowedStage);
-                result[i] = new PlantInstance(definition.id, stage) { life = life };
+                result.Add(new PlantInstance(definition.id, stage) { life = life });
+                if (!definition.isForeground) hasBackground = true;
             }
-            return result;
+            return result.ToArray();
         }
         void OnValidate()
         {

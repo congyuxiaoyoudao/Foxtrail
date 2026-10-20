@@ -23,13 +23,18 @@ MonoBehaviour:
   plantCatalog: {fileID: 11400000, guid: 783bd6b99e364401a44fe6187071ea01, type: 2}
   fallbackPlantSprite: {fileID: 21300000, guid: 886e151b74b94894295202599bca68b3, type: 3}
   placementSignSprite: {fileID: 21300000, guid: 165fa77924186d245a91959249871586, type: 3}
+  placementSignBoardScale: 1.47
+  placementWaterSignSprite: {fileID: 21300000, guid: 1c1847e8dbf315f4cadb2a86b82c224d, type: 3}
+  placementSeedSignSprite: {fileID: 21300000, guid: 337a0366ae62c684a95245cd96688bf4, type: 3}
+  placementExclamationSprite: {fileID: 21300000, guid: 055ef51f4b8ed494387e508cc2c54ab1, type: 3}
+  placementSignNumberFont: {fileID: 12800000, guid: a84ffcea11c431a4b92aa97c037d50d8, type: 3}
+  placementSignNumberTextScale: 1.5
+  placementSignHintScale: 1
   fallbackBackgroundPlantSprite: {fileID: 21300000, guid: 72bfa1a9e7b54e429d3805e6518d63f0, type: 3}
   sceneLayout: {fileID: 11400000, guid: b743f48377ac4ebc8e99a43fb2abff21, type: 2}
-  plantHorizontalScatter: 0.1
-  plantVerticalScatter: 0.12
-  backgroundPlantHeight: 3.3
-  backgroundSaplingHeightRatio: 0.5
-  backgroundMediumHeightRatio: 0.87
+  plantHorizontalScatter: 0.12
+  plantVerticalScatter: 0.04
+  pondVisualScale: 1.55
   plantStageFadeSeconds: 0.6
   farThemeSwitchTiles: 7
   middleThemeSwitchTiles: 10
@@ -63,9 +68,12 @@ MonoBehaviour:
   rainStreaksPerTile: 6
   rainVisualHeight: 3.2
   rainStreakSpeed: 3.6
+  rainStreakThickness: 0.03
+  rainStreakColor: {r: 0.78, g: 0.92, b: 1, a: 1}
   rainStreakOpacity: 0.42
-  rainOvercastOpacity: 0.16
-  tileLabelFont: {fileID: 12800000, guid: 92affa0c1f97a944b81c33bdc9b3790f, type: 3}
+  rainOvercastColor: {r: 0.18, g: 0.23, b: 0.29, a: 1}
+  rainOvercastOpacity: 0.494
+  tileLabelFont: {fileID: 12800000, guid: a84ffcea11c431a4b92aa97c037d50d8, type: 3}
   snowSoilRange: {x: 30, y: 65}
   grassSoilRange: {x: 40, y: 80}
   desertSoilRange: {x: 20, y: 50}
@@ -88,4 +96,6 @@ MonoBehaviour:
   thermalApproachCap: 0.05
   thermalRecoveryCap: 0.01
   matureSeedInterval: 30
+  maxNaturalSpeciesTilesPerStation: 4
+  maxNaturalSpeciesRun: 2
   ringThickness: 0.247

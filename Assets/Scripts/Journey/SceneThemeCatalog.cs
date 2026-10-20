@@ -58,12 +58,29 @@ namespace Hiking.Journey
             farMountains != null || middle != null;
     }
 
+    [Serializable]
+    public sealed class SceneThemeTransition
+    {
+        public StationTheme fromTheme;
+        public StationTheme toTheme;
+        public Sprite far;
+        public Sprite middle;
+        public Sprite nearGround;
+    }
+
     [CreateAssetMenu(menuName = "Hiking/Scene Theme Catalog", fileName = "SceneThemeCatalog")]
     public sealed class SceneThemeCatalog : ScriptableObject
     {
         public SceneThemeLayers[] themes = Array.Empty<SceneThemeLayers>();
+        [Header("站间过渡：从本站主题到下一站主题")]
+        public SceneThemeTransition[] transitions = Array.Empty<SceneThemeTransition>();
 
         public SceneThemeLayers For(StationTheme theme) => themes == null ? null :
             Array.Find(themes, entry => entry != null && entry.theme == theme);
+
+        public SceneThemeTransition TransitionFor(StationTheme from, StationTheme to) =>
+            from == to || transitions == null ? null :
+            Array.Find(transitions, entry => entry != null &&
+                entry.fromTheme == from && entry.toTheme == to);
     }
 }

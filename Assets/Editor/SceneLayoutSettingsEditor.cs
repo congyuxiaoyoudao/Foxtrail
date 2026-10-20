@@ -18,6 +18,7 @@ public sealed class SceneLayoutSettingsEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewportVerticalInset"), new GUIContent("画面上下内缩比例"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("journeyViewWidthInStations"), new GUIContent("旅途取景宽度（站数）"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("framedViewWidthMultiplier"), new GUIContent("全景画面缩小倍率"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("panoramaFrameHeightOffsetRatio"), new GUIContent("全景画面上下偏移比例"));
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("远景与中景", EditorStyles.boldLabel);
         EditorGUILayout.PropertyField(serializedObject.FindProperty("skyY"), new GUIContent("天空偏移 Y"));
@@ -30,6 +31,7 @@ public sealed class SceneLayoutSettingsEditor : Editor
         EditorGUILayout.PropertyField(serializedObject.FindProperty("nearSharedY"), new GUIContent("近景共享偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("groundY"), new GUIContent("地面单独偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("foxY"), new GUIContent("狐狸单独偏移 Y"));
+        EditorGUILayout.PropertyField(serializedObject.FindProperty("journeyFoxScale"), new GUIContent("旅途中狐狸大小（倍率）"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("foregroundPlantY"), new GUIContent("前景植物单独偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("backgroundPlantY"), new GUIContent("背景植物单独偏移 Y"));
         EditorGUILayout.PropertyField(serializedObject.FindProperty("placementSignY"), new GUIContent("木牌单独偏移 Y"));

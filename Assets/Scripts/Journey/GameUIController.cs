@@ -6,22 +6,26 @@ namespace Hiking.Journey
     public class GameUIController : MonoBehaviour
     {
         GameFlowController flow;
-        public GameObject startPanel, journeyPanel, panoramaPanel;
+        public GameObject startPanel, panoramaPanel;
+        [Header("开始界面木牌")]
+        [InspectorName("悬停白色描边宽度"), Min(0f)]
+        public float startSignHoverOutlineWidth = 4f;
         [Header("终局与长卷浏览（布局及按钮事件保存在 Canvas）")]
-        public Button previewPanoramaButton, continueButton, exitAppreciationButton,
+        public Button continueButton, exitAppreciationButton,
             returnToTitleButton, scrollLeftButton, scrollRightButton;
-        public Text panoramaHint;
         public Image foxOutsideFrame;
         [Header("全景画框与浏览进度（布局保存在 Canvas）")]
         public GameObject panoramaBrowsingDecoration;
+        [InspectorName("全景进度条整体位移")]
+        [Tooltip("同时移动进度条背景、填充、百分比和狐狸装饰；播放时修改立即生效")]
+        public Vector2 panoramaProgressOffset;
         public Image panoramaProgressFill;
         public RectTransform panoramaProgressFox;
         public Text panoramaProgressPercent;
-        public GameObject panoramaCompletionControls;
         public Button panoramaBrowseReturnButton;
-        [Header("地块调试（布局及按钮事件保存在 Canvas）")]
-        public GameObject debugPanel;
-        public Text debugStatus;
+        [Header("背景音乐")]
+        public AudioClip titleBgm, plainBgm, snowMountainBgm, desertBgm;
+        [Min(.1f)] public float bgmCrossfadeSeconds = 1.5f;
         // Retain old serialized references while the scene migrates to automatic travel.
         [HideInInspector] public GameObject exitPrompt;
         [HideInInspector] public Text exitPromptText;
@@ -44,7 +48,8 @@ namespace Hiking.Journey
         public Text signWaterValue, signSeedValue;
         public Button signWaterMinus, signWaterPlus, signSeedMinus, signSeedPlus,
             signConfirm, signCancel;
-        public bool SignEditorOpen => signEditorPanel != null && signEditorPanel.activeSelf;
+        public bool SignEditorOpen => travelUI != null && travelUI.IsPointOpen ||
+            signEditorPanel != null && signEditorPanel.activeSelf;
         public bool PlacementPromptOpen => placementPrompt != null && placementPrompt.activeSelf;
         public bool PlacementDecisionOpen => placementDecision != null && placementDecision.activeSelf;
         public bool IsModalOpen => PlacementDecisionOpen || PlacementPromptOpen;
@@ -66,18 +71,25 @@ namespace Hiking.Journey
         }
         public void ShowSignEditor(PlacementSlot slot)
         {
+            if (travelUI != null)
+            {
+                travelUI.OpenPoint(slot);
+                return;
+            }
             if (signEditorPanel == null) return;
             signEditorPanel.SetActive(true);
             PositionSignEditor(slot);
         }
         public void HideSignEditor()
         {
+            if (travelUI != null) travelUI.ClosePoint();
             if (signEditorPanel != null) signEditorPanel.SetActive(false);
         }
         void PositionSignEditor(PlacementSlot slot)
         {
             if (slot?.Sign == null || signEditorRect == null) return;
-            var canvasRect = GetComponent<RectTransform>();
+            var canvasRect = signEditorRect.parent as RectTransform;
+            if (canvasRect == null) return;
             Vector2 screen = slot.Sign.ScreenPosition(flow.Camera.WorldCamera);
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screen, null,
                 out Vector2 local);
@@ -86,14 +98,10 @@ namespace Hiking.Journey
                 Mathf.Clamp(local.x, canvasRect.rect.xMin + half.x + 8, canvasRect.rect.xMax - half.x - 8),
                 Mathf.Clamp(local.y, canvasRect.rect.yMin + half.y + 8, canvasRect.rect.yMax - half.y - 8));
         }
-        public Text status, hint, toast, departText, modeText;
-        public Button startButton, modeButton, depart, returnButton;
-        public Image progress;
+        public Button startButton;
         [HideInInspector] public Button returnToTravelerButton;
         [Tooltip("开始界面的「继续游戏」，仅在存在存档时显示")]
         public Button loadGameButton;
-        [Tooltip("旅途中的「保存并退出」")]
-        public Button saveQuitButton;
         [Tooltip("离线结算进度提示，结算期间才显示")]
         public Text loadingText;
         [Serializable]
@@ -105,63 +113,66 @@ namespace Hiking.Journey
             public Color normalColor = new Color(.17f, .29f, .31f);
             public Color selectedColor = new Color(.28f, .49f, .43f);
         }
-        public MaterialButton[] materialButtons;
-        float toastUntil;
+        TravelUIBridge travelUI;
+        JourneyBgmPlayer bgmPlayer;
+        GameAudio gameAudio;
+        UiSoundFeedback uiSound;
+        JourneyTutorialOverlay tutorial;
+        public bool TutorialOpen => tutorial != null && tutorial.isActiveAndEnabled;
         Text panoramaTitle;
-        public JourneyMode mode = JourneyMode.Normal;
         public void Initialize(GameFlowController owner)
         {
             flow = owner;
             ClosePlacementPrompt(false); CloseExitPrompt(); HideSignEditor();
+            gameAudio = GetComponent<GameAudio>();
+            if (gameAudio == null) gameAudio = FindFirstObjectByType<GameAudio>();
+            bgmPlayer = new JourneyBgmPlayer(gameObject);
+            travelUI = gameObject.AddComponent<TravelUIBridge>();
+            travelUI.Initialize(owner);
+            tutorial = GetComponentInChildren<JourneyTutorialOverlay>(true);
+            if (tutorial != null) tutorial.Initialize(owner);
+            uiSound = gameObject.AddComponent<UiSoundFeedback>();
+            uiSound.Initialize(startButton);
             if (signWaterMinus != null) signWaterMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", -1));
             if (signWaterPlus != null) signWaterPlus.onClick.AddListener(() => flow.Placement.AdjustPlan("water", 1));
             if (signSeedMinus != null) signSeedMinus.onClick.AddListener(() => flow.Placement.AdjustPlan("seed", -1));
             if (signSeedPlus != null) signSeedPlus.onClick.AddListener(() => flow.Placement.AdjustPlan("seed", 1));
             if (signConfirm != null) signConfirm.onClick.AddListener(flow.Placement.ConfirmPlan);
             if (signCancel != null) signCancel.onClick.AddListener(flow.Placement.CancelEditor);
-            if (depart != null) depart.gameObject.SetActive(false);
-            if (modeButton != null)
-            {
-                modeButton.gameObject.SetActive(true);
-                modeButton.onClick.AddListener(CycleMode);
-            }
-            if (mode != JourneyMode.Quick) mode = JourneyMode.Normal;
             if (returnToTravelerButton != null) returnToTravelerButton.gameObject.SetActive(false);
             if (loadGameButton != null) loadGameButton.onClick.AddListener(ContinueGame);
-            if (saveQuitButton != null) saveQuitButton.onClick.AddListener(SaveAndQuit);
             foreach (var label in panoramaPanel.GetComponentsInChildren<Text>(true))
                 if (label.text.Contains("旅途完成")) { panoramaTitle = label; break; }
             if (scrollLeftButton != null)
                 scrollLeftButton.GetComponent<ScrollHoldButton>()?.Configure(flow, -1);
             if (scrollRightButton != null)
                 scrollRightButton.GetComponent<ScrollHoldButton>()?.Configure(flow, 1);
-            if (foxOutsideFrame != null && flow.Traveler.walkFrames != null &&
-                flow.Traveler.walkFrames.Length > 0)
-                foxOutsideFrame.sprite = flow.Traveler.walkFrames[0];
-            RefreshModeLabel();
+            if (signEditorPanel != null) signEditorPanel.SetActive(false);
         }
-        public void StartJourney() => flow.StartJourney(mode);
-        public void StartDebugMode() => flow.StartDebugMode();
-        public void StepDebugMap() => flow.StepDebugMap();
-        public void DebugPanLeft() { if (flow.IsDebugMode) flow.Camera.PanDebug(-4 * flow.Map.TileWidth); }
-        public void DebugPanRight() { if (flow.IsDebugMode) flow.Camera.PanDebug(4 * flow.Map.TileWidth); }
-        public void Depart() { }
-        public void CycleMode()
+        public void StartJourney()
         {
-            if (flow == null || flow.Session.Phase != JourneyPhase.Start) return;
-            mode = mode == JourneyMode.Quick ? JourneyMode.Normal : JourneyMode.Quick;
-            RefreshModeLabel();
+            if (flow != null && flow.Session.Phase == JourneyPhase.Start)
+                gameAudio?.Play("start_game");
+            flow.StartJourney();
         }
-        void RefreshModeLabel()
+        public bool TryShowJourneyTutorial() => tutorial != null && tutorial.TryShow();
+        public void CloseJourneyTutorial() => tutorial?.Dismiss();
+        public void OpenSettings() => travelUI?.OpenSettings();
+        public void QuitGame()
         {
-            if (modeText == null) return;
-            string name = mode == JourneyMode.Quick ? "开发快速" : "默认模式";
-            modeText.text = $"{name}（点击切换）\n移动 {flow.Config.MoveSeconds(mode):0.##} 秒 · 站间 {flow.Config.TransitionSeconds(mode):0.##} 秒";
-            if (modeButton != null && modeButton.targetGraphic != null)
-                modeButton.targetGraphic.color = mode == JourneyMode.Quick ? new Color(.28f,.49f,.43f) : new Color(.17f,.29f,.31f);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
-        public void ReturnToStart() => flow.ReturnToStart();
-        public void ReturnToTitle() => SaveAndQuit();
+        public void ReturnToTitle()
+        {
+            if (flow == null) return;
+            // Completed journeys already live in the archive; SaveNow rejects this phase.
+            if (flow.IsFinalized) flow.ReturnToStart();
+            else SaveAndQuit();
+        }
         // ---- 存档入口：策划要求提供「继续游戏」和「保存并退出」----
         // 直接关闭窗口也保存，那条在 GameFlowController 里（OnApplicationQuit / OnApplicationPause）。
         public void ContinueGame() { if (flow != null) flow.LoadGame(); }
@@ -174,54 +185,56 @@ namespace Hiking.Journey
             flow.ReturnToStart();
         }
         public void PreviewPanorama() => flow.PreviewPanorama();
-        public void PrimaryCompletionAction()
+        public void ExitPanoramaPreview() => flow?.ExitPreview();
+        public void ContinueJourney()
         {
-            if (flow.IsPreviewing) { flow.ExitPreview(); return; }
-            if (!flow.IsFinalized) flow.TryFinalize();
-            else flow.EnterAppreciation();
+            if (flow.IsAppreciating) flow.ExitAppreciation();
+            flow.ContinueJourney();
         }
-        public void ContinueJourney() => flow.ContinueJourney();
+        public void StartNewJourneyFromPanorama()
+        {
+            if (flow == null || !flow.IsFinalized) return;
+            ContinueJourney();
+        }
+        public void ReturnToMenuFromPanorama()
+        {
+            if (flow == null || !flow.IsFinalized) return;
+            flow.ReturnToStart();
+        }
+        public void ApplyTravelPreset() => travelUI?.ApplyPresetToMap();
+        public void SyncTravelPreset() => travelUI?.SyncPresetFromMap();
+        public void SetBgmVolume(float volume) =>
+            bgmPlayer?.SetVolume(volume * (gameAudio != null ? gameAudio.MusicTrim : 1f));
+        public void SetSfxVolume(float volume) => gameAudio?.SetSfxVolume(volume);
         public void ExitAppreciation() => flow.ExitAppreciation();
-        public void SelectMaterial(string id) { }
         void LateUpdate()
         {
             if (flow == null) return;
+            // Play Mode can start on a partially initialized frame after a domain reload.
+            if (bgmPlayer == null) bgmPlayer = new JourneyBgmPlayer(gameObject);
+            bgmPlayer.SetTarget(CurrentBgm(), bgmCrossfadeSeconds);
+            bgmPlayer.Tick(Time.unscaledDeltaTime);
             var session = flow.Session;
             startPanel.SetActive(session.Phase == JourneyPhase.Start);
-            journeyPanel.SetActive(!flow.IsSettlingOffline && !flow.IsDebugMode && !flow.IsPreviewing &&
-                flow.Activity != JourneyActivity.Complete && session.Phase != JourneyPhase.Start);
-            if (previewPanoramaButton != null) previewPanoramaButton.interactable = !IsModalOpen;
             // 没有存档时不显示「继续游戏」，免得点了没反应
-            if (loadGameButton != null) loadGameButton.gameObject.SetActive(flow.HasSave());
+            if (loadGameButton != null) loadGameButton.interactable = flow.HasSave();
             if (loadingText != null)
             {
                 bool settling = flow.IsSettlingOffline;
                 if (loadingText.gameObject.activeSelf != settling) loadingText.gameObject.SetActive(settling);
                 if (settling) loadingText.text = "正在结算离线时间… " + (flow.OfflineProgress01 * 100f).ToString("0") + "%";
             }
-            if (debugPanel != null) debugPanel.SetActive(flow.IsDebugMode);
-            if (flow.IsDebugMode)
-            {
-                if (debugStatus != null)
-                {
-                    var weather = flow.Map.Weather;
-                    int interval = Mathf.Max(1, flow.Map.sourceSettings.rainCheckInterval);
-                    string rain = weather.IsRaining || weather.RainAppliedThisStep ?
-                        $"降雨 {weather.RainStartTile + 1}～{weather.RainEndTile + 1} 格 · 剩余 {weather.RemainingSeconds} 秒 · 本场 {weather.EventRain:0.00}" :
-                        $"下次天气检查 {interval - flow.Map.SimulationStep % interval} 秒后";
-                    debugStatus.text = $"地块调试 · 第 {flow.DebugStepCount} 步 · 共 {flow.Map.stations.Length * RingMapSettings.TilesPerStation} 块\n" +
-                        rain + " · 拖动 / 滚轮 / ← → 浏览全图";
-                }
-            }
             bool finished = flow.Activity == JourneyActivity.Complete;
             bool previewing = flow.IsPreviewing;
             bool appreciating = flow.IsAppreciating;
             bool browsing = flow.IsBrowsingPanorama;
-            panoramaPanel.SetActive((finished || previewing) && !flow.IsEnteringAppreciation);
+            panoramaPanel.SetActive(finished || previewing);
             if (panoramaBrowsingDecoration != null)
+            {
                 panoramaBrowsingDecoration.SetActive(browsing);
-            if (panoramaCompletionControls != null)
-                panoramaCompletionControls.SetActive(!browsing);
+                if (panoramaBrowsingDecoration.transform is RectTransform progressGroup)
+                    progressGroup.anchoredPosition = panoramaProgressOffset;
+            }
             if (panoramaBrowseReturnButton != null)
                 panoramaBrowseReturnButton.gameObject.SetActive(previewing);
             if (browsing)
@@ -241,21 +254,16 @@ namespace Hiking.Journey
             if (panoramaTitle != null) panoramaTitle.text =
                 previewing ? $"第 {flow.LevelIndex} 段旅途 · 全景预览" :
                 appreciating ? $"第 {flow.LevelIndex} 段旅途 · 长卷欣赏" :
-                flow.IsFinalized ? $"第 {flow.LevelIndex} 段旅途已定稿保存" :
-                "保存失败 · 请重试";
-            var returnLabel = returnButton.GetComponentInChildren<Text>();
-            if (returnLabel != null) returnLabel.text = previewing ? "返回旅途" : !flow.IsFinalized ? "重试保存" :
-                flow.HasAppreciated ? "再次欣赏" : "欣赏本次旅途";
-            returnButton.gameObject.SetActive(!appreciating && !previewing);
+                flow.IsFinalized ? $"第 {flow.LevelIndex} 段旅途 · 旅途完成" :
+                "保存失败";
             if (continueButton != null)
             {
-                continueButton.gameObject.SetActive(finished && !appreciating);
+                continueButton.gameObject.SetActive(finished && flow.IsFinalized);
                 continueButton.interactable = flow.IsFinalized;
-                var label = continueButton.GetComponentInChildren<Text>();
-                if (label != null) label.text = flow.HasAppreciated ? "继续旅途" : "开启下一段旅途";
             }
-            if (returnToTitleButton != null) returnToTitleButton.gameObject.SetActive(previewing);
-            if (exitAppreciationButton != null) exitAppreciationButton.gameObject.SetActive(appreciating);
+            if (returnToTitleButton != null)
+                returnToTitleButton.gameObject.SetActive(finished && flow.IsFinalized);
+            if (exitAppreciationButton != null) exitAppreciationButton.gameObject.SetActive(false);
             if (scrollLeftButton != null)
             {
                 scrollLeftButton.gameObject.SetActive(flow.IsBrowsingPanorama);
@@ -267,20 +275,8 @@ namespace Hiking.Journey
                 scrollRightButton.interactable = flow.Camera.CanScrollRight;
             }
             if (foxOutsideFrame != null) foxOutsideFrame.gameObject.SetActive(flow.IsBrowsingPanorama);
-            if (panoramaHint != null) panoramaHint.text = previewing ?
-                "点击箭头前进一站 · 按住连续浏览 · 返回旅途继续行走" : appreciating ?
-                "点击箭头前进一站 · 按住连续浏览 · 松开停止" :
-                flow.IsFinalized ? "本段地图与资源已保存 · 可欣赏长卷或直接继续" :
-                "未完成保存：" + flow.SaveError;
-            string activity = flow.Activity == JourneyActivity.AwaitingPlacement ? "投放点停留" : flow.Activity == JourneyActivity.BetweenStations ? "前往下一站" :
-                flow.Activity == JourneyActivity.Complete ? "旅途完成" : "自动行走";
-            if (flow.Map != null) status.text = $"第 {session.StationIndex + 1}/{session.StationCount} 站 · {flow.CurrentStation.ThemeName}\n第 {flow.CurrentTileIndex + 1}/12 块 · {activity}" +
-                (flow.Map.Weather.IsRaining || flow.Map.Weather.RainAppliedThisStep ?
-                    $"\n降雨中（{flow.Map.Weather.RainStartTile + 1}～{flow.Map.Weather.RainEndTile + 1} 格）" : "");
-            progress.rectTransform.anchorMax = new Vector2(flow.Traveler.Progress01, 1);
-            UpdateMaterials(materialButtons, false);
             var editingSlot = flow.Placement.EditingSlot;
-            if (editingSlot != null && SignEditorOpen)
+            if (editingSlot != null && signEditorPanel != null && signEditorPanel.activeSelf)
             {
                 PositionSignEditor(editingSlot);
                 signWaterValue.text = flow.Placement.EditedWater.ToString();
@@ -288,27 +284,100 @@ namespace Hiking.Journey
                 signWaterMinus.interactable = flow.Placement.EditedWater > 0;
                 signWaterPlus.interactable = flow.Placement.EditedWater < 3;
                 signSeedMinus.interactable = flow.Placement.EditedSeeds > 0;
-                signSeedPlus.interactable = flow.Placement.EditedSeeds < 3;
-            }
-            if (hint != null) hint.text = "点击木牌设置投放；狐狸停留后自动投放";
-            if (toast != null && Time.unscaledTime > toastUntil) toast.text = "";
-        }
-        void UpdateMaterials(MaterialButton[] views, bool available)
-        {
-            if (views == null) return;
-            foreach (var view in views)
-            {
-                var material = flow.Material(view.materialId); int stock = flow.Session.Stock(view.materialId);
-                view.button.interactable = available && material != null && stock > 0;
-                if (material == null) { view.label.text = "未配置材料"; continue; }
-                view.label.text = material.displayName + " × " +
-                    (material.id == "water" ? flow.Session.Amount("water").ToString("0.##") : stock.ToString());
-                if (view.button.targetGraphic != null) view.button.targetGraphic.color = view.normalColor;
+                signSeedPlus.interactable = flow.Placement.EditedSeeds < TileState.MaxPlantsPerTile;
             }
         }
         public void Notify(string message)
         {
-            if (toast == null) return; toast.text = message; toastUntil = Time.unscaledTime + 2.5f;
+            if (!string.IsNullOrEmpty(message)) Debug.Log(message, this);
+        }
+        AudioClip CurrentBgm()
+        {
+            if (flow.Map == null || flow.Activity == JourneyActivity.Complete) return titleBgm;
+            var station = flow.CurrentStation;
+            if (station == null) return titleBgm;
+            // Match the ground/near landscape when weather changes a station's visible theme.
+            switch (station.MiddleTheme)
+            {
+                case StationTheme.Snow: return snowMountainBgm;
+                case StationTheme.Desert: return desertBgm;
+                default: return plainBgm;
+            }
+        }
+    }
+
+    // Two looping sources overlap so scene and station changes never cut the old track abruptly.
+    internal sealed class JourneyBgmPlayer
+    {
+        readonly AudioSource[] sources = new AudioSource[2];
+        readonly float[] gains = new float[2];
+        readonly float[] startGains = new float[2];
+        AudioClip target;
+        float volume = 1f;
+        float elapsed;
+        float fadeSeconds = 1f;
+        int incoming = -1;
+
+        public JourneyBgmPlayer(GameObject host)
+        {
+            for (int i = 0; i < sources.Length; i++)
+            {
+                var source = host.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.loop = true;
+                source.spatialBlend = 0f;
+                source.volume = 0f;
+                sources[i] = source;
+            }
+        }
+
+        public void SetVolume(float value)
+        {
+            volume = Mathf.Clamp01(value);
+            ApplyVolumes();
+        }
+
+        public void SetTarget(AudioClip clip, float seconds)
+        {
+            if (clip == target) return;
+            target = clip;
+            incoming = -1;
+            if (clip != null)
+            {
+                for (int i = 0; i < sources.Length; i++)
+                    if (sources[i].clip == clip && sources[i].isPlaying) incoming = i;
+                if (incoming < 0)
+                {
+                    incoming = gains[0] <= gains[1] ? 0 : 1;
+                    sources[incoming].Stop();
+                    sources[incoming].clip = clip;
+                    gains[incoming] = 0f;
+                    sources[incoming].volume = 0f;
+                    sources[incoming].Play();
+                }
+            }
+            for (int i = 0; i < sources.Length; i++) startGains[i] = gains[i];
+            elapsed = 0f;
+            fadeSeconds = Mathf.Max(.1f, seconds);
+        }
+
+        public void Tick(float deltaTime)
+        {
+            elapsed = Mathf.Min(fadeSeconds, elapsed + Mathf.Max(0f, deltaTime));
+            float t = elapsed / fadeSeconds;
+            t = t * t * (3f - 2f * t);
+            for (int i = 0; i < sources.Length; i++)
+            {
+                gains[i] = Mathf.Lerp(startGains[i], i == incoming ? 1f : 0f, t);
+                if (elapsed >= fadeSeconds && i != incoming && sources[i].isPlaying)
+                    sources[i].Stop();
+            }
+            ApplyVolumes();
+        }
+
+        void ApplyVolumes()
+        {
+            for (int i = 0; i < sources.Length; i++) sources[i].volume = gains[i] * volume;
         }
     }
 }

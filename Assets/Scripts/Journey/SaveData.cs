@@ -17,7 +17,7 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class SaveData
     {
-        public const int CurrentVersion = 5;
+        public const int CurrentVersion = 6;
 
         public int schemaVersion = CurrentVersion;
         public long savedAtUtcTicks;
@@ -91,8 +91,6 @@ namespace Hiking.Journey
         public float moveFraction;
         public float moveDirection;
         public float placementStopRemaining = -1f;
-        public bool debugMode;
-        public int debugStepCount;
     }
 
     [Serializable]
@@ -106,7 +104,21 @@ namespace Hiking.Journey
     [Serializable]
     public sealed class WeatherData
     {
+        public StationRainData[] stations = Array.Empty<StationRainData>();
         public int rainStartTile = -1;
+        public int remainingSeconds;
+        public float remainingRain;
+        public float eventRain;
+        public int eventId;
+        public int lastCheckStep;
+        public float lastCheckVapor;
+        public bool lastCheckSucceeded;
+        public bool rainAppliedThisStep;
+    }
+
+    [Serializable]
+    public sealed class StationRainData
+    {
         public int remainingSeconds;
         public float remainingRain;
         public float eventRain;

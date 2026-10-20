@@ -74,6 +74,7 @@ namespace Hiking.Journey
             w.lastCheckVapor = weather.LastCheckVapor;
             w.lastCheckSucceeded = weather.LastCheckSucceeded;
             w.rainAppliedThisStep = weather.RainAppliedThisStep;
+            w.stations = weather.CaptureStations();
 
             var p = data.player;
             p.mode = (int)flow.Mode;
@@ -84,8 +85,6 @@ namespace Hiking.Journey
             p.moveFraction = flow.Traveler.MoveFraction;
             p.moveDirection = flow.Traveler.MoveDirection;
             p.placementStopRemaining = flow.Placement.RemainingSeconds;
-            p.debugMode = flow.IsDebugMode;
-            p.debugStepCount = flow.DebugStepCount;
 
             var stations = new List<StationData>();
             foreach (var station in flow.Map.stations)

@@ -16,6 +16,7 @@ public sealed class PlantCatalogEditor : Editor
         var plants = serializedObject.FindProperty("plants");
         EditorGUILayout.HelpBox("每行只填写阶段下限。当前阶段的上限取下一阶段的下限；最后一阶段取植物总上限。前几阶段为左闭右开区间，最后一阶段包含上限。", MessageType.Info);
         EditorGUILayout.HelpBox("地块会从适宜其主题的植物中自然生成。每个阶段可选 Sprite；未设置时使用颜色方块占位。植物前后景偏移量在地图设置中统一配置。", MessageType.Info);
+        EditorGUILayout.HelpBox("每阶段的“缩放”直接控制该阶段贴图大小。", MessageType.Info);
         EditorGUILayout.Space(8);
 
         for (int i = 0; i < plants.arraySize; i++)
@@ -35,8 +36,6 @@ public sealed class PlantCatalogEditor : Editor
             plant.FindPropertyRelative("initialHabitats").intValue = (int)PlantHabitat.Grass;
             plant.FindPropertyRelative("growthWaterPerLife").floatValue = .03f;
             plant.FindPropertyRelative("isForeground").boolValue = true;
-            plant.FindPropertyRelative("visualHeight").floatValue = .35f;
-            plant.FindPropertyRelative("preserveSpriteStageScale").boolValue = false;
             plant.FindPropertyRelative("floodTolerant").boolValue = false;
             plant.FindPropertyRelative("maxHumidityPercent").intValue = 100;
             plant.FindPropertyRelative("maxSoilPercent").intValue = 100;
@@ -50,6 +49,7 @@ public sealed class PlantCatalogEditor : Editor
                 stage.FindPropertyRelative("minSoilPercent").intValue = i * 30;
                 stage.FindPropertyRelative("minLife").intValue = i * 30;
                 stage.FindPropertyRelative("sprite").objectReferenceValue = null;
+                stage.FindPropertyRelative("visualScale").floatValue = 1f;
                 stage.FindPropertyRelative("fallbackColor").colorValue = new Color(.35f, .75f, .35f);
             }
         }
@@ -91,8 +91,6 @@ public sealed class PlantCatalogEditor : Editor
             EditorGUILayout.PropertyField(habitats, new GUIContent("可生存地貌"));
             EditorGUILayout.PropertyField(plant.FindPropertyRelative("growthWaterPerLife"), new GUIContent("每增长1生命耗水"));
             EditorGUILayout.PropertyField(foreground, new GUIContent("前景植物"));
-            EditorGUILayout.PropertyField(plant.FindPropertyRelative("visualHeight"), new GUIContent("成熟画面高度"));
-            EditorGUILayout.PropertyField(plant.FindPropertyRelative("preserveSpriteStageScale"), new GUIContent("保留原画阶段比例"));
             EditorGUILayout.PropertyField(floodTolerant, new GUIContent("耐中等积水"));
             if (habitats.intValue == 0) EditorGUILayout.HelpBox("请至少选择一种适宜地块。", MessageType.Warning);
             EditorGUILayout.BeginHorizontal();
@@ -129,6 +127,10 @@ public sealed class PlantCatalogEditor : Editor
                 GUILayout.Space(55);
                 GUILayout.Label("Sprite", GUILayout.Width(44));
                 EditorGUILayout.PropertyField(stageProperty.FindPropertyRelative("sprite"), GUIContent.none, GUILayout.Width(145));
+                GUILayout.Label("缩放", GUILayout.Width(32));
+                var visualScale = stageProperty.FindPropertyRelative("visualScale");
+                visualScale.floatValue = Mathf.Max(.01f,
+                    EditorGUILayout.FloatField(visualScale.floatValue, GUILayout.Width(58)));
                 GUILayout.Label("占位色", GUILayout.Width(48));
                 EditorGUILayout.PropertyField(stageProperty.FindPropertyRelative("fallbackColor"), GUIContent.none, GUILayout.Width(85));
                 EditorGUILayout.EndHorizontal();

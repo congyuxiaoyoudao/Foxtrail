@@ -25,7 +25,7 @@ namespace Hiking.Journey
                     slot.InitializePlan(flow.Config, flow.Map.sourceSettings);
         }
 
-        public bool IsAtSlot(PlacementSlot slot) => flow.Map != null && !flow.IsDebugMode &&
+        public bool IsAtSlot(PlacementSlot slot) => flow.Map != null &&
             flow.Session.Phase == JourneyPhase.AtStation && !flow.Traveler.IsMoving && slot != null &&
             slot.station == flow.CurrentStation && Array.IndexOf(flow.CurrentStation.slots, slot) >= 0 &&
             Mathf.Abs(flow.Map.RouteDistanceAtProgress(flow.Traveler.Progress01) -
@@ -60,15 +60,22 @@ namespace Hiking.Journey
         {
             if (slot == null || flow.Material("seed") == null ||
                 !slot.station.CanReceiveSeeds(slot.tileIndex, 1)) return 0;
-            return Mathf.Max(0, Mathf.Min(flow.Session.Stock("seed"),
+            int available = Mathf.Max(0, Mathf.Min(flow.Session.Stock("seed"),
                 slot.station.Tiles[slot.tileIndex].FreePlantCapacity));
+            return available > 1 && !slot.station.CanReceiveSeeds(slot.tileIndex, 2) ? 1 : available;
+        }
+
+        public void GetPlanLimits(PlacementSlot slot, out int seeds, out int water)
+        {
+            seeds = Mathf.Min(TileState.MaxPlantsPerTile, AllowedSeeds(slot));
+            water = Mathf.Min(3, AllowedWater(slot));
         }
 
         public void AdjustPlan(string materialId, int delta)
         {
             if (EditingSlot == null) return;
             if (materialId == "water") EditedWater = Mathf.Clamp(EditedWater + delta, 0, 3);
-            if (materialId == "seed") EditedSeeds = Mathf.Clamp(EditedSeeds + delta, 0, 3);
+            if (materialId == "seed") EditedSeeds = Mathf.Clamp(EditedSeeds + delta, 0, TileState.MaxPlantsPerTile);
         }
 
         public void ConfirmPlan()
@@ -107,7 +114,7 @@ namespace Hiking.Journey
 
         void Update()
         {
-            if (flow == null || flow.Map == null || flow.IsDebugMode || flow.IsPreviewing ||
+            if (flow == null || flow.Map == null || flow.IsPreviewing ||
                 flow.IsSettlingOffline || flow.Activity == JourneyActivity.Complete) return;
             var mouse = Mouse.current;
             if (mouse != null && Application.isFocused)

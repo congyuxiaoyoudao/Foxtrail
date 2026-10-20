@@ -11,22 +11,22 @@ namespace Hiking.Journey
         SpriteRenderer image;
         Sprite fallbackSprite;
         StationTheme artTheme;
-int layerIndex;
+        int layerIndex;
         bool transitionActive;
         float transitionCenter;
         float transitionAlpha = 1f;
         int baseSortingOrder;
         public int LayerIndex => layerIndex;
-public StationTheme ArtTheme => artTheme;
-public void SetArtTheme(StationTheme theme)
-{
-    if (artTheme == theme) return;
-    artTheme = theme;
-    RefreshPosition();
-}
-static Sprite SpriteFor(SceneThemeLayers layers, int index) => index == 0 ? layers.farSky :
-    index == 1 ? layers.farClouds : index == 2 ? layers.farMountains : layers.middle;
-int sortingOffset;
+        public StationTheme ArtTheme => artTheme;
+        public void SetArtTheme(StationTheme theme)
+        {
+            if (artTheme == theme) return;
+            artTheme = theme;
+            RefreshPosition();
+        }
+        static Sprite SpriteFor(SceneThemeLayers layers, int index) => index == 0 ? layers.farSky :
+            index == 1 ? layers.farClouds : index == 2 ? layers.farMountains : layers.middle;
+        int sortingOffset;
 
         public void Configure(JourneyMap owner, RingMapSettings source, Station home,
             SpriteRenderer renderer, int index)
@@ -35,7 +35,7 @@ int sortingOffset;
             settings = source;
             station = home;
             artTheme = home.theme;
-image = renderer;
+            image = renderer;
             layerIndex = index;
             baseSortingOrder = renderer.sortingOrder;
             RefreshPosition();
@@ -48,7 +48,7 @@ image = renderer;
             settings = source;
             station = home;
             artTheme = home.theme;
-fallbackSprite = sprite;
+            fallbackSprite = sprite;
             layerIndex = -1;
             baseSortingOrder = GetComponent<MeshRenderer>().sortingOrder;
             RefreshPosition();
@@ -67,13 +67,22 @@ fallbackSprite = sprite;
         {
             if (map == null || settings == null || station == null)
                 return;
-            var layers = settings.sceneThemes != null ? settings.sceneThemes.For(artTheme) : null;
+            var catalog = settings.sceneThemes;
+            var layers = catalog != null ? catalog.For(artTheme) : null;
+            if (layers == null) return;
             if (layerIndex >= 0 && image != null)
-        {
-            var art = SpriteFor(layers, layerIndex);
-            if (image.sprite != art) image.sprite = art;
-        }
-if (layers == null) return;
+            {
+                var art = SpriteFor(layers, layerIndex);
+                if (layerIndex >= 2 && station.NextStation != null)
+                {
+                    var nextTheme = layerIndex == 2 ? station.NextStation.FarTheme :
+                        station.NextStation.MiddleTheme;
+                    var transition = catalog.TransitionFor(artTheme, nextTheme);
+                    var transitionArt = layerIndex == 2 ? transition?.far : transition?.middle;
+                    if (transitionArt != null) art = transitionArt;
+                }
+                if (image.sprite != art) image.sprite = art;
+            }
             var sprite = layerIndex < 0 ? fallbackSprite : image != null ? image.sprite : null;
             if (sprite == null) return;
             float widthScale = station.length / Mathf.Max(.001f, sprite.bounds.size.x);
