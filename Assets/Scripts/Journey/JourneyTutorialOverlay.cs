@@ -35,6 +35,7 @@ namespace Hiking.Journey
             if (gameFrame == null && transform.parent != null)
                 gameFrame = transform.parent.Find("GameFrame") as RectTransform;
             shownThisRun = false;
+            SyncBlackOverlayBounds();
             if (blackOverlay != null) blackOverlay.gameObject.SetActive(false);
             gameObject.SetActive(false);
         }
@@ -45,6 +46,7 @@ namespace Hiking.Journey
             shownThisRun = true;
             step = 0;
             shownFrame = Time.frameCount;
+            SyncBlackOverlayBounds();
             if (blackOverlay != null) blackOverlay.gameObject.SetActive(true);
             gameObject.SetActive(true);
             ShowStep();
@@ -84,7 +86,25 @@ namespace Hiking.Journey
             if (blackOverlay != null) blackOverlay.gameObject.SetActive(false);
         }
 
-        void LateUpdate() => UpdateArrow();
+        void LateUpdate()
+        {
+            SyncBlackOverlayBounds();
+            UpdateArrow();
+        }
+
+        void SyncBlackOverlayBounds()
+        {
+            if (blackOverlay == null) return;
+            var rect = blackOverlay.rectTransform;
+            if (!(rect.parent is RectTransform)) return;
+            var layout = flow?.Map?.sourceSettings?.sceneLayout;
+            Rect opening = layout != null ? layout.FramedViewport :
+                SceneLayoutSettings.DefaultFramedViewport;
+            rect.anchorMin = opening.min;
+            rect.anchorMax = opening.max;
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.zero;
+        }
 
         void UpdateArrow()
         {
