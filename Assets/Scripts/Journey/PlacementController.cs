@@ -60,8 +60,9 @@ namespace Hiking.Journey
         {
             if (slot == null || flow.Material("seed") == null ||
                 !slot.station.CanReceiveSeeds(slot.tileIndex, 1)) return 0;
-            return Mathf.Max(0, Mathf.Min(flow.Session.Stock("seed"),
+            int available = Mathf.Max(0, Mathf.Min(flow.Session.Stock("seed"),
                 slot.station.Tiles[slot.tileIndex].FreePlantCapacity));
+            return available > 1 && !slot.station.CanReceiveSeeds(slot.tileIndex, 2) ? 1 : available;
         }
 
         public void GetPlanLimits(PlacementSlot slot, out int seeds, out int water)

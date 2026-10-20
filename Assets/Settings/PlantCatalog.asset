@@ -20,8 +20,6 @@ MonoBehaviour:
     initialHabitats: 2
     growthWaterPerLife: 0.025
     isForeground: 1
-    visualHeight: 1
-    preserveSpriteStageScale: 0
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -31,16 +29,19 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: e23271d6529deb7498dd09928e6a3740, type: 3}
+      visualScale: 0.18
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 25
       minSoilPercent: 30
       minLife: 30
       sprite: {fileID: 21300000, guid: a676e3e110caba0478eef60c187cc032, type: 3}
+      visualScale: 0.09
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 40
       minSoilPercent: 50
       minLife: 60
       sprite: {fileID: 21300000, guid: a13288474da6c37439e6167a71f3a899, type: 3}
+      visualScale: 0.09
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: pine
     displayName: "\u677E\u6811"
@@ -49,8 +50,6 @@ MonoBehaviour:
     initialHabitats: 2
     growthWaterPerLife: 0.04
     isForeground: 0
-    visualHeight: 5
-    preserveSpriteStageScale: 0
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -60,16 +59,19 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: ee0f00ca16da7c041a43e465324f6311, type: 3}
+      visualScale: 0.17
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 30
       minSoilPercent: 45
       minLife: 30
       sprite: {fileID: 21300000, guid: a31a4ab0b15f8e7449ad592cf19e8d65, type: 3}
+      visualScale: 0.15
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 50
       minSoilPercent: 65
       minLife: 60
       sprite: {fileID: 21300000, guid: 299cb8738700ed74db8ce5bf820e48da, type: 3}
+      visualScale: 0.17
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: grass
     displayName: "\u8349\u4E1B"
@@ -78,8 +80,6 @@ MonoBehaviour:
     initialHabitats: 2
     growthWaterPerLife: 0.02
     isForeground: 1
-    visualHeight: 1
-    preserveSpriteStageScale: 0
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -89,16 +89,19 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: daaaf80cdf2e8e843922c9a710aac5c9, type: 3}
+      visualScale: 0.22
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
     - minHumidityPercent: 20
       minSoilPercent: 25
       minLife: 30
       sprite: {fileID: 21300000, guid: a823f9d4cab42034b82d2a13f70b8fa5, type: 3}
+      visualScale: 0.2
       fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
     - minHumidityPercent: 35
       minSoilPercent: 40
       minLife: 60
       sprite: {fileID: 21300000, guid: 73a74797b912daa418cff25dba14185d, type: 3}
+      visualScale: 0.2
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: lotus
     displayName: "\u96EA\u83B2\u82B1"
@@ -107,8 +110,6 @@ MonoBehaviour:
     initialHabitats: 1
     growthWaterPerLife: 0.015
     isForeground: 1
-    visualHeight: 1.34
-    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -118,16 +119,13 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: 405d7f6d2fec97c4f8537b0243bd4a28, type: 3}
+      visualScale: 0.1
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
-    - minHumidityPercent: 35
-      minSoilPercent: 25
-      minLife: 30
-      sprite: {fileID: 21300000, guid: 405d7f6d2fec97c4f8537b0243bd4a28, type: 3}
-      fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
-    - minHumidityPercent: 55
-      minSoilPercent: 40
-      minLife: 60
+    - minHumidityPercent: 45
+      minSoilPercent: 33
+      minLife: 45
       sprite: {fileID: 21300000, guid: 9af9cf7a5ec7ce74b9d36d257231331c, type: 3}
+      visualScale: 0.1
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: gentiana
     displayName: "\u9F99\u80C6\u82B1"
@@ -136,27 +134,22 @@ MonoBehaviour:
     initialHabitats: 1
     growthWaterPerLife: 0.015
     isForeground: 1
-    visualHeight: 1.31
-    preserveSpriteStageScale: 1
     floodTolerant: 0
-    maxHumidityPercent: 100
+    maxHumidityPercent: 60
     maxSoilPercent: 100
     maxLife: 90
     stages:
-    - minHumidityPercent: 15
+    - minHumidityPercent: 6
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: 78d3bd2c959576c4fa2954ca04445d1b, type: 3}
+      visualScale: 0.15
       fallbackColor: {r: 0.35, g: 0.75, b: 0.35, a: 1}
-    - minHumidityPercent: 35
-      minSoilPercent: 25
-      minLife: 30
-      sprite: {fileID: 21300000, guid: 78d3bd2c959576c4fa2954ca04445d1b, type: 3}
-      fallbackColor: {r: 0.35, g: 0.75, b: 0.35, a: 1}
-    - minHumidityPercent: 55
-      minSoilPercent: 40
-      minLife: 60
+    - minHumidityPercent: 6
+      minSoilPercent: 33
+      minLife: 45
       sprite: {fileID: 21300000, guid: 46ac23e3aa2152c43bdce7baff5af881, type: 3}
+      visualScale: 0.13
       fallbackColor: {r: 0.35, g: 0.75, b: 0.35, a: 1}
   - id: spruce
     displayName: "\u4E91\u6749\u6811"
@@ -165,8 +158,6 @@ MonoBehaviour:
     initialHabitats: 1
     growthWaterPerLife: 0.035
     isForeground: 0
-    visualHeight: 4.96
-    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -176,16 +167,13 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: cffb8a2d45713634394f58051cf18ab0, type: 3}
+      visualScale: 0.27
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
-    - minHumidityPercent: 30
-      minSoilPercent: 40
-      minLife: 30
-      sprite: {fileID: 21300000, guid: cffb8a2d45713634394f58051cf18ab0, type: 3}
-      fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
-    - minHumidityPercent: 45
-      minSoilPercent: 55
-      minLife: 60
+    - minHumidityPercent: 38
+      minSoilPercent: 48
+      minLife: 45
       sprite: {fileID: 21300000, guid: 645f1546dd683804c9fd409330e6289a, type: 3}
+      visualScale: 0.27
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: saxaul
     displayName: "\u68AD\u68AD\u6811"
@@ -193,9 +181,7 @@ MonoBehaviour:
     enabledForGeneration: 1
     initialHabitats: 4
     growthWaterPerLife: 0.008
-    isForeground: 0
-    visualHeight: 1.87
-    preserveSpriteStageScale: 1
+    isForeground: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -205,16 +191,13 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: e2af4eaf20b7cd048aa7f1db10270dde, type: 3}
+      visualScale: 0.22
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
-    - minHumidityPercent: 8
-      minSoilPercent: 10
-      minLife: 30
-      sprite: {fileID: 21300000, guid: e2af4eaf20b7cd048aa7f1db10270dde, type: 3}
-      fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
-    - minHumidityPercent: 15
-      minSoilPercent: 20
-      minLife: 60
+    - minHumidityPercent: 12
+      minSoilPercent: 15
+      minLife: 45
       sprite: {fileID: 21300000, guid: f209c2a4ec6791443b2d0527f83a1260, type: 3}
+      visualScale: 0.23
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: cactus
     displayName: "\u4ED9\u4EBA\u638C"
@@ -223,8 +206,6 @@ MonoBehaviour:
     initialHabitats: 4
     growthWaterPerLife: 0.006
     isForeground: 1
-    visualHeight: 2
-    preserveSpriteStageScale: 1
     floodTolerant: 0
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -234,16 +215,13 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: 4ab00866755dcba498eb8a3d90a3d1fa, type: 3}
+      visualScale: 0.19
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
-    - minHumidityPercent: 12
-      minSoilPercent: 15
-      minLife: 30
-      sprite: {fileID: 21300000, guid: 4ab00866755dcba498eb8a3d90a3d1fa, type: 3}
-      fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
-    - minHumidityPercent: 22
-      minSoilPercent: 30
-      minLife: 60
+    - minHumidityPercent: 17
+      minSoilPercent: 23
+      minLife: 45
       sprite: {fileID: 21300000, guid: 193f871df94c58d48aaebf322c8339bc, type: 3}
+      visualScale: 0.18
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}
   - id: poplar
     displayName: "\u80E1\u6768\u6811"
@@ -252,8 +230,6 @@ MonoBehaviour:
     initialHabitats: 4
     growthWaterPerLife: 0.03
     isForeground: 0
-    visualHeight: 5.47
-    preserveSpriteStageScale: 1
     floodTolerant: 1
     maxHumidityPercent: 100
     maxSoilPercent: 100
@@ -263,14 +239,11 @@ MonoBehaviour:
       minSoilPercent: 1
       minLife: 0
       sprite: {fileID: 21300000, guid: d28cd6666cd16244c8d2ee97db973a16, type: 3}
+      visualScale: 0.2
       fallbackColor: {r: 0.35, g: 0.5, b: 0.35, a: 1}
-    - minHumidityPercent: 25
-      minSoilPercent: 25
-      minLife: 30
-      sprite: {fileID: 21300000, guid: d28cd6666cd16244c8d2ee97db973a16, type: 3}
-      fallbackColor: {r: 0.35, g: 0.62, b: 0.35, a: 1}
-    - minHumidityPercent: 45
-      minSoilPercent: 40
-      minLife: 60
+    - minHumidityPercent: 35
+      minSoilPercent: 33
+      minLife: 45
       sprite: {fileID: 21300000, guid: e095aa674f916474d9d34032fdacfe64, type: 3}
+      visualScale: 0.2
       fallbackColor: {r: 0.35, g: 0.74, b: 0.35, a: 1}

@@ -63,8 +63,7 @@ namespace Hiking.Journey
                 0, station.Tiles.Length - 1);
             var tile = station.Tiles[tileIndex];
             var weather = map.Weather;
-            bool wetGround = tile.IsPuddle || weather.IsRaining &&
-                globalTile >= weather.RainStartTile && globalTile <= weather.RainEndTile;
+            bool wetGround = tile.IsPuddle || weather.IsRainingAtTile(globalTile);
 
             string cueId = wetGround ? "footstep_wet" :
                 station.MiddleTheme == StationTheme.Snow ? "footstep_snow" :
@@ -77,8 +76,13 @@ namespace Hiking.Journey
 
         void TickRain()
         {
-            bool shouldPlay = Flow.Map != null && Flow.Map.Weather.IsRaining &&
-                Flow.Activity != JourneyActivity.Complete;
+            bool shouldPlay = Flow.Map != null && Flow.Map.stations != null &&
+                Flow.Map.stations.Length > 0 && Flow.Traveler != null &&
+                Flow.Activity != JourneyActivity.Complete &&
+                Flow.Map.Weather.IsRainingAtTile(Mathf.Clamp(Mathf.FloorToInt(
+                    Flow.Map.RouteDistanceAtProgress(Flow.Traveler.Progress01) /
+                    Mathf.Max(.001f, Flow.Map.TileWidth)), 0,
+                    Flow.Map.stations.Length * RingMapSettings.TilesPerStation - 1));
             if (shouldPlay == rainPlaying) return;
             rainPlaying = shouldPlay;
             if (shouldPlay) GameAudio.Instance?.PlayAmbience("rain_loop");

@@ -74,6 +74,7 @@ namespace Hiking.Journey
             w.lastCheckVapor = weather.LastCheckVapor;
             w.lastCheckSucceeded = weather.LastCheckSucceeded;
             w.rainAppliedThisStep = weather.RainAppliedThisStep;
+            w.stations = weather.CaptureStations();
 
             var p = data.player;
             p.mode = (int)flow.Mode;

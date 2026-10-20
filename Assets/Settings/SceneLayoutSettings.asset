@@ -20,16 +20,16 @@ MonoBehaviour:
   framedViewportVerticalOffset: 0.004
   journeyViewWidthInStations: 0.995
   framedViewWidthMultiplier: 1.3
-  panoramaFrameHeightOffsetRatio: 0
+  panoramaFrameHeightOffsetRatio: -0.033
   skyY: 0.33
-  cloudsY: 1.76
+  cloudsY: 1.98
   mountainsY: -1.69
   middleY: -2.23
   fallbackY: 0
-  nearSharedY: -2.84
+  nearSharedY: -2.21
   groundY: -0.26
-  foxY: -0.33
-  journeyFoxScale: 1.29
-  foregroundPlantY: -1.05
+  foxY: -0.4
+  journeyFoxScale: 1.47
+  foregroundPlantY: -1.52
   backgroundPlantY: -0.98
-  placementSignY: -0.78
+  placementSignY: -0.87

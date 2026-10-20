@@ -59,7 +59,7 @@ namespace Hiking.Journey
 
         // 读档恢复。构造函数覆盖不了种子队列、待回落水汽和排水损失——它只接受"初始状态"。
         // 这些字段都是私有 set，只能在类内部赋值，所以恢复入口必须放在这里。
-        public static TileState Restore(TileData data)
+        public static TileState Restore(TileData data, PlantCatalog plantCatalog = null)
         {
             if (data == null) return null;
 
@@ -85,6 +85,7 @@ namespace Hiking.Journey
             // 直接覆盖掉会让它们读档后叠在一起。
             for (int i = 0; i < tile.NaturalPlants.Length && i < data.plants.Length; i++)
                 tile.NaturalPlants[i].positionOffset = data.plants[i].positionOffset;
+            tile.KeepOneBackgroundPlant(plantCatalog);
 
             // 覆盖构造函数算出来的近似值，用存档里的真实值
             tile.SoilWater = Mathf.Clamp(data.soilWater, 0, tile.MaxWater);
@@ -124,11 +125,52 @@ namespace Hiking.Journey
                 1f - Mathf.Max(0, soilFactor) * SoilContent - Mathf.Max(0, plantFactor) * PlantCount / 5f);
         }
 
-        public bool TryAddSeed(string plantId, int currentStep)
+        public bool HasBackgroundOccupant(PlantCatalog catalog)
+        {
+            if (catalog == null) return false;
+            foreach (var plant in NaturalPlants)
+                if (catalog.Find(plant.plantId)?.isForeground == false) return true;
+            foreach (var seed in Seeds)
+                if (catalog.Find(seed.plantId)?.isForeground == false) return true;
+            return false;
+        }
+
+        public bool HasPlantOrSeed(string plantId)
+        {
+            foreach (var plant in NaturalPlants)
+                if (plant.plantId == plantId) return true;
+            foreach (var seed in Seeds)
+                if (seed.plantId == plantId) return true;
+            return false;
+        }
+
+        public bool CanAcceptSeed(PlantDefinition definition, PlantCatalog catalog) =>
+            definition != null && FreePlantCapacity > 0 &&
+            (definition.isForeground || !HasBackgroundOccupant(catalog));
+
+        public bool TryAddSeed(string plantId, int currentStep, PlantCatalog catalog = null)
         {
             if (string.IsNullOrWhiteSpace(plantId) || FreePlantCapacity <= 0) return false;
+            if (catalog != null && !CanAcceptSeed(catalog.Find(plantId), catalog)) return false;
             Seeds.Add(new SeedInstance(plantId, currentStep));
             return true;
+        }
+
+        void KeepOneBackgroundPlant(PlantCatalog catalog)
+        {
+            if (catalog == null || NaturalPlants.Length < 2) return;
+            PlantInstance strongest = null;
+            int backgroundCount = 0;
+            foreach (var plant in NaturalPlants)
+                if (catalog.Find(plant.plantId)?.isForeground == false)
+                {
+                    backgroundCount++;
+                    if (strongest == null || plant.life > strongest.life) strongest = plant;
+                }
+            if (backgroundCount < 2) return;
+            NaturalPlants = Array.FindAll(NaturalPlants, plant =>
+                plant == strongest || catalog.Find(plant.plantId)?.isForeground != false);
+            PlantCount = NaturalPlants.Length;
         }
 
         float FreePlantPosition()
@@ -197,6 +239,7 @@ namespace Hiking.Journey
         {
             var before = beforeNeighborFlow ?? Snapshot();
             RainfallThisStep = 0;
+            KeepOneBackgroundPlant(plantCatalog);
             RefreshEvaporation(soilFactor, plantFactor, minimumRatio);
             if (SurfaceWater <= 0) EvaporationRate *= Mathf.Clamp(SoilHumidity / Mathf.Max(.001f, settings != null ? settings.drySoilMoistureScale : .4f), settings != null ? settings.minimumDrySoilMultiplier : .05f, 1);
             float surfaceLoss = Mathf.Min(SurfaceWater, EvaporationRate);
@@ -246,7 +289,10 @@ namespace Hiking.Journey
                     bool canGerminate = definition != null && definition.Suits(Category) && toleratesWater &&
                         definition.HighestSuitableStage(SoilContent, SoilHumidity * 100f) >= 0 &&
                         SoilWater >= .1f;
-                    if (canGerminate && PlantCount < MaxPlantsPerTile)
+                    bool backgroundOccupied = definition != null && !definition.isForeground &&
+                        Array.Exists(NaturalPlants, plant =>
+                            plantCatalog.Find(plant.plantId)?.isForeground == false);
+                    if (canGerminate && PlantCount < MaxPlantsPerTile && !backgroundOccupied)
                     {
                         SoilWater = Mathf.Max(0, SoilWater - .1f);
                         var plant = new PlantInstance(seed.plantId) { positionOffset = FreePlantPosition() };

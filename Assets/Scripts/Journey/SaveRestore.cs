@@ -37,13 +37,14 @@ namespace Hiking.Journey
                 for (int t = 0; t < tiles.Length; t++)
                 {
                     if (saved.tiles[t] == null) return false;
-                    tiles[t] = TileState.Restore(saved.tiles[t]);
+                    tiles[t] = TileState.Restore(saved.tiles[t], flow.Map.sourceSettings.plantCatalog);
                 }
                 stations[i].RestoreTiles(tiles);
             }
 
             flow.Map.RestoreSimulationStep(data.map.simulationStep);
             flow.Map.Weather.Restore(data.weather);
+            flow.Map.SyncRainVisuals();
             flow.Session.Restore(data.session);
             foreach (var station in stations)
                 foreach (var slot in station.slots)

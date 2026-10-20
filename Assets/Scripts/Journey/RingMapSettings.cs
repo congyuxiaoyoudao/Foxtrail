@@ -45,14 +45,11 @@ namespace Hiking.Journey
         public SceneLayoutSettings sceneLayout;
         [Header("植物随机散布（运行时生效）")]
         [Tooltip("前景和背景植物相对各自位置向左右随机移动的最大格宽比例；0 表示不随机")]
-        [InspectorName("植物水平随机范围（格宽比例）"), Min(0)] public float plantHorizontalScatter = .1f;
+        [InspectorName("植物水平随机范围（格宽比例）"), Min(0)] public float plantHorizontalScatter = .12f;
         [Tooltip("前景和背景植物相对各自基线向上下随机移动的最大世界单位；0 表示不随机")]
-        [InspectorName("植物垂直随机范围（世界单位）"), Min(0)] public float plantVerticalScatter = .12f;
-        [InspectorName("背景植物占位高度"), Min(.1f)] public float backgroundPlantHeight = 3.3f;
-        [Tooltip("有阶段贴图的背景植物，幼苗相对于成熟高度的比例")]
-        [InspectorName("背景植物幼苗高度比例"), Range(.1f, 1f)] public float backgroundSaplingHeightRatio = .5f;
-        [Tooltip("有阶段贴图的背景植物，中期相对于成熟高度的比例")]
-        [InspectorName("背景植物中期高度比例"), Range(.1f, 1f)] public float backgroundMediumHeightRatio = .87f;
+        [InspectorName("植物垂直随机范围（世界单位）"), Min(0)] public float plantVerticalScatter = .04f;
+        [Tooltip("水洼贴图的整体缩放；1 保持原尺寸，连片水洼会作为一组缩放")]
+        [InspectorName("水洼贴图缩放"), Min(.05f)] public float pondVisualScale = 1f;
         [Tooltip("新生植物淡入及阶段贴图交替淡入淡出的时长；0 表示立即显示")]
         [InspectorName("植物淡入与阶段切换时间（秒）"), Min(0)] public float plantStageFadeSeconds = .6f;
         [Header("场景主题图层（新地图生效）")]
@@ -107,13 +104,13 @@ public SceneThemeCatalog sceneThemes;
         [Min(0)] public float evaporationPlantFactor = .3f;
         [Range(0, 1)] public float minimumEvaporationRatio = .15f;
         [Header("天气与降雨（一步为一秒）")]
-        [Tooltip("每隔多少秒抽取一段连续 15 格；未达到门槛时等待下一周期")]
+        [Tooltip("每站独立检查水汽的间隔秒数；未达到门槛时等待本站下一周期")]
         [Min(1)] public int rainCheckInterval = 40;
-        [Tooltip("所选 15 格的待回落水汽量总和达到此值才下雨")]
+        [Tooltip("本站 12 格的待回落水汽量总和达到此值才下雨")]
         [Min(0)] public float rainVaporThreshold = 30f;
         [Tooltip("达到门槛时，水汽回落为雨水的比例")]
         [Range(0, 1)] public float rainReturnRatio = .9f;
-        [Tooltip("单场降雨总量上限，均分给连续 15 格")]
+        [Tooltip("单场降雨总量上限，均分给本站 12 格")]
         [Min(0)] public float maxRainPerEvent = 80f;
         [Tooltip("单场降雨持续秒数")]
         [Min(1)] public int rainDuration = 40;
@@ -125,7 +122,7 @@ public SceneThemeCatalog sceneThemes;
         [Tooltip("雨丝下落速度（世界单位/秒）")]
         [Min(.1f)] public float rainStreakSpeed = 3.6f;
         [Tooltip("单条雨丝的宽度（世界单位）；播放时修改立即生效")]
-        [Min(.001f)] public float rainStreakThickness = .018f;
+        [Min(.001f)] public float rainStreakThickness = .03f;
         [Tooltip("雨丝颜色；透明度由下方的雨丝透明度控制")]
         public Color rainStreakColor = new Color(.78f, .92f, 1f, 1f);
         [Tooltip("雨丝透明度")]
@@ -156,14 +153,21 @@ public SceneThemeCatalog sceneThemes;
         [Tooltip("单步升温上限／回温上限（°C）。原值 0.15 / 0.01；2026-10-15 升温上限调为 0.05")]
         [Min(0)] public float thermalApproachCap = .05f, thermalRecoveryCap = .01f;
         [Min(1)] public int matureSeedInterval = 30;
-        public TileState CreateTile(StationTheme theme, bool basin = false, bool basinEdge = false)
+        [Header("自然生成与传播的空间限制")]
+        [Tooltip("自然生成和传播时，同一种植物在单站最多占据的地块数；玩家投放不受此限制")]
+        [Range(1, TilesPerStation)] public int maxNaturalSpeciesTilesPerStation = 4;
+        [Tooltip("自然生成和传播时，同一种植物最多连续占据的地块数；玩家投放不受此限制")]
+        [Range(1, TilesPerStation)] public int maxNaturalSpeciesRun = 2;
+        public TileState CreateTile(StationTheme theme, bool basin = false, bool basinEdge = false,
+            System.Func<PlantDefinition, bool> allowNaturalPlant = null)
         {
             Vector2 temperature = theme == StationTheme.Snow ? snowTemperatureRange : theme == StationTheme.Grass ? grassTemperatureRange : desertTemperatureRange;
             Vector2 soil = theme == StationTheme.Snow ? snowSoilRange : theme == StationTheme.Grass ? grassSoilRange : desertSoilRange;
             Vector2 wetness = theme == StationTheme.Snow ? snowHumidityRange : theme == StationTheme.Grass ? grassHumidityRange : desertHumidityRange;
             int count = !basin && Random.Range(0f,1f) < initialPlantProbability ? 1 : 0;
             float soilContent = Sample(soil, 1, 100), humidity = basin ? 1 : Sample(wetness, 0, 1);
-            var naturalPlants = plantCatalog != null ? plantCatalog.SpawnNaturalPlants(theme, count, soilContent, humidity * 100f) : System.Array.Empty<PlantInstance>();
+            var naturalPlants = plantCatalog != null ? plantCatalog.SpawnNaturalPlants(theme, count,
+                soilContent, humidity * 100f, allowNaturalPlant) : System.Array.Empty<PlantInstance>();
             var tile = new TileState(theme, soilContent, naturalPlants.Length, humidity,
                 Sample(evaporationRateRange, 0, float.MaxValue), basin ? 0 : basinEdge ? 1 : Sample(heightRange, 0, 6),
                 Sample(basin ? basinWaterRange : surfaceWaterRange, 0, 35), Sample(temperature, 0, 20), naturalPlants);
@@ -183,6 +187,8 @@ public SceneThemeCatalog sceneThemes;
             stationLength = Mathf.Max(2, stationLength);
             rainCheckInterval = Mathf.Max(1, rainCheckInterval);
             rainDuration = Mathf.Max(1, rainDuration);
+            maxNaturalSpeciesTilesPerStation = Mathf.Clamp(maxNaturalSpeciesTilesPerStation, 1, TilesPerStation);
+            maxNaturalSpeciesRun = Mathf.Clamp(maxNaturalSpeciesRun, 1, TilesPerStation);
         }
     }
 }
