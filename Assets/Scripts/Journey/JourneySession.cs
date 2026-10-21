@@ -32,7 +32,6 @@ namespace Hiking.Journey
         public IReadOnlyDictionary<string, float> Inventory => inventory;
         public IReadOnlyCollection<int> SeedCollectedTiles => seedCollectedTiles;
         public const int CarryCapacity = 20;
-        public const float RainCollectionLimit = 3f;
         public const float PuddleCollectionLimit = 3f;
         readonly Dictionary<string, float> inventory = new Dictionary<string, float>();
         readonly List<PlacementRequest> placements = new List<PlacementRequest>();
@@ -87,13 +86,11 @@ namespace Hiking.Journey
             inventory["water"] += collected;
             return collected;
         }
-        public float CollectRain(int eventId, float allocatedToTile)
+        public float CollectRain(int eventId)
         {
-            if (!inventory.ContainsKey("water") || eventId < 0 || allocatedToTile <= 0) return 0;
+            if (!inventory.ContainsKey("water") || eventId < 0) return 0;
             if (rainEventId != eventId) { rainEventId = eventId; rainCollected = 0; }
-            float collected = Math.Min(allocatedToTile, Math.Min(
-                Math.Max(0, RainCollectionLimit - rainCollected),
-                Math.Max(0, CarryCapacity - Amount("water"))));
+            float collected = Math.Min(1f, Math.Max(0, CarryCapacity - Amount("water")));
             inventory["water"] += collected;
             rainCollected += collected;
             return collected;

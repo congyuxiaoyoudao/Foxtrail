@@ -204,7 +204,7 @@ namespace Hiking.Journey
             nearRouteObjects.Remove(target);
         }
         // One step represents one simulated second in both the journey and debug map.
-        public void StepEnvironment(System.Func<int, int, float, float> collectRain = null)
+        public void StepEnvironment()
         {
             SimulationStep++;
             int total = stations.Length * RingMapSettings.TilesPerStation;
@@ -249,7 +249,7 @@ namespace Hiking.Journey
                             sourceSettings.plantCatalog))
                         stations[target / RingMapSettings.TilesPerStation].RefreshTile(target % RingMapSettings.TilesPerStation, false);
             }
-            Weather.Advance(tiles, sourceSettings, SimulationStep, collectRain);
+            Weather.Advance(tiles, sourceSettings, SimulationStep);
             SyncRainVisuals();
             for (int index = 0; index < total; index++)
             {
@@ -589,6 +589,8 @@ namespace Hiking.Journey
             globalTile >= 0 && IsRainingAtStation(globalTile / RainTileCount);
         public bool RainAppliedAtStation(int stationIndex) => stationIndex >= 0 &&
             stationIndex < states.Length && states[stationIndex].rainAppliedThisStep;
+        public int EventIdAtStation(int stationIndex) => stationIndex >= 0 &&
+            stationIndex < states.Length ? states[stationIndex].eventId : -1;
         public StationRainData[] CaptureStations()
         {
             var result = new StationRainData[states.Length];
@@ -645,8 +647,7 @@ namespace Hiking.Journey
             RainAppliedThisStep = data.rainAppliedThisStep;
         }
 
-        public void Advance(TileState[] tiles, RingMapSettings settings, int currentStep,
-            System.Func<int, int, float, float> collectRain = null)
+        public void Advance(TileState[] tiles, RingMapSettings settings, int currentStep)
         {
             RainAppliedThisStep = false;
             if (tiles == null || tiles.Length < RainTileCount || settings == null) return;
@@ -673,10 +674,7 @@ namespace Hiking.Journey
                 float thisSecond = state.remainingRain / state.remainingSeconds;
                 float perTile = thisSecond / RainTileCount;
                 for (int i = start; i < start + RainTileCount; i++)
-                {
-                    float collected = Mathf.Clamp(collectRain?.Invoke(state.eventId, i, perTile) ?? 0, 0, perTile);
-                    tiles[i].AddRain(perTile - collected);
-                }
+                    tiles[i].AddRain(perTile);
                 state.rainAppliedThisStep = true;
                 RainAppliedThisStep = true;
                 state.remainingRain = Mathf.Max(0, state.remainingRain - thisSecond);

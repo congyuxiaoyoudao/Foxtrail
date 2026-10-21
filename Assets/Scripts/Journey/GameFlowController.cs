@@ -75,7 +75,7 @@ namespace Hiking.Journey
             environmentSeconds += Mathf.Max(0, delta);
             while (environmentSeconds >= 1f)
             {
-                Map.StepEnvironment(CollectRainAtCurrentTile);
+                AdvanceEnvironment();
                 environmentSeconds -= 1f;
             }
         }
@@ -196,7 +196,7 @@ namespace Hiking.Journey
         }
 
         // 离线推进沿用在线语义：只推进环境，不动狐狸、不结算采集、不替玩家做决定。
-        // 狐狸仍能接雨——CollectRainAtCurrentTile 只认它当前所在的格子。
+        // 狐狸仍能接雨——AdvanceEnvironment 只认它当前所在的站点。
         // 这里只算「要推进多少步」，实际推进交给 SettleOffline 分帧做。
         void ComputeOfflineSteps(SaveData data, out int steps, out double seconds)
         {
@@ -230,7 +230,7 @@ namespace Hiking.Journey
                 watch.Restart();
                 while (done < total && watch.Elapsed.TotalMilliseconds < budgetMs)
                 {
-                    Map.StepEnvironment(CollectRainAtCurrentTile);
+                    AdvanceEnvironment();
                     done++;
                 }
                 OfflineProgress01 = total <= 0 ? 1f : (float)done / total;
@@ -462,13 +462,16 @@ namespace Hiking.Journey
             StartLevel();
         }
         int CurrentGlobalTile => Session.StationIndex * RingMapSettings.TilesPerStation + CurrentTileIndex;
-        float CollectRainAtCurrentTile(int eventId, int globalTile, float amount)
+        void AdvanceEnvironment()
         {
+            Map.StepEnvironment();
+            if (Activity == JourneyActivity.Complete) return;
             int occupiedTile = Mathf.Clamp(Mathf.FloorToInt(
                 Map.RouteDistanceAtProgress(Traveler.Progress01) / Map.TileWidth),
                 0, Map.stations.Length * RingMapSettings.TilesPerStation - 1);
-            return globalTile == occupiedTile && Activity != JourneyActivity.Complete ?
-                Session.CollectRain(eventId, amount) : 0;
+            int station = occupiedTile / RingMapSettings.TilesPerStation;
+            if (Map.Weather.RainAppliedAtStation(station))
+                Session.CollectRain(Map.Weather.EventIdAtStation(station));
         }
         void CollectOnTileEntry()
         {
