@@ -59,16 +59,33 @@ namespace Hiking.Journey
             color.a *= transitionAlpha;
             image.color = color;
             image.sortingOrder = baseSortingOrder + sortingOffset;
+            // Solid fills can safely extend farther behind the next station.
+            // The small left blend stays at the true boundary, while the right
+            // guard hides subpixel gaps left by packaged sprite rasterization.
+            float leftOverlap = station.TileWidth * .05f;
+            float rightGuard = station.TileWidth * .5f;
+            float drawWidth = station.length + leftOverlap + rightGuard;
+            if (image.sharedMaterial != null && image.sharedMaterial.HasProperty("_LeftBlend"))
+            {
+                image.sharedMaterial.SetFloat("_LeftBlend",
+                    !transitionActive && station.startDistance > 0f ?
+                    (leftOverlap * 2f) / drawWidth : 0f);
+                image.sharedMaterial.SetFloat("_EdgeUv", leftOverlap / drawWidth);
+                image.sharedMaterial.SetFloat("_TextureInset",
+                    image.sprite != null && image.sprite.texture != null ?
+                    .5f / image.sprite.texture.width : 0f);
+            }
             var layout = settings.sceneLayout;
             float top = settings.ringThickness * .5f +
                 (settings.sceneLayout != null ? settings.sceneLayout.landscapeBaseY : 0f) +
                 (layout != null ? (layers.HasLandscape ? layout.middleY : layout.fallbackY) : 0f);
             map.UpdateRouteObject(transform, new Vector3(
-                transitionActive ? transitionCenter : station.startDistance + station.length * .5f,
+                (transitionActive ? transitionCenter : station.startDistance + station.length * .5f) +
+                    (rightGuard - leftOverlap) * .5f,
                 ground ? top : 0f,
                 Mathf.Max(0, settings.landscapeDepth) + .1f));
             transform.localScale = new Vector3(
-                station.length / Mathf.Max(.001f, image.sprite.bounds.size.x),
+                drawWidth / Mathf.Max(.001f, image.sprite.bounds.size.x),
                 20f / Mathf.Max(.001f, image.sprite.bounds.size.y), 1);
             if (ground)
             {

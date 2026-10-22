@@ -1,7 +1,7 @@
 using System;
+using Hiking.UIUX;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -23,12 +23,17 @@ namespace Hiking.Journey
         const uint SwpNoZOrder = 0x0004;
         const uint SwpNoActivate = 0x0010;
         const uint SwpFrameChanged = 0x0020;
-        const uint MonitorDefaultToNearest = 2;
         const int RegionOr = 2;
-        const int RegionCopy = 5;
         const int ScreenEdgeMargin = 16;
-        const int FrameArtRegionPadding = 3;
-        const byte FrameRegionAlphaThreshold = 8;
+        const uint MonitorDefaultToNearest = 2;
+        const int SmXVirtualScreen = 76;
+        const int SmYVirtualScreen = 77;
+        const int SmCxVirtualScreen = 78;
+        const int SmCyVirtualScreen = 79;
+        // Alpha >= 51 in the 1485x994 GameFrame source occupies this bounding box.
+        // Keep a rectangle to avoid artifacts when the native region changes during a drag.
+        static readonly Rect FramePaintedBounds = Rect.MinMaxRect(
+            36f / 1485f, 51f / 994f, 1470f / 1485f, 924f / 994f);
         const float GameplayDragThreshold = 5f;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -102,6 +107,9 @@ namespace Hiking.Journey
             int width, int height, uint flags);
 
         [DllImport("user32.dll")]
+        static extern int GetSystemMetrics(int index);
+
+        [DllImport("user32.dll")]
         static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
 
         [DllImport("user32.dll", SetLastError = true)]
@@ -113,14 +121,8 @@ namespace Hiking.Journey
         [DllImport("gdi32.dll")]
         static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
 
-        [DllImport("gdi32.dll", SetLastError = true)]
-        static extern IntPtr ExtCreateRegion(IntPtr transform, uint dataSize, byte[] data);
-
         [DllImport("gdi32.dll")]
         static extern int CombineRgn(IntPtr destination, IntPtr source1, IntPtr source2, int mode);
-
-        [DllImport("gdi32.dll")]
-        static extern int OffsetRgn(IntPtr region, int x, int y);
 
         [DllImport("gdi32.dll")]
         static extern bool DeleteObject(IntPtr handle);
@@ -141,18 +143,15 @@ namespace Hiking.Journey
         bool draggingFloatingWidget;
         Vector2 lastPointer;
         bool windowConfigured;
+        bool hasStartupMonitor;
+        NativeRect startupMonitor;
+        int virtualDesktopLeft;
+        int virtualDesktopTop;
         bool regionErrorLogged;
         bool expandedRegionWhileDragging;
         float viewportScale = 1f;
         float lastFittedViewportScale;
         int lastRegionHash;
-        IntPtr frameRegionTemplate;
-        int frameRegionWidth;
-        int frameRegionHeight;
-        Sprite frameRegionSprite;
-        Sprite framePaintedBoundsSprite;
-        Rect framePaintedBounds = new Rect(0f, 0f, 1f, 1f);
-        Rect frameRegionViewport;
         SceneLayoutSettings sceneLayout;
         RectTransform titleBackgroundClip;
         RectTransform titleBackground;
@@ -192,7 +191,6 @@ namespace Hiking.Journey
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
             ActiveFrameRoot = null;
-            ClearFrameRegionTemplate();
         }
 
         void OnSceneLoaded(Scene scene, LoadSceneMode mode) => SetupScene();
@@ -200,8 +198,6 @@ namespace Hiking.Journey
         void SetupScene()
         {
             if (clearCamera != null) Destroy(clearCamera.gameObject);
-            ClearFrameRegionTemplate();
-            framePaintedBoundsSprite = null;
             ActiveFrameRoot = null;
             frameRoot = null;
             draggingFrame = false;
@@ -261,6 +257,8 @@ namespace Hiking.Journey
             var frame = frameRoot.Find("GameFrame");
             if (frame != null) frameImage = frame.GetComponent<Image>();
             FitFrameToScreen();
+            if (windowConfigured && hasStartupMonitor)
+                CenterStartupLayout();
             lastRegionHash = 0;
 
             var startPanel = frameRoot.Find("StartPanel") as RectTransform;
@@ -302,16 +300,25 @@ namespace Hiking.Journey
                 yield break;
             }
 
-            var monitor = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
-            var monitorInfo = new MonitorInfo { size = Marshal.SizeOf<MonitorInfo>() };
-            if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref monitorInfo))
+            // A single transparent backbuffer spans the virtual desktop. Unity's
+            // pointer coordinates can then follow the frame across monitor edges.
+            int desktopLeft = GetSystemMetrics(SmXVirtualScreen);
+            int desktopTop = GetSystemMetrics(SmYVirtualScreen);
+            int screenWidth = GetSystemMetrics(SmCxVirtualScreen);
+            int screenHeight = GetSystemMetrics(SmCyVirtualScreen);
+            if (screenWidth <= 0 || screenHeight <= 0)
             {
-                Debug.LogError($"Could not read the player monitor: {Marshal.GetLastWin32Error()}");
+                Debug.LogError("Could not read the virtual desktop bounds.");
                 yield break;
             }
-            int screenWidth = monitorInfo.monitor.right - monitorInfo.monitor.left;
-            int screenHeight = monitorInfo.monitor.bottom - monitorInfo.monitor.top;
-            // Remove the native frame before requesting a monitor-sized backbuffer,
+            var initialMonitor = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+            var initialMonitorInfo = new MonitorInfo { size = Marshal.SizeOf<MonitorInfo>() };
+            hasStartupMonitor = initialMonitor != IntPtr.Zero &&
+                GetMonitorInfo(initialMonitor, ref initialMonitorInfo);
+            if (hasStartupMonitor) startupMonitor = initialMonitorInfo.monitor;
+            virtualDesktopLeft = desktopLeft;
+            virtualDesktopTop = desktopTop;
+            // Remove the native frame before requesting a virtual-desktop backbuffer,
             // so Windows does not reserve room for a title bar around that size.
             int initialStyle = GetWindowLong(windowHandle, GwlStyle);
             SetWindowLong(windowHandle, GwlStyle, initialStyle & ~(WsCaption | WsThickFrame));
@@ -343,11 +350,11 @@ namespace Hiking.Journey
                 Debug.LogError($"Could not change the player window style: {Marshal.GetLastWin32Error()}");
                 yield break;
             }
-            if (!SetWindowPos(windowHandle, IntPtr.Zero, monitorInfo.monitor.left,
-                    monitorInfo.monitor.top, screenWidth, screenHeight,
+            if (!SetWindowPos(windowHandle, IntPtr.Zero, desktopLeft,
+                    desktopTop, screenWidth, screenHeight,
                     SwpNoZOrder | SwpNoActivate | SwpFrameChanged))
             {
-                Debug.LogError($"Could not size the screen-sized player window: {Marshal.GetLastWin32Error()}");
+                Debug.LogError($"Could not size the virtual-desktop player window: {Marshal.GetLastWin32Error()}");
                 yield break;
             }
 
@@ -356,7 +363,62 @@ namespace Hiking.Journey
             if (result != 0) Debug.LogError($"Could not extend DWM glass into the player window: 0x{result:X8}");
 
             windowConfigured = true;
+            FitFrameToScreen();
+            if (hasStartupMonitor) CenterStartupLayout();
             UpdateWindowRegion(true);
+        }
+
+        void CenterStartupLayout()
+        {
+            CenterFrameOnMonitor(startupMonitor, virtualDesktopLeft, virtualDesktopTop);
+            Rect monitorScreen = new Rect(
+                startupMonitor.left - virtualDesktopLeft,
+                Screen.height - (startupMonitor.bottom - virtualDesktopTop),
+                startupMonitor.right - startupMonitor.left,
+                startupMonitor.bottom - startupMonitor.top);
+            var hud = FindFirstObjectByType<TravelHudController>(FindObjectsInactive.Include);
+            if (hud != null) PlaceWidgetOnMonitor(hud.transform as RectTransform, monitorScreen);
+            var notebook = FindFirstObjectByType<SettingsNotebookController>(FindObjectsInactive.Include);
+            var notebookDrag = notebook != null ?
+                notebook.GetComponentInChildren<FixedWidgetDrag>(true) : null;
+            if (notebookDrag != null)
+                PlaceWidgetOnMonitor(notebookDrag.transform as RectTransform, monitorScreen);
+            foreach (var floating in FindObjectsByType<FloatingWidgetController>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+                PlaceWidgetOnMonitor(floating.transform as RectTransform, monitorScreen);
+        }
+
+        static void PlaceWidgetOnMonitor(RectTransform widget, Rect monitorScreen)
+        {
+            var parent = widget != null ? widget.parent as RectTransform : null;
+            if (parent == null) return;
+            Vector2 anchor = (widget.anchorMin + widget.anchorMax) * .5f;
+            Vector2 desktopPoint = new Vector2(Screen.width * anchor.x,
+                Screen.height * anchor.y);
+            Vector2 monitorPoint = new Vector2(
+                monitorScreen.xMin + monitorScreen.width * anchor.x,
+                monitorScreen.yMin + monitorScreen.height * anchor.y);
+            var canvas = widget.GetComponentInParent<Canvas>();
+            Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? canvas.worldCamera : null;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, desktopPoint, camera, out var from) ||
+                !RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, monitorPoint, camera, out var to)) return;
+            widget.anchoredPosition += to - from;
+        }
+
+        void CenterFrameOnMonitor(NativeRect monitor, int desktopLeft, int desktopTop)
+        {
+            var parent = frameRoot != null ? frameRoot.parent as RectTransform : null;
+            if (parent == null) return;
+            Canvas.ForceUpdateCanvases();
+            Vector2 screenCenter = new Vector2(
+                (monitor.left + monitor.right) * .5f - desktopLeft,
+                Screen.height - ((monitor.top + monitor.bottom) * .5f - desktopTop));
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, screenCenter, null, out var localCenter)) return;
+            frameRoot.anchoredPosition = ClampFrameToScreen(localCenter - parent.rect.center);
         }
 
         static IntPtr FindPlayerWindow()
@@ -516,14 +578,13 @@ namespace Hiking.Journey
 
         void ExpandRegionForDragging()
         {
-            if (expandedRegionWhileDragging) return;
-            if (!windowConfigured || windowHandle == IntPtr.Zero ||
+            if (expandedRegionWhileDragging || !windowConfigured || windowHandle == IntPtr.Zero ||
                 !GetWindowRect(windowHandle, out var bounds)) return;
             IntPtr region = CreateRectRgn(0, 0, bounds.right - bounds.left,
                 bounds.bottom - bounds.top);
             if (region == IntPtr.Zero) return;
-            // Keep the native region fixed while the frame moves. DWM uses the
-            // rendered alpha outside the frame, and mouse-up still reaches Unity.
+            // Keep one stable region while dragging; repeatedly reshaping the
+            // native window can leave stale pixels in the DWM composition.
             if (SetWindowRgn(windowHandle, region, true) == 0)
             {
                 DeleteObject(region);
@@ -568,16 +629,8 @@ namespace Hiking.Journey
             if (!ClientToScreen(windowHandle, ref clientOrigin)) return;
             int offsetX = clientOrigin.x - windowRect.left;
             int offsetY = clientOrigin.y - windowRect.top;
-            RectInt frameBounds = WindowBounds(frameImage.rectTransform, offsetX, offsetY);
-            Sprite sprite = frameImage.overrideSprite != null
-                ? frameImage.overrideSprite : frameImage.sprite;
-            if (frameRegionTemplate == IntPtr.Zero || frameRegionWidth != frameBounds.width ||
-                frameRegionHeight != frameBounds.height || frameRegionSprite != sprite ||
-                frameRegionViewport != FramedViewport)
-            {
-                BuildFrameRegionTemplate(frameBounds, sprite, offsetX, offsetY);
-                force = true;
-            }
+            RectInt frameBounds = PaintedFrameBounds(
+                WindowBounds(frameImage.rectTransform, offsetX, offsetY));
             int hash = frameBounds.GetHashCode();
             var canvas = frameRoot.parent;
             widgetGraphics.Clear();
@@ -605,20 +658,10 @@ namespace Hiking.Journey
                 foreach (var graphic in widgetScratch)
                     if (VisibleRegionGraphic(graphic)) widgetGraphics.Add(graphic);
             }
-            // Panels can extend past the camera opening and painted wood too.
-            // Include their rendered graphics, not just button backgrounds, so
-            // dialogs such as SignPlacementEditor are not cut by SetWindowRgn.
-            // The frame art already has a pixel-accurate region, while the title
-            // image is clipped to the opening and must not open its full bounds.
-            widgetScratch.Clear();
-            frameRoot.GetComponentsInChildren(false, widgetScratch);
-            foreach (var graphic in widgetScratch)
-            {
-                if (!VisibleRegionGraphic(graphic) || graphic == frameImage ||
-                    (titleBackgroundClip != null &&
-                     graphic.transform.IsChildOf(titleBackgroundClip))) continue;
-                widgetGraphics.Add(graphic);
-            }
+            // FrameRoot belongs to the painted GameFrame and camera opening.
+            // Its child graphics must not turn transparent artwork padding into
+            // a rectangular desktop hit area. Independent overlay widgets above
+            // are still included in their own regions.
             hash = unchecked(hash * 31 + widgetGraphics.Count);
             foreach (var graphic in widgetGraphics)
                 hash = unchecked(hash * 31 + WindowBounds(graphic.rectTransform,
@@ -627,14 +670,7 @@ namespace Hiking.Journey
 
             IntPtr region = CreateRectRgn(0, 0, 0, 0);
             if (region == IntPtr.Zero) return;
-            if (frameRegionTemplate != IntPtr.Zero)
-            {
-                if (CombineRgn(region, frameRegionTemplate, frameRegionTemplate, RegionCopy) != 0)
-                    OffsetRgn(region, frameBounds.xMin, frameBounds.yMin);
-                else AddRegionRect(region, frameBounds.xMin, frameBounds.yMin,
-                    frameBounds.xMax, frameBounds.yMax);
-            }
-            else AddRegionRect(region, frameBounds.xMin, frameBounds.yMin,
+            AddRegionRect(region, frameBounds.xMin, frameBounds.yMin,
                 frameBounds.xMax, frameBounds.yMax);
             foreach (var graphic in widgetGraphics)
             {
@@ -662,123 +698,13 @@ namespace Hiking.Journey
             graphic.enabled && graphic.gameObject.activeInHierarchy && graphic.color.a > .01f &&
             (!(graphic is Text label) || !string.IsNullOrWhiteSpace(label.text));
 
-        void BuildFrameRegionTemplate(RectInt imageBounds, Sprite sprite,
-            int offsetX, int offsetY)
+        static RectInt PaintedFrameBounds(RectInt imageBounds)
         {
-            ClearFrameRegionTemplate();
-            frameRegionWidth = imageBounds.width;
-            frameRegionHeight = imageBounds.height;
-            frameRegionSprite = sprite;
-            frameRegionViewport = FramedViewport;
-            int width = imageBounds.width;
-            int height = imageBounds.height;
-            if (width <= 0 || height <= 0) return;
-            var covered = new bool[width * height];
-            if (sprite != null && sprite.texture.isReadable)
-            {
-                Rect source = sprite.textureRect;
-                Texture2D texture = sprite.texture;
-                Color32[] pixels = texture.GetPixels32();
-                int[] textureX = new int[width];
-                int sourceLeft = Mathf.Max(0, Mathf.FloorToInt(source.x));
-                int sourceRight = Mathf.Min(texture.width - 1, Mathf.CeilToInt(source.xMax) - 1);
-                int sourceBottom = Mathf.Max(0, Mathf.FloorToInt(source.y));
-                int sourceTop = Mathf.Min(texture.height - 1, Mathf.CeilToInt(source.yMax) - 1);
-                for (int x = 0; x < width; x++)
-                    textureX[x] = Mathf.Clamp(Mathf.FloorToInt(source.x +
-                        (x + .5f) / width * source.width), 0, texture.width - 1);
-                for (int y = 0; y < height; y++)
-                {
-                    int textureY = Mathf.Clamp(Mathf.FloorToInt(source.y +
-                        (1f - (y + .5f) / height) * source.height), 0, texture.height - 1);
-                    for (int x = 0; x < width; x++)
-                    {
-                        // Include nearby source texels: a thin leaf can be
-                        // visible after GPU filtering even when its nearest
-                        // texel misses this output pixel.
-                        bool painted = false;
-                        for (int sy = Mathf.Max(sourceBottom, textureY - 1);
-                             sy <= Mathf.Min(sourceTop, textureY + 1) && !painted; sy++)
-                            for (int sx = Mathf.Max(sourceLeft, textureX[x] - 1);
-                                 sx <= Mathf.Min(sourceRight, textureX[x] + 1); sx++)
-                                if (pixels[sy * texture.width + sx].a >= FrameRegionAlphaThreshold)
-                                {
-                                    painted = true;
-                                    break;
-                                }
-                        if (!painted) continue;
-                        for (int yy = Mathf.Max(0, y - FrameArtRegionPadding);
-                             yy <= Mathf.Min(height - 1, y + FrameArtRegionPadding); yy++)
-                            for (int xx = Mathf.Max(0, x - FrameArtRegionPadding);
-                                 xx <= Mathf.Min(width - 1, x + FrameArtRegionPadding); xx++)
-                                covered[yy * width + xx] = true;
-                    }
-                }
-            }
-            else
-            {
-                for (int i = 0; i < covered.Length; i++) covered[i] = true;
-            }
-
-            // Union the transparent opening with the art in the same pixel mask.
-            RectInt rootBounds = WindowBounds(frameRoot, offsetX, offsetY);
-            Rect viewport = FramedViewport;
-            int left = Mathf.Clamp(rootBounds.xMin + Mathf.RoundToInt(rootBounds.width * viewport.xMin)
-                - imageBounds.xMin, 0, width);
-            int top = Mathf.Clamp(rootBounds.yMax - Mathf.RoundToInt(rootBounds.height * viewport.yMax)
-                - imageBounds.yMin, 0, height);
-            int right = Mathf.Clamp(rootBounds.xMin + Mathf.RoundToInt(rootBounds.width * viewport.xMax)
-                - imageBounds.xMin, 0, width);
-            int bottom = Mathf.Clamp(rootBounds.yMax - Mathf.RoundToInt(rootBounds.height * viewport.yMin)
-                - imageBounds.yMin, 0, height);
-            for (int y = top; y < bottom; y++)
-                for (int x = left; x < right; x++) covered[y * width + x] = true;
-
-            // ExtCreateRegion accepts sorted, non-overlapping scanline runs.
-            // This avoids thousands of incremental CombineRgn calls and keeps
-            // the wooden silhouette intact before and after a click.
-            var rectangles = new List<NativeRect>();
-            for (int y = 0; y < height; y++)
-            {
-                int x = 0;
-                while (x < width)
-                {
-                    while (x < width && !covered[y * width + x]) x++;
-                    int runStart = x;
-                    while (x < width && covered[y * width + x]) x++;
-                    if (x > runStart) rectangles.Add(new NativeRect
-                    {
-                        left = runStart, top = y, right = x, bottom = y + 1
-                    });
-                }
-            }
-            byte[] data = new byte[32 + rectangles.Count * 16];
-            using (var writer = new BinaryWriter(new MemoryStream(data)))
-            {
-                writer.Write((uint)32);
-                writer.Write((uint)1); // RDH_RECTANGLES
-                writer.Write((uint)rectangles.Count);
-                writer.Write((uint)(rectangles.Count * 16));
-                writer.Write(0); writer.Write(0); writer.Write(width); writer.Write(height);
-                foreach (NativeRect rectangle in rectangles)
-                {
-                    writer.Write(rectangle.left); writer.Write(rectangle.top);
-                    writer.Write(rectangle.right); writer.Write(rectangle.bottom);
-                }
-            }
-            frameRegionTemplate = ExtCreateRegion(IntPtr.Zero, (uint)data.Length, data);
-            if (frameRegionTemplate == IntPtr.Zero)
-            {
-                Debug.LogError($"Could not build the wooden frame region: {Marshal.GetLastWin32Error()}");
-                frameRegionTemplate = CreateRectRgn(0, 0, width, height);
-            }
-        }
-
-        void ClearFrameRegionTemplate()
-        {
-            if (frameRegionTemplate != IntPtr.Zero) DeleteObject(frameRegionTemplate);
-            frameRegionTemplate = IntPtr.Zero;
-            frameRegionSprite = null;
+            int left = imageBounds.xMin + Mathf.FloorToInt(imageBounds.width * FramePaintedBounds.xMin);
+            int right = imageBounds.xMin + Mathf.CeilToInt(imageBounds.width * FramePaintedBounds.xMax);
+            int top = imageBounds.yMin + Mathf.FloorToInt(imageBounds.height * (1f - FramePaintedBounds.yMax));
+            int bottom = imageBounds.yMin + Mathf.CeilToInt(imageBounds.height * (1f - FramePaintedBounds.yMin));
+            return new RectInt(left, top, right - left, bottom - top);
         }
 
         static void AddRegionRect(IntPtr region, int left, int top, int right, int bottom)
@@ -811,18 +737,10 @@ namespace Hiking.Journey
             Rect rect = frame.rect;
             float u = Mathf.InverseLerp(rect.xMin, rect.xMax, local.x);
             float v = Mathf.InverseLerp(rect.yMin, rect.yMax, local.y);
-            if (!rect.Contains(local) || (u > .13f && u < .87f && v > .2f && v < .8f))
+            if (!rect.Contains(local))
                 return false;
 
-            Sprite sprite = frameImage.overrideSprite != null ? frameImage.overrideSprite : frameImage.sprite;
-            if (sprite == null) return false;
-            // A future replacement texture may not have Read/Write enabled yet.
-            // The frame-band check still lets the user move the widget in that case.
-            if (!sprite.texture.isReadable) return true;
-            Rect source = sprite.textureRect;
-            float textureU = (source.x + u * source.width) / sprite.texture.width;
-            float textureV = (source.y + v * source.height) / sprite.texture.height;
-            return sprite.texture.GetPixelBilinear(textureU, textureV).a >= .2f;
+            return FramePaintedBounds.Contains(new Vector2(u, v));
         }
 
         bool IsOnGameplayViewport(Vector2 pointer)
@@ -839,7 +757,6 @@ namespace Hiking.Journey
         Vector2 ClampFrameToScreen(Vector2 position)
         {
             if (frameRoot == null || frameImage == null) return position;
-            UpdateFramePaintedBounds();
 
             // Probe the proposed position, then restore it before returning.
             // The image rect contains generous transparent padding, so clamp its
@@ -853,11 +770,11 @@ namespace Hiking.Journey
 
             float width = upperRight.x - lowerLeft.x;
             float height = upperRight.y - lowerLeft.y;
-            float left = lowerLeft.x + width * framePaintedBounds.xMin;
-            float right = lowerLeft.x + width * framePaintedBounds.xMax;
-            float bottom = lowerLeft.y + height * framePaintedBounds.yMin;
-            float top = lowerLeft.y + height * framePaintedBounds.yMax;
-            float padding = FrameArtRegionPadding;
+            float left = lowerLeft.x + width * FramePaintedBounds.xMin;
+            float right = lowerLeft.x + width * FramePaintedBounds.xMax;
+            float bottom = lowerLeft.y + height * FramePaintedBounds.yMin;
+            float top = lowerLeft.y + height * FramePaintedBounds.yMax;
+            float padding = 0f;
             float correctionX = left < padding ? padding - left :
                 right > Screen.width - padding ? Screen.width - padding - right : 0f;
             float correctionY = bottom < padding ? padding - bottom :
@@ -873,41 +790,6 @@ namespace Hiking.Journey
                     new Vector2(correctionX, correctionY), null, out var corrected))
                 return position;
             return position + corrected - origin;
-        }
-
-        void UpdateFramePaintedBounds()
-        {
-            Sprite sprite = frameImage.overrideSprite != null
-                ? frameImage.overrideSprite : frameImage.sprite;
-            if (sprite == framePaintedBoundsSprite) return;
-            framePaintedBoundsSprite = sprite;
-            framePaintedBounds = new Rect(0f, 0f, 1f, 1f);
-            if (sprite == null || !sprite.texture.isReadable) return;
-
-            Texture2D texture = sprite.texture;
-            Rect source = sprite.textureRect;
-            Color32[] pixels = texture.GetPixels32();
-            int sourceLeft = Mathf.Max(0, Mathf.FloorToInt(source.x));
-            int sourceRight = Mathf.Min(texture.width - 1, Mathf.CeilToInt(source.xMax) - 1);
-            int sourceBottom = Mathf.Max(0, Mathf.FloorToInt(source.y));
-            int sourceTop = Mathf.Min(texture.height - 1, Mathf.CeilToInt(source.yMax) - 1);
-            int minX = sourceRight + 1, minY = sourceTop + 1;
-            int maxX = sourceLeft - 1, maxY = sourceBottom - 1;
-            for (int y = sourceBottom; y <= sourceTop; y++)
-                for (int x = sourceLeft; x <= sourceRight; x++)
-                    if (pixels[y * texture.width + x].a >= FrameRegionAlphaThreshold)
-                    {
-                        minX = Mathf.Min(minX, x);
-                        maxX = Mathf.Max(maxX, x);
-                        minY = Mathf.Min(minY, y);
-                        maxY = Mathf.Max(maxY, y);
-                    }
-            if (maxX < minX || maxY < minY) return;
-            framePaintedBounds = Rect.MinMaxRect(
-                (minX - source.x) / source.width,
-                (minY - source.y) / source.height,
-                (maxX + 1f - source.x) / source.width,
-                (maxY + 1f - source.y) / source.height);
         }
 
         bool IsOnInteractiveUI(Vector2 pointer)

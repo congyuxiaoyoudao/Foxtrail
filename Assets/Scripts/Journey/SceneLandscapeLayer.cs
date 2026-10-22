@@ -85,6 +85,8 @@ namespace Hiking.Journey
             }
             var sprite = layerIndex < 0 ? fallbackSprite : image != null ? image.sprite : null;
             if (sprite == null) return;
+            float overlap = station.TileWidth * .05f;
+            float drawWidth = station.length + overlap * 2f;
             float widthScale = station.length / Mathf.Max(.001f, sprite.bounds.size.x);
             var layout = settings.sceneLayout;
             float baseY = settings.sceneLayout != null ? settings.sceneLayout.landscapeBaseY : 0f;
@@ -102,6 +104,16 @@ namespace Hiking.Journey
                 return;
             }
             image.sortingOrder = baseSortingOrder + sortingOffset;
+            if (image.sharedMaterial != null && image.sharedMaterial.HasProperty("_LeftBlend"))
+            {
+                image.sharedMaterial.SetFloat("_LeftBlend",
+                    !transitionActive && station.startDistance > 0f ?
+                    (overlap * 2f) / drawWidth : 0f);
+                image.sharedMaterial.SetFloat("_EdgeUv", overlap / drawWidth);
+                image.sharedMaterial.SetFloat("_TextureInset",
+                    image.sprite != null && image.sprite.texture != null ?
+                    .5f / image.sprite.texture.width : 0f);
+            }
             var color = image.color;
             color.a = transitionAlpha;
             image.color = color;
@@ -111,7 +123,8 @@ namespace Hiking.Journey
                 settings.ringThickness * .5f + baseY + height * .5f +
                     (layout != null ? layout.LandscapeY(layerIndex) : 0f),
                 Mathf.Max(0, settings.landscapeDepth) - layerIndex * .015f));
-            transform.localScale = new Vector3(widthScale, widthScale * heightScale, 1);
+            transform.localScale = new Vector3(drawWidth / Mathf.Max(.001f, sprite.bounds.size.x),
+                widthScale * heightScale, 1);
         }
 
         void LateUpdate() => RefreshPosition();

@@ -115,6 +115,15 @@ namespace Hiking.Journey
             }
             catch { UnityEngine.Object.Destroy(root); throw; }
         }
+        static Material CreateSeamMaterial(SpriteRenderer renderer, Station station)
+        {
+            var shader = Resources.Load<Shader>("StationEdgeBlend");
+            if (shader == null) return null;
+            var material = new Material(shader) { name = "StationEdgeBlend_" + station.stationId };
+            renderer.sharedMaterial = material;
+            return material;
+        }
+
         static void AddThemeLayers(JourneyMap map, Station station, RingMapSettings settings,
             SceneThemeLayers layers)
         {
@@ -127,11 +136,12 @@ namespace Hiking.Journey
                     new Vector3(station.startDistance + station.length * .5f, 0, 0));
                 var renderer = anchor.gameObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = sprite;
-                renderer.sortingOrder = -1200 + index * 10;
+                renderer.sortingOrder = -1200 + index * 10 + Mathf.RoundToInt(station.startDistance / station.length);
+                var material = CreateSeamMaterial(renderer, station);
                 var layer = anchor.gameObject.AddComponent<SceneLandscapeLayer>();
                 layer.Configure(map, settings, station, renderer, index);
                 station.RegisterThemeLayer(layer);
-                map.RegisterLandscape(renderer);
+                map.RegisterLandscape(renderer, material);
             }
         }
         static void AddThemeFills(JourneyMap map, Station station, RingMapSettings settings)
@@ -144,11 +154,13 @@ namespace Hiking.Journey
                         Mathf.Max(0, settings.landscapeDepth) + .1f));
                 var renderer = anchor.gameObject.AddComponent<SpriteRenderer>();
                 renderer.sprite = settings.fallbackPlantSprite;
-                renderer.sortingOrder = ground ? -1290 : -1300;
+                renderer.sortingOrder = (ground ? -1290 : -1300) +
+                    Mathf.RoundToInt(station.startDistance / station.length);
+                var material = CreateSeamMaterial(renderer, station);
                 var fill = anchor.gameObject.AddComponent<SceneThemeFill>();
                 fill.Configure(map, settings, station, renderer, ground);
                 station.RegisterThemeFill(fill);
-                map.RegisterLandscape(renderer);
+                map.RegisterLandscape(renderer, material);
             }
         }
         static Transform Anchor(JourneyMap map, Transform parent, string name, Vector3 route)

@@ -26,6 +26,11 @@ namespace Hiking.Journey
 
         float journeyCenter;
         float framedAspect = SceneLayoutSettings.GameplayAspect;
+        CameraClearFlags originalClearFlags;
+        Color originalBackgroundColor;
+        SpriteRenderer panoramaBackdrop;
+        Sprite panoramaBackdropSprite;
+        Texture2D panoramaBackdropTexture;
         bool blendingStationLandscapes;
         float landscapeBlend;
         float scrollCenter;
@@ -49,7 +54,9 @@ namespace Hiking.Journey
             if (flow.Map == null) return;
             ResetCamera();
             scrollCenter = ScrollMinimum;
+            UpdatePanoramaBackdrop();
             FrameScroll();
+            SizePanoramaBackdrop();
         }
         public void PanScroll(float distance)
         {
@@ -109,8 +116,54 @@ namespace Hiking.Journey
         public void Initialize(GameFlowController owner)
         {
             flow = owner; WorldCamera.orthographic = true;
+            originalClearFlags = WorldCamera.clearFlags;
+            originalBackgroundColor = WorldCamera.backgroundColor;
             authoredFrameRoot = owner.UI != null
                 ? owner.UI.transform.Find("FrameRoot") as RectTransform : null;
+        }
+        void UpdatePanoramaBackdrop()
+        {
+            if (flow.IsBrowsingPanorama)
+            {
+                WorldCamera.clearFlags = CameraClearFlags.SolidColor;
+                WorldCamera.backgroundColor = Color.black;
+                if (panoramaBackdrop == null) CreatePanoramaBackdrop();
+                panoramaBackdrop.enabled = true;
+            }
+            else
+            {
+                WorldCamera.clearFlags = originalClearFlags;
+                WorldCamera.backgroundColor = originalBackgroundColor;
+                if (panoramaBackdrop != null) panoramaBackdrop.enabled = false;
+            }
+        }
+        void CreatePanoramaBackdrop()
+        {
+            panoramaBackdropTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            panoramaBackdropTexture.SetPixels(new[] { Color.white, Color.white, Color.white, Color.white });
+            panoramaBackdropTexture.Apply();
+            panoramaBackdropSprite = Sprite.Create(panoramaBackdropTexture,
+                new Rect(0, 0, 2, 2), new Vector2(.5f, .5f), 2f);
+            var backdrop = new GameObject("Opaque Panorama Backdrop");
+            backdrop.transform.SetParent(WorldCamera.transform, false);
+            panoramaBackdrop = backdrop.AddComponent<SpriteRenderer>();
+            panoramaBackdrop.sprite = panoramaBackdropSprite;
+            panoramaBackdrop.color = Color.black;
+            panoramaBackdrop.sortingOrder = -32000;
+        }
+        void SizePanoramaBackdrop()
+        {
+            if (panoramaBackdrop == null || !panoramaBackdrop.enabled) return;
+            var backdrop = panoramaBackdrop.transform;
+            backdrop.localPosition = new Vector3(0f, 0f, WorldCamera.farClipPlane - 1f);
+            float height = WorldCamera.orthographicSize * 2.04f;
+            backdrop.localScale = new Vector3(height * WorldCamera.aspect, height, 1f);
+        }
+        void OnDestroy()
+        {
+            if (panoramaBackdrop != null) Destroy(panoramaBackdrop.gameObject);
+            if (panoramaBackdropSprite != null) Destroy(panoramaBackdropSprite);
+            if (panoramaBackdropTexture != null) Destroy(panoramaBackdropTexture);
         }
         public void ResetCamera()
         {
@@ -126,8 +179,10 @@ namespace Hiking.Journey
         void LateUpdate()
         {
             if (flow == null || flow.Map == null) return;
+            UpdatePanoramaBackdrop();
             if (flow.IsBrowsingPanorama) FrameScroll();
             else FrameJourney();
+            SizePanoramaBackdrop();
             if (flow.Traveler.gameObject.activeSelf) flow.Traveler.FaceCamera(WorldCamera);
             flow.Map.FrameLandscapes(WorldCamera,
                 !flow.IsBrowsingPanorama && blendingStationLandscapes ?
